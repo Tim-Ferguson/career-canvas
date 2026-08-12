@@ -1,4 +1,4 @@
-import { DEFAULT_RESUME, MAX_DOCUMENT_BYTES, cloneResume, moveSection, validateResume } from "./model.js";
+import { DEFAULT_RESUME, MAX_DOCUMENT_BYTES, cloneResume, moveSection, utf8ByteLength, validateResume } from "./model.js";
 const STORAGE_KEY = "resume-studio.template.v1";
 function requiredElement(selector) {
     const node = document.querySelector(selector);
@@ -13,10 +13,11 @@ const sectionList = requiredElement("#section-list");
 const status = requiredElement("#status");
 let resume = loadSaved() ?? cloneResume(DEFAULT_RESUME);
 let draggedSection = null;
+let editorValid = true;
 function loadSaved() {
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
-        return raw ? validateResume(JSON.parse(raw)) : null;
+        return raw && utf8ByteLength(raw) <= MAX_DOCUMENT_BYTES ? validateResume(JSON.parse(raw)) : null;
     }
     catch {
         return null;
@@ -77,12 +78,21 @@ function syncLayoutControl() {
     if (layout)
         layout.value = resume.layout;
 }
-function updateJson() { editor.value = `${JSON.stringify(resume, null, 2)}\n`; errorBox.hidden = true; }
+function setEditorValidity(valid) {
+    editorValid = valid;
+    editor.setAttribute("aria-invalid", String(!valid));
+    for (const selector of ["#layout", "#save", "#copy", "#download", "#print"]) {
+        const control = document.querySelector(selector);
+        if (control)
+            control.disabled = !valid;
+    }
+}
+function updateJson() { editor.value = `${JSON.stringify(resume, null, 2)}\n`; errorBox.hidden = true; setEditorValidity(true); }
 function renderSections() {
     sectionList.replaceChildren();
     resume.sections.forEach((section, index) => {
         const item = element("li", "section-chip");
-        item.draggable = true;
+        item.draggable = editorValid;
         item.dataset.id = section.id;
         const grip = element("span", "grip");
         grip.textContent = "⠿";
@@ -94,12 +104,15 @@ function renderSections() {
             const button = element("button");
             button.type = "button";
             button.textContent = symbol;
-            button.disabled = direction < 0 ? index === 0 : index === resume.sections.length - 1;
+            button.disabled = !editorValid || (direction < 0 ? index === 0 : index === resume.sections.length - 1);
             button.setAttribute("aria-label", `Move ${section.title} ${direction < 0 ? "up" : "down"}`);
             button.addEventListener("click", () => { resume = moveSection(resume, section.id, index + direction); syncAll(`Moved ${section.title}.`); });
             controls.append(button);
         }
-        item.addEventListener("dragstart", () => { draggedSection = section.id; item.classList.add("dragging"); });
+        item.addEventListener("dragstart", (event) => { if (!editorValid) {
+            event.preventDefault();
+            return;
+        } draggedSection = section.id; item.classList.add("dragging"); });
         item.addEventListener("dragend", () => { draggedSection = null; item.classList.remove("dragging"); });
         item.addEventListener("dragover", (event) => event.preventDefault());
         item.addEventListener("drop", (event) => { event.preventDefault(); if (!draggedSection)
@@ -112,21 +125,31 @@ function syncAll(message) { updateJson(); renderPreview(); renderSections(); syn
     announce(message); }
 editor.addEventListener("input", () => {
     try {
-        if (editor.value.length > MAX_DOCUMENT_BYTES)
+        if (utf8ByteLength(editor.value) > MAX_DOCUMENT_BYTES)
             throw new Error("Resume JSON is larger than the 2 MB limit");
         resume = validateResume(JSON.parse(editor.value));
         errorBox.hidden = true;
+        setEditorValidity(true);
         renderPreview();
         renderSections();
         syncLayoutControl();
         announce("Preview updated from JSON.");
     }
     catch (error) {
+        setEditorValidity(false);
+        renderSections();
         errorBox.hidden = false;
         errorBox.textContent = error instanceof Error ? error.message : "JSON is invalid";
+        announce("Fix the JSON to re-enable layout, ordering, and export controls.");
     }
 });
-document.querySelector("#layout")?.addEventListener("change", (event) => { resume = { ...resume, layout: event.currentTarget.value }; syncAll("Layout changed."); });
+document.querySelector("#layout")?.addEventListener("change", (event) => {
+    const layout = event.currentTarget.value;
+    if (!["classic", "editorial", "compact"].includes(layout))
+        return;
+    resume = { ...resume, layout: layout };
+    syncAll("Layout changed.");
+});
 document.querySelector("#save")?.addEventListener("click", () => { try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(resume));
     announce("Template saved on this device.");
