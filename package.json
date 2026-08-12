@@ -1,0 +1,14 @@
+{
+  "name": "resume-json-template",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "python3 -m http.server 4173",
+    "test": "npm run build && node --test tests/model.test.js"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
+  }
+}
