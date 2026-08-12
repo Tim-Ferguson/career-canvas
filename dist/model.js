@@ -1,3 +1,8 @@
+export const MAX_DOCUMENT_BYTES = 2_000_000;
+const MAX_TEXT_LENGTH = 20_000;
+const MAX_SECTIONS = 32;
+const MAX_ENTRIES_PER_SECTION = 200;
+const MAX_HIGHLIGHTS_PER_ENTRY = 100;
 export const DEFAULT_RESUME = {
     schemaVersion: 1,
     layout: "editorial",
@@ -84,6 +89,8 @@ function isRecord(value) {
 function requiredString(value, path) {
     if (typeof value !== "string" || !value.trim())
         throw new Error(`${path} must be a non-empty string`);
+    if (value.length > MAX_TEXT_LENGTH)
+        throw new Error(`${path} is too long`);
     return value;
 }
 function optionalString(value, path) {
@@ -91,13 +98,15 @@ function optionalString(value, path) {
         return undefined;
     if (typeof value !== "string")
         throw new Error(`${path} must be a string when present`);
+    if (value.length > MAX_TEXT_LENGTH)
+        throw new Error(`${path} is too long`);
     return value;
 }
 function validateEntry(value, path) {
     if (!isRecord(value))
         throw new Error(`${path} must be an object`);
-    if (!Array.isArray(value.highlights) || !value.highlights.every((item) => typeof item === "string"))
-        throw new Error(`${path}.highlights must be an array of strings`);
+    if (!Array.isArray(value.highlights) || value.highlights.length > MAX_HIGHLIGHTS_PER_ENTRY || !value.highlights.every((item) => typeof item === "string" && item.length <= MAX_TEXT_LENGTH))
+        throw new Error(`${path}.highlights must be a bounded array of strings`);
     const entry = {
         id: requiredString(value.id, `${path}.id`),
         heading: requiredString(value.heading, `${path}.heading`),
@@ -134,15 +143,15 @@ export function validateResume(value) {
         if (parsed !== undefined)
             profile[field] = parsed;
     }
-    if (!Array.isArray(value.sections))
-        throw new Error("sections must be an array");
+    if (!Array.isArray(value.sections) || value.sections.length > MAX_SECTIONS)
+        throw new Error("sections must be a bounded array");
     const sections = value.sections.map((section, sectionIndex) => {
         if (!isRecord(section))
             throw new Error(`sections[${sectionIndex}] must be an object`);
         if (!["experience", "education", "skills", "projects", "custom"].includes(section.kind))
             throw new Error(`sections[${sectionIndex}].kind is invalid`);
-        if (!Array.isArray(section.entries))
-            throw new Error(`sections[${sectionIndex}].entries must be an array`);
+        if (!Array.isArray(section.entries) || section.entries.length > MAX_ENTRIES_PER_SECTION)
+            throw new Error(`sections[${sectionIndex}].entries must be a bounded array`);
         return {
             id: requiredString(section.id, `sections[${sectionIndex}].id`),
             title: requiredString(section.title, `sections[${sectionIndex}].title`),
@@ -153,6 +162,9 @@ export function validateResume(value) {
     const sectionIds = sections.map((section) => section.id);
     if (new Set(sectionIds).size !== sectionIds.length)
         throw new Error("section IDs must be unique");
+    const entryIds = sections.flatMap((section) => section.entries.map((entry) => entry.id));
+    if (new Set(entryIds).size !== entryIds.length)
+        throw new Error("entry IDs must be unique");
     return { schemaVersion: 1, layout: value.layout, profile, sections };
 }
 export function moveSection(resume, sectionId, targetIndex) {

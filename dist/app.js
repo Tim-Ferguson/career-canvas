@@ -1,4 +1,4 @@
-import { DEFAULT_RESUME, cloneResume, moveSection, validateResume } from "./model.js";
+import { DEFAULT_RESUME, MAX_DOCUMENT_BYTES, cloneResume, moveSection, validateResume } from "./model.js";
 const STORAGE_KEY = "resume-studio.template.v1";
 function requiredElement(selector) {
     const node = document.querySelector(selector);
@@ -112,6 +112,8 @@ function syncAll(message) { updateJson(); renderPreview(); renderSections(); syn
     announce(message); }
 editor.addEventListener("input", () => {
     try {
+        if (editor.value.length > MAX_DOCUMENT_BYTES)
+            throw new Error("Resume JSON is larger than the 2 MB limit");
         resume = validateResume(JSON.parse(editor.value));
         errorBox.hidden = true;
         renderPreview();
@@ -147,6 +149,8 @@ document.querySelector("#download")?.addEventListener("click", () => { const blo
 document.querySelector("#print")?.addEventListener("click", () => window.print());
 document.querySelector("#import")?.addEventListener("change", async (event) => { const input = event.currentTarget; const file = input.files?.[0]; if (!file)
     return; try {
+    if (file.size > MAX_DOCUMENT_BYTES)
+        throw new Error("file is larger than the 2 MB limit");
     resume = validateResume(JSON.parse(await file.text()));
     syncAll(`Imported ${file.name}.`);
 }

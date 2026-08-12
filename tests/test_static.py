@@ -13,6 +13,8 @@ class ResumeStudioStaticTests(unittest.TestCase):
         model=(ROOT/"src"/"model.ts").read_text(encoding="utf-8")
         for name in ["ResumeDocument","ResumeProfile","ResumeSection","ResumeEntry","validateResume"]:
             self.assertIn(name,model)
+        self.assertIn("MAX_DOCUMENT_BYTES",model)
+        self.assertIn("entry IDs must be unique",model)
 
     def test_requested_editor_export_and_layout_surfaces(self):
         html=(ROOT/"index.html").read_text(encoding="utf-8")
