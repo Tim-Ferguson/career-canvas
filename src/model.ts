@@ -6,6 +6,7 @@ const MAX_TEXT_LENGTH = 20_000;
 const MAX_SECTIONS = 32;
 const MAX_ENTRIES_PER_SECTION = 200;
 const MAX_HIGHLIGHTS_PER_ENTRY = 100;
+const MAX_ID_LENGTH = 128;
 
 export interface ResumeEntry {
   id: string;
@@ -125,6 +126,27 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+export function utf8ByteLength(value: string): number {
+  return new TextEncoder().encode(value).byteLength;
+}
+
+function assertDocumentSize(value: unknown): void {
+  let serialized: string;
+  try {
+    const result = JSON.stringify(value);
+    if (result === undefined) throw new Error();
+    serialized = result;
+  } catch {
+    throw new Error("resume must be JSON-serializable");
+  }
+  if (utf8ByteLength(serialized) > MAX_DOCUMENT_BYTES) throw new Error("resume is larger than the 2 MB limit");
+}
+
+function assertOnlyKeys(value: Record<string, unknown>, allowed: readonly string[], path: string): void {
+  const unexpected = Object.keys(value).filter((key) => !allowed.includes(key));
+  if (unexpected.length) throw new Error(`${path} has unsupported ${unexpected.length === 1 ? "field" : "fields"}: ${unexpected.join(", ")}`);
+}
+
 function requiredString(value: unknown, path: string): string {
   if (typeof value !== "string" || !value.trim()) throw new Error(`${path} must be a non-empty string`);
   if (value.length > MAX_TEXT_LENGTH) throw new Error(`${path} is too long`);
@@ -138,11 +160,18 @@ function optionalString(value: unknown, path: string): string | undefined {
   return value;
 }
 
+function requiredId(value: unknown, path: string): string {
+  const id = requiredString(value, path);
+  if (id.length > MAX_ID_LENGTH || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(id)) throw new Error(`${path} must be a portable identifier`);
+  return id;
+}
+
 function validateEntry(value: unknown, path: string): ResumeEntry {
   if (!isRecord(value)) throw new Error(`${path} must be an object`);
-  if (!Array.isArray(value.highlights) || value.highlights.length > MAX_HIGHLIGHTS_PER_ENTRY || !value.highlights.every((item) => typeof item === "string" && item.length <= MAX_TEXT_LENGTH)) throw new Error(`${path}.highlights must be a bounded array of strings`);
+  assertOnlyKeys(value, ["id", "heading", "subheading", "period", "location", "highlights"], path);
+  if (!Array.isArray(value.highlights) || value.highlights.length > MAX_HIGHLIGHTS_PER_ENTRY || !value.highlights.every((item) => typeof item === "string" && Boolean(item.trim()) && item.length <= MAX_TEXT_LENGTH)) throw new Error(`${path}.highlights must be a bounded array of non-empty strings`);
   const entry: ResumeEntry = {
-    id: requiredString(value.id, `${path}.id`),
+    id: requiredId(value.id, `${path}.id`),
     heading: requiredString(value.heading, `${path}.heading`),
     highlights: [...value.highlights]
   };
@@ -157,9 +186,12 @@ function validateEntry(value: unknown, path: string): ResumeEntry {
 
 export function validateResume(value: unknown): ResumeDocument {
   if (!isRecord(value)) throw new Error("resume must be an object");
+  assertDocumentSize(value);
+  assertOnlyKeys(value, ["schemaVersion", "layout", "profile", "sections"], "resume");
   if (value.schemaVersion !== 1) throw new Error("schemaVersion must be 1");
   if (!(["classic", "editorial", "compact"] as unknown[]).includes(value.layout)) throw new Error("layout must be classic, editorial, or compact");
   if (!isRecord(value.profile)) throw new Error("profile must be an object");
+  assertOnlyKeys(value.profile, ["name", "headline", "email", "phone", "location", "website", "summary"], "profile");
   const profile: ResumeProfile = {
     name: requiredString(value.profile.name, "profile.name"),
     headline: requiredString(value.profile.headline, "profile.headline"),
@@ -173,10 +205,11 @@ export function validateResume(value: unknown): ResumeDocument {
   if (!Array.isArray(value.sections) || value.sections.length > MAX_SECTIONS) throw new Error("sections must be a bounded array");
   const sections = value.sections.map((section, sectionIndex): ResumeSection => {
     if (!isRecord(section)) throw new Error(`sections[${sectionIndex}] must be an object`);
+    assertOnlyKeys(section, ["id", "title", "kind", "entries"], `sections[${sectionIndex}]`);
     if (!(["experience", "education", "skills", "projects", "custom"] as unknown[]).includes(section.kind)) throw new Error(`sections[${sectionIndex}].kind is invalid`);
     if (!Array.isArray(section.entries) || section.entries.length > MAX_ENTRIES_PER_SECTION) throw new Error(`sections[${sectionIndex}].entries must be a bounded array`);
     return {
-      id: requiredString(section.id, `sections[${sectionIndex}].id`),
+      id: requiredId(section.id, `sections[${sectionIndex}].id`),
       title: requiredString(section.title, `sections[${sectionIndex}].title`),
       kind: section.kind as SectionKind,
       entries: section.entries.map((entry, entryIndex) => validateEntry(entry, `sections[${sectionIndex}].entries[${entryIndex}]`))

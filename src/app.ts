@@ -1,4 +1,4 @@
-import { DEFAULT_RESUME, MAX_DOCUMENT_BYTES, cloneResume, moveSection, validateResume, type Layout, type ResumeDocument, type ResumeEntry, type ResumeSection } from "./model.js";
+import { DEFAULT_RESUME, MAX_DOCUMENT_BYTES, cloneResume, moveSection, utf8ByteLength, validateResume, type Layout, type ResumeDocument, type ResumeEntry, type ResumeSection } from "./model.js";
 
 const STORAGE_KEY = "resume-studio.template.v1";
 function requiredElement<T extends Element>(selector: string): T {
@@ -14,9 +14,10 @@ const status = requiredElement<HTMLElement>("#status");
 
 let resume: ResumeDocument = loadSaved() ?? cloneResume(DEFAULT_RESUME);
 let draggedSection: string | null = null;
+let editorValid = true;
 
 function loadSaved(): ResumeDocument | null {
-  try { const raw = localStorage.getItem(STORAGE_KEY); return raw ? validateResume(JSON.parse(raw) as unknown) : null; } catch { return null; }
+  try { const raw = localStorage.getItem(STORAGE_KEY); return raw && utf8ByteLength(raw) <= MAX_DOCUMENT_BYTES ? validateResume(JSON.parse(raw) as unknown) : null; } catch { return null; }
 }
 
 function announce(message: string): void { status.textContent = message; }
@@ -57,20 +58,29 @@ function syncLayoutControl(): void {
   if (layout) layout.value = resume.layout;
 }
 
-function updateJson(): void { editor.value = `${JSON.stringify(resume, null, 2)}\n`; errorBox.hidden = true; }
+function setEditorValidity(valid: boolean): void {
+  editorValid = valid;
+  editor.setAttribute("aria-invalid", String(!valid));
+  for (const selector of ["#layout", "#save", "#copy", "#download", "#print"]) {
+    const control = document.querySelector<HTMLButtonElement | HTMLSelectElement>(selector);
+    if (control) control.disabled = !valid;
+  }
+}
+
+function updateJson(): void { editor.value = `${JSON.stringify(resume, null, 2)}\n`; errorBox.hidden = true; setEditorValidity(true); }
 
 function renderSections(): void {
   sectionList.replaceChildren();
   resume.sections.forEach((section, index) => {
-    const item = element("li", "section-chip"); item.draggable = true; item.dataset.id = section.id;
+    const item = element("li", "section-chip"); item.draggable = editorValid; item.dataset.id = section.id;
     const grip = element("span", "grip"); grip.textContent = "⠿"; grip.setAttribute("aria-hidden", "true");
     const label = element("span"); label.textContent = section.title;
     const controls = element("span", "section-controls");
     for (const [direction, symbol] of [[-1, "↑"], [1, "↓"]] as const) {
-      const button = element("button"); button.type = "button"; button.textContent = symbol; button.disabled = direction < 0 ? index === 0 : index === resume.sections.length - 1; button.setAttribute("aria-label", `Move ${section.title} ${direction < 0 ? "up" : "down"}`);
+      const button = element("button"); button.type = "button"; button.textContent = symbol; button.disabled = !editorValid || (direction < 0 ? index === 0 : index === resume.sections.length - 1); button.setAttribute("aria-label", `Move ${section.title} ${direction < 0 ? "up" : "down"}`);
       button.addEventListener("click", () => { resume = moveSection(resume, section.id, index + direction); syncAll(`Moved ${section.title}.`); }); controls.append(button);
     }
-    item.addEventListener("dragstart", () => { draggedSection = section.id; item.classList.add("dragging"); });
+    item.addEventListener("dragstart", (event) => { if (!editorValid) { event.preventDefault(); return; } draggedSection = section.id; item.classList.add("dragging"); });
     item.addEventListener("dragend", () => { draggedSection = null; item.classList.remove("dragging"); });
     item.addEventListener("dragover", (event) => event.preventDefault());
     item.addEventListener("drop", (event) => { event.preventDefault(); if (!draggedSection) return; resume = moveSection(resume, draggedSection, index); syncAll(`Moved section to position ${index + 1}.`); });
@@ -81,11 +91,15 @@ function renderSections(): void {
 function syncAll(message?: string): void { updateJson(); renderPreview(); renderSections(); syncLayoutControl(); if (message) announce(message); }
 
 editor.addEventListener("input", () => {
-  try { if (editor.value.length > MAX_DOCUMENT_BYTES) throw new Error("Resume JSON is larger than the 2 MB limit"); resume = validateResume(JSON.parse(editor.value) as unknown); errorBox.hidden = true; renderPreview(); renderSections(); syncLayoutControl(); announce("Preview updated from JSON."); }
-  catch (error) { errorBox.hidden = false; errorBox.textContent = error instanceof Error ? error.message : "JSON is invalid"; }
+  try { if (utf8ByteLength(editor.value) > MAX_DOCUMENT_BYTES) throw new Error("Resume JSON is larger than the 2 MB limit"); resume = validateResume(JSON.parse(editor.value) as unknown); errorBox.hidden = true; setEditorValidity(true); renderPreview(); renderSections(); syncLayoutControl(); announce("Preview updated from JSON."); }
+  catch (error) { setEditorValidity(false); renderSections(); errorBox.hidden = false; errorBox.textContent = error instanceof Error ? error.message : "JSON is invalid"; announce("Fix the JSON to re-enable layout, ordering, and export controls."); }
 });
 
-document.querySelector<HTMLSelectElement>("#layout")?.addEventListener("change", (event) => { resume = { ...resume, layout: (event.currentTarget as HTMLSelectElement).value as Layout }; syncAll("Layout changed."); });
+document.querySelector<HTMLSelectElement>("#layout")?.addEventListener("change", (event) => {
+  const layout = (event.currentTarget as HTMLSelectElement).value;
+  if (!(["classic", "editorial", "compact"] as string[]).includes(layout)) return;
+  resume = { ...resume, layout: layout as Layout }; syncAll("Layout changed.");
+});
 document.querySelector<HTMLButtonElement>("#save")?.addEventListener("click", () => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(resume)); announce("Template saved on this device."); } catch { announce("This browser refused local template storage."); } });
 document.querySelector<HTMLButtonElement>("#reset")?.addEventListener("click", () => { if (!window.confirm("Reset the editor to the example resume?")) return; resume = cloneResume(DEFAULT_RESUME); syncAll("Example restored."); });
 document.querySelector<HTMLButtonElement>("#copy")?.addEventListener("click", async () => { try { await navigator.clipboard.writeText(JSON.stringify(resume, null, 2)); announce("Resume JSON copied."); } catch { editor.select(); document.execCommand("copy"); announce("Resume JSON selected for copying."); } });

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_RESUME, cloneResume, moveSection, validateResume } from "../dist/model.js";
+import { DEFAULT_RESUME, cloneResume, moveSection, utf8ByteLength, validateResume } from "../dist/model.js";
 
 test("default resume passes strict runtime validation", () => {
   assert.equal(validateResume(DEFAULT_RESUME).schemaVersion, 1);
@@ -37,4 +37,35 @@ test("unbounded resume content is refused", () => {
   const invalid = cloneResume(DEFAULT_RESUME);
   invalid.profile.summary = "x".repeat(20_001);
   assert.throws(() => validateResume(invalid), /profile.summary is too long/);
+});
+
+test("unknown fields are refused instead of being silently discarded", () => {
+  const invalid = cloneResume(DEFAULT_RESUME);
+  invalid.profile.emali = "typo@example.com";
+  assert.throws(() => validateResume(invalid), /profile has unsupported field: emali/);
+});
+
+test("IDs and highlights remain portable and meaningful", () => {
+  const invalidId = cloneResume(DEFAULT_RESUME);
+  invalidId.sections[0].id = "not portable";
+  assert.throws(() => validateResume(invalidId), /portable identifier/);
+  const emptyHighlight = cloneResume(DEFAULT_RESUME);
+  emptyHighlight.sections[0].entries[0].highlights = ["   "];
+  assert.throws(() => validateResume(emptyHighlight), /non-empty strings/);
+});
+
+test("document limits count UTF-8 bytes, not JavaScript code units", () => {
+  assert.equal(utf8ByteLength("résumé"), 8);
+  const oversized = cloneResume(DEFAULT_RESUME);
+  oversized.sections = [{
+    id: "large",
+    title: "Large",
+    kind: "custom",
+    entries: Array.from({ length: 200 }, (_, index) => ({
+      id: `entry-${index}`,
+      heading: "Heading",
+      highlights: Array.from({ length: 100 }, () => "x".repeat(110)),
+    })),
+  }];
+  assert.throws(() => validateResume(oversized), /larger than the 2 MB limit/);
 });
