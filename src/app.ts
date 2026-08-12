@@ -1,4 +1,4 @@
-import { DEFAULT_RESUME, cloneResume, moveSection, validateResume, type Layout, type ResumeDocument, type ResumeEntry, type ResumeSection } from "./model.js";
+import { DEFAULT_RESUME, MAX_DOCUMENT_BYTES, cloneResume, moveSection, validateResume, type Layout, type ResumeDocument, type ResumeEntry, type ResumeSection } from "./model.js";
 
 const STORAGE_KEY = "resume-studio.template.v1";
 function requiredElement<T extends Element>(selector: string): T {
@@ -81,7 +81,7 @@ function renderSections(): void {
 function syncAll(message?: string): void { updateJson(); renderPreview(); renderSections(); syncLayoutControl(); if (message) announce(message); }
 
 editor.addEventListener("input", () => {
-  try { resume = validateResume(JSON.parse(editor.value) as unknown); errorBox.hidden = true; renderPreview(); renderSections(); syncLayoutControl(); announce("Preview updated from JSON."); }
+  try { if (editor.value.length > MAX_DOCUMENT_BYTES) throw new Error("Resume JSON is larger than the 2 MB limit"); resume = validateResume(JSON.parse(editor.value) as unknown); errorBox.hidden = true; renderPreview(); renderSections(); syncLayoutControl(); announce("Preview updated from JSON."); }
   catch (error) { errorBox.hidden = false; errorBox.textContent = error instanceof Error ? error.message : "JSON is invalid"; }
 });
 
@@ -91,6 +91,6 @@ document.querySelector<HTMLButtonElement>("#reset")?.addEventListener("click", (
 document.querySelector<HTMLButtonElement>("#copy")?.addEventListener("click", async () => { try { await navigator.clipboard.writeText(JSON.stringify(resume, null, 2)); announce("Resume JSON copied."); } catch { editor.select(); document.execCommand("copy"); announce("Resume JSON selected for copying."); } });
 document.querySelector<HTMLButtonElement>("#download")?.addEventListener("click", () => { const blob = new Blob([`${JSON.stringify(resume, null, 2)}\n`], { type: "application/json" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = `${resume.profile.name.toLocaleLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "resume"}.json`; link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 0); });
 document.querySelector<HTMLButtonElement>("#print")?.addEventListener("click", () => window.print());
-document.querySelector<HTMLInputElement>("#import")?.addEventListener("change", async (event) => { const input = event.currentTarget as HTMLInputElement; const file = input.files?.[0]; if (!file) return; try { resume = validateResume(JSON.parse(await file.text()) as unknown); syncAll(`Imported ${file.name}.`); } catch (error) { announce(error instanceof Error ? `Import refused: ${error.message}` : "Import refused."); } finally { input.value = ""; } });
+document.querySelector<HTMLInputElement>("#import")?.addEventListener("change", async (event) => { const input = event.currentTarget as HTMLInputElement; const file = input.files?.[0]; if (!file) return; try { if (file.size > MAX_DOCUMENT_BYTES) throw new Error("file is larger than the 2 MB limit"); resume = validateResume(JSON.parse(await file.text()) as unknown); syncAll(`Imported ${file.name}.`); } catch (error) { announce(error instanceof Error ? `Import refused: ${error.message}` : "Import refused."); } finally { input.value = ""; } });
 
 syncAll("Ready.");

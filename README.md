@@ -14,7 +14,7 @@ Open `http://127.0.0.1:4173`. The committed `dist/` output also works from any s
 ## What works
 
 - Strictly typed resume schema and runtime validation.
-- Live JSON editor with line/column errors that never destroys the last valid document.
+- Live JSON editor with bounded imports, unique section/entry IDs, and errors that never destroy the last valid document.
 - Classic, editorial, and compact layouts.
 - Drag-and-drop section ordering plus keyboard-friendly move buttons.
 - Device-local named template save/restore.
