@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { createBlankResume, createStarter } from './resume'
-import { createDefaultLibrary, loadLibrary, parseLibrary, removeDocument, saveLibrary, upsertDocument } from './storage'
+import { createDefaultLibrary, createLibraryBackup, loadLibrary, mergeLibraries, parseLibrary, parseLibraryBackup, removeDocument, saveLibrary, upsertDocument } from './storage'
 
 describe('local resume library', () => {
   it('round trips validated documents through a storage boundary', () => {
@@ -39,5 +39,23 @@ describe('local resume library', () => {
     library = removeDocument(library, second.id)
     assert.equal(library.documents.length, 1)
     assert.throws(() => removeDocument(library, first.id), /at least one/)
+  })
+
+  it('round trips a whole-library backup and restores changed collisions as copies', () => {
+    const original = createDefaultLibrary()
+    const backup = parseLibraryBackup(JSON.parse(JSON.stringify(createLibraryBackup(original))) as unknown)
+    assert.deepEqual(backup.library, original)
+    const edited = { ...original.documents[0]!, title: 'Edited after backup' }
+    const current = { activeId: edited.id, documents: [edited] }
+    const merged = mergeLibraries(current, backup.library)
+    assert.equal(merged.documents.length, 2)
+    assert.equal(merged.documents[0]!.title, 'Edited after backup')
+    assert.match(merged.documents[1]!.title, /restored copy/)
+    assert.notEqual(merged.documents[0]!.id, merged.documents[1]!.id)
+  })
+
+  it('refuses unsupported or structurally invalid library backups', () => {
+    assert.throws(() => parseLibraryBackup({ format: 'something-else', schemaVersion: 1 }), /not a supported/)
+    assert.throws(() => parseLibraryBackup({ format: 'career-canvas-library', schemaVersion: 1, exportedAt: 'today', library: { documents: [] } }), /at least one/)
   })
 })

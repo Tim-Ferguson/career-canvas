@@ -230,6 +230,7 @@ details > summary::-webkit-details-marker { display: none; }
 .preview-toolbar { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; border-bottom: 1px solid #cac8c0; color: #565d58; background: #e7e5de; font-size: .65rem; font-weight: 700; }
 .preview-toolbar > div:first-child { display: flex; align-items: center; gap: 7px; }
 .preview-toolbar small { margin-left: 7px; color: #818680; font-weight: 500; text-transform: capitalize; }
+.preview-toolbar .page-warning { color: #9a541c; font-weight: 800; }
 .preview-live-dot { width: 7px; height: 7px; border-radius: 50%; background: #3d8b62; box-shadow: 0 0 0 3px rgba(61,139,98,.12); }
 .zoom-control { display: flex; align-items: center; overflow: hidden; border: 1px solid #c5c5be; border-radius: 7px; background: rgba(255,255,255,.45); }
 .zoom-control button { width: 29px; height: 26px; border: 0; color: #5d625e; background: transparent; font-size: 1rem; }
@@ -238,7 +239,7 @@ details > summary::-webkit-details-marker { display: none; }
 .preview-scroll { overflow: auto; padding: 38px max(30px, calc((100% - var(--preview-paper-width, 8.5in) * var(--preview-zoom, .82)) / 2)) 80px; scrollbar-gutter: stable; }
 .preview-scale { --preview-zoom: .82; --paper-width: 8.5in; --paper-height: 11in; width: calc(var(--paper-width) * var(--preview-zoom)); min-height: calc(var(--paper-height) * var(--preview-zoom)); margin: 0 auto; }
 
-.resume-document { --resume-accent: #315f58; --document-pad-x: .64in; --document-pad-y: .58in; --document-gap: 20px; width: var(--paper-width); min-height: var(--paper-height); padding: var(--document-pad-y) var(--document-pad-x); color: #1c211f; background: #fff; box-shadow: 0 20px 55px rgba(25, 31, 28, .18), 0 1px 4px rgba(25, 31, 28, .14); transform: scale(var(--preview-zoom)); transform-origin: top left; font-family: 'Libre Franklin', Arial, sans-serif; font-size: 10pt; line-height: 1.42; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.resume-document { --resume-accent: #315f58; --document-pad-x: .64in; --document-pad-y: .58in; --document-gap: 20px; width: var(--paper-width); min-height: var(--paper-height); padding: var(--document-pad-y) var(--document-pad-x); color: #1c211f; background: #fff; box-shadow: 0 20px 55px rgba(25, 31, 28, .18), 0 1px 4px rgba(25, 31, 28, .14); zoom: var(--preview-zoom); font-family: 'Libre Franklin', Arial, sans-serif; font-size: 10pt; line-height: 1.42; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .resume-document[data-page-size='a4'] { --paper-width: 210mm; --paper-height: 297mm; }
 .resume-document[data-font='serif'] { font-family: 'Source Serif 4', Georgia, serif; font-size: 10.4pt; }
 .resume-document[data-font='editorial'] { font-family: 'Source Serif 4', Georgia, serif; }
@@ -422,7 +423,7 @@ details > summary::-webkit-details-marker { display: none; }
   html, body { min-width: 0; background: white; }
   .no-print { display: none !important; }
   .studio-shell, .studio-workspace, .preview-workspace, .preview-scroll, .preview-scale { display: block; width: auto; height: auto; min-height: 0; overflow: visible; padding: 0; margin: 0; background: white; }
-  .resume-document { width: 8.5in; min-height: 11in; margin: 0 auto; box-shadow: none; transform: none; page: career-letter; }
+  .resume-document { width: 8.5in; min-height: 11in; margin: 0 auto; box-shadow: none; zoom: 1; page: career-letter; }
   .resume-document[data-page-size='a4'] { width: 210mm; min-height: 297mm; page: career-a4; }
   .document-header, .document-entry { break-inside: avoid; }
   .document-section > h2 { break-after: avoid; }

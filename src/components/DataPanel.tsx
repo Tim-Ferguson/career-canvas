@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Check, Clipboard, Download, FileJson, FileText, RefreshCw, Upload } from 'lucide-react'
-import { MAX_DOCUMENT_BYTES, migrateResume, resumeToText, safeFilename, utf8ByteLength, type ResumeDocument } from '../lib/resume'
+import { ArchiveRestore, Check, Clipboard, Download, FileJson, FileText, FolderDown, RefreshCw, Upload } from 'lucide-react'
+import { MAX_DOCUMENT_BYTES, MAX_RESUMES, migrateResume, resumeToText, safeFilename, utf8ByteLength, type ResumeDocument, type ResumeLibrary } from '../lib/resume'
+import { createLibraryBackup, parseLibraryBackup } from '../lib/storage'
 
 function downloadFile(contents: string, filename: string, type: string) {
   const blob = new Blob([contents], { type })
@@ -12,10 +13,12 @@ function downloadFile(contents: string, filename: string, type: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
-export function DataPanel({ resume, onChange, onImport, announce }: {
+export function DataPanel({ resume, library, onChange, onImport, onRestoreLibrary, announce }: {
   resume: ResumeDocument
+  library: ResumeLibrary
   onChange: (resume: ResumeDocument) => void
   onImport: (resume: ResumeDocument) => void
+  onRestoreLibrary: (library: ResumeLibrary) => void
   announce: (message: string) => void
 }) {
   const [draft, setDraft] = useState(() => `${JSON.stringify(resume, null, 2)}\n`)
@@ -67,6 +70,18 @@ export function DataPanel({ resume, onChange, onImport, announce }: {
     }
   }
 
+  const restoreLibrary = async (file: File | undefined) => {
+    if (!file) return
+    try {
+      if (file.size > MAX_DOCUMENT_BYTES * MAX_RESUMES) throw new Error('Backup is larger than the library safety limit.')
+      const backup = parseLibraryBackup(JSON.parse(await file.text()) as unknown)
+      onRestoreLibrary(backup.library)
+      announce(`Restored ${backup.library.documents.length} ${backup.library.documents.length === 1 ? 'resume' : 'resumes'} without overwriting newer versions.`)
+    } catch (caught) {
+      announce(caught instanceof Error ? `Backup restore refused: ${caught.message}` : 'Backup restore refused.')
+    }
+  }
+
   const baseName = safeFilename(resume.title || resume.profile.name)
   return (
     <div className="editor-stack data-panel">
@@ -78,6 +93,8 @@ export function DataPanel({ resume, onChange, onImport, announce }: {
           <button type="button" className="export-action" onClick={copyJson}><Clipboard size={18} /><span><strong>Copy JSON</strong><small>Paste into another tool</small></span></button>
           <button type="button" className="export-action" onClick={() => downloadFile(resumeToText(resume), `${baseName}.txt`, 'text/plain')}><FileText size={18} /><span><strong>Plain text</strong><small>Quick ATS sanity check</small></span></button>
           <label className="export-action file-action"><Upload size={18} /><span><strong>Import resume</strong><small>Add JSON as a new version</small></span><input type="file" accept="application/json,.json" onChange={(event) => { void importFile(event.currentTarget.files?.[0]); event.currentTarget.value = '' }} /></label>
+          <button type="button" className="export-action" onClick={() => downloadFile(`${JSON.stringify(createLibraryBackup(library), null, 2)}\n`, `career-canvas-backup-${new Date().toISOString().slice(0, 10)}.json`, 'application/json')}><FolderDown size={18} /><span><strong>Back up library</strong><small>Save all {library.documents.length} versions</small></span></button>
+          <label className="export-action file-action"><ArchiveRestore size={18} /><span><strong>Restore backup</strong><small>Merge without overwriting</small></span><input type="file" accept="application/json,.json" onChange={(event) => { void restoreLibrary(event.currentTarget.files?.[0]); event.currentTarget.value = '' }} /></label>
         </div>
       </section>
 

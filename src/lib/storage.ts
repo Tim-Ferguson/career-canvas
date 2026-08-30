@@ -1,6 +1,14 @@
 import { MAX_DOCUMENT_BYTES, MAX_RESUMES, createId, createStarter, migrateResume, type ResumeDocument, type ResumeLibrary } from './resume'
 
 export const LIBRARY_STORAGE_KEY = 'career-canvas.library.v2'
+export const LIBRARY_BACKUP_FORMAT = 'career-canvas-library'
+
+export interface LibraryBackup {
+  format: typeof LIBRARY_BACKUP_FORMAT
+  schemaVersion: 1
+  exportedAt: string
+  library: ResumeLibrary
+}
 
 export function createDefaultLibrary(): ResumeLibrary {
   const document = createStarter('universal')
@@ -68,4 +76,34 @@ export function removeDocument(library: ResumeLibrary, documentId: string): Resu
   const documents = library.documents.filter((item) => item.id !== documentId)
   if (documents.length === library.documents.length) return library
   return { activeId: library.activeId === documentId ? documents[0]!.id : library.activeId, documents }
+}
+
+export function createLibraryBackup(library: ResumeLibrary): LibraryBackup {
+  return {
+    format: LIBRARY_BACKUP_FORMAT,
+    schemaVersion: 1,
+    exportedAt: new Date().toISOString(),
+    library: parseLibrary(library),
+  }
+}
+
+export function parseLibraryBackup(value: unknown): LibraryBackup {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error('Library backup must be an object.')
+  const raw = value as Record<string, unknown>
+  if (raw.format !== LIBRARY_BACKUP_FORMAT || raw.schemaVersion !== 1) throw new Error('This is not a supported Career Canvas library backup.')
+  if (typeof raw.exportedAt !== 'string' || raw.exportedAt.length > 64) throw new Error('Library backup has an invalid export date.')
+  return { format: LIBRARY_BACKUP_FORMAT, schemaVersion: 1, exportedAt: raw.exportedAt, library: parseLibrary(raw.library) }
+}
+
+export function mergeLibraries(current: ResumeLibrary, incoming: ResumeLibrary): ResumeLibrary {
+  const base = parseLibrary(current)
+  const restored = parseLibrary(incoming)
+  const documents = [...base.documents]
+  for (const candidate of restored.documents) {
+    const existing = documents.find((document) => document.id === candidate.id)
+    if (existing && JSON.stringify(existing) === JSON.stringify(candidate)) continue
+    if (documents.length >= MAX_RESUMES) throw new Error(`Restoring this backup would exceed the ${MAX_RESUMES}-resume device limit.`)
+    documents.push(existing ? { ...candidate, id: createId('resume'), title: `${candidate.title || 'Resume'} restored copy` } : candidate)
+  }
+  return { activeId: base.activeId, documents }
 }

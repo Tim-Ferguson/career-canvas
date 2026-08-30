@@ -6,8 +6,8 @@ import { DataPanel } from './DataPanel'
 import { DesignPanel } from './DesignPanel'
 import { ResumePreview } from './ResumePreview'
 import { ReviewPanel } from './ReviewPanel'
-import { MAX_RESUMES, STARTERS, cloneResume, createBlankResume, createId, createStarter, touchResume, type ResumeDocument, type ResumeLibrary, type StarterId } from '../lib/resume'
-import { createDefaultLibrary, loadLibrary, removeDocument, saveLibrary, upsertDocument } from '../lib/storage'
+import { MAX_RESUMES, STARTERS, cloneResume, createBlankResume, createId, createStarter, renderedPageCount, touchResume, type ResumeDocument, type ResumeLibrary, type StarterId } from '../lib/resume'
+import { createDefaultLibrary, loadLibrary, mergeLibraries, removeDocument, saveLibrary, upsertDocument } from '../lib/storage'
 
 type StudioTab = 'content' | 'design' | 'review' | 'data'
 
@@ -33,8 +33,10 @@ export function Studio() {
   const [status, setStatus] = useState('Your resume stays on this device.')
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'limited'>('saved')
   const [zoom, setZoom] = useState(0.82)
+  const [renderedPages, setRenderedPages] = useState(1)
   const newResumeButtonRef = useRef<HTMLButtonElement>(null)
   const newResumeDialogRef = useRef<HTMLElement>(null)
+  const activeResume = useMemo(() => library.documents.find((document) => document.id === library.activeId) ?? library.documents[0]!, [library])
 
   useEffect(() => {
     setLibrary(loadLibrary(window.localStorage))
@@ -88,7 +90,21 @@ export function Studio() {
     }
   }, [showNew])
 
-  const activeResume = useMemo(() => library.documents.find((document) => document.id === library.activeId) ?? library.documents[0]!, [library])
+  useEffect(() => {
+    const documentElement = document.querySelector<HTMLElement>('#resume-document')
+    if (!documentElement) return
+    const measure = () => {
+      setRenderedPages(renderedPageCount(documentElement.scrollHeight, activeResume.settings.pageSize))
+    }
+    measure()
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
+    observer?.observe(documentElement)
+    window.addEventListener('resize', measure)
+    return () => {
+      observer?.disconnect()
+      window.removeEventListener('resize', measure)
+    }
+  }, [activeResume.id, activeResume.settings.pageSize])
 
   const changeResume = (document: ResumeDocument) => {
     setLibrary((current) => upsertDocument(current, touchResume(document)))
@@ -136,6 +152,15 @@ export function Studio() {
     setStatus('Resume removed from this device.')
   }
 
+  const restoreLibrary = (incoming: ResumeLibrary) => {
+    try {
+      setLibrary(mergeLibraries(library, incoming))
+    } catch (caught) {
+      setStatus(caught instanceof Error ? caught.message : 'The library backup could not be restored.')
+      throw caught
+    }
+  }
+
   const saveLabel = saveState === 'saving' ? 'Saving…' : saveState === 'limited' ? 'Not saved' : formatSavedTime(activeResume.updatedAt)
   return (
     <div className="studio-shell">
@@ -181,14 +206,14 @@ export function Studio() {
             <div hidden={activeTab !== 'content'}><ContentEditor resume={activeResume} onChange={changeResume} /></div>
             <div hidden={activeTab !== 'design'}><DesignPanel resume={activeResume} onChange={changeResume} /></div>
             <div hidden={activeTab !== 'review'}><ReviewPanel resume={activeResume} onEdit={() => setActiveTab('content')} /></div>
-            <div hidden={activeTab !== 'data'}><DataPanel resume={activeResume} onChange={changeResume} onImport={addResume} announce={setStatus} /></div>
+            <div hidden={activeTab !== 'data'}><DataPanel resume={activeResume} library={library} onChange={changeResume} onImport={addResume} onRestoreLibrary={restoreLibrary} announce={setStatus} /></div>
           </div>
           <div className="editor-status" role="status" aria-live="polite"><ShieldCheck size={14} /><span>{status}</span></div>
         </aside>
 
         <section className="preview-workspace" aria-label="Live resume preview">
           <div className="preview-toolbar no-print">
-            <div><span className="preview-live-dot" /> Live preview <small>{activeResume.settings.pageSize === 'a4' ? 'A4' : 'US Letter'} · {activeResume.settings.layout}</small></div>
+            <div><span className="preview-live-dot" /> Live preview <small>{activeResume.settings.pageSize === 'a4' ? 'A4' : 'US Letter'} · {activeResume.settings.layout} · <span className={renderedPages > 1 ? 'page-warning' : ''}>{renderedPages} {renderedPages === 1 ? 'page' : 'pages'}</span></small></div>
             <div className="zoom-control" aria-label="Preview zoom"><button type="button" onClick={() => setZoom((value) => Math.max(0.55, value - 0.08))} aria-label="Zoom out">−</button><span>{Math.round(zoom * 100)}%</span><button type="button" onClick={() => setZoom((value) => Math.min(1.15, value + 0.08))} aria-label="Zoom in">+</button></div>
           </div>
           <div className="preview-scroll">

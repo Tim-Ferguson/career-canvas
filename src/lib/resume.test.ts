@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { MAX_DOCUMENT_BYTES, analyzeResume, cloneResume, createBlankResume, createSection, createStarter, migrateResume, moveInArray, resumeToText, utf8ByteLength, validateResume } from './resume'
+import { MAX_DOCUMENT_BYTES, analyzeResume, cloneResume, createBlankResume, createSection, createStarter, migrateResume, moveInArray, renderedPageCount, resumeToText, utf8ByteLength, validateResume } from './resume'
 
 describe('resume document model', () => {
   it('validates every industry starter', () => {
@@ -50,6 +50,14 @@ describe('resume document model', () => {
     assert.deepEqual(moveInArray(source, 2, -10), ['c', 'a', 'b'])
     assert.deepEqual(moveInArray(source, 0, 99), ['b', 'c', 'a'])
     assert.deepEqual(source, ['a', 'b', 'c'])
+  })
+
+  it('reports rendered page overflow at letter and A4 boundaries', () => {
+    assert.equal(renderedPageCount(1056, 'letter'), 1)
+    assert.equal(renderedPageCount(1057, 'letter'), 2)
+    assert.equal(renderedPageCount(1122, 'a4'), 1)
+    assert.equal(renderedPageCount(2250, 'a4'), 3)
+    assert.equal(renderedPageCount(Number.NaN, 'letter'), 1)
   })
 })
 

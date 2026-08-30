@@ -102,3 +102,21 @@ These boundaries protect local storage, rendering performance, imports, and acci
 | `entry.highlights` | `entry.highlights` |
 
 Migration creates new document metadata and fills newly introduced fields with safe empty values. The migrated result then passes through the full v2 validator.
+
+## Whole-library backups
+
+The Data workspace can export a separate library envelope containing every device-local resume:
+
+```ts
+interface LibraryBackup {
+  format: 'career-canvas-library'
+  schemaVersion: 1
+  exportedAt: string
+  library: {
+    activeId: string
+    documents: ResumeDocument[]
+  }
+}
+```
+
+Restore validates every document before changing local state. Identical versions are skipped. When an incoming document has the same ID but different content, both are kept and the restored document receives a new ID and a `restored copy` title. The restore is refused before making changes if the merged result would exceed the 24-resume library limit.

@@ -480,6 +480,12 @@ export function moveInArray<T>(values: readonly T[], from: number, to: number): 
   return result
 }
 
+export function renderedPageCount(contentHeightCssPixels: number, pageSize: PageSize): number {
+  const pageHeight = pageSize === 'a4' ? (297 / 25.4) * 96 : 11 * 96
+  if (!Number.isFinite(contentHeightCssPixels) || contentHeightCssPixels <= 0) return 1
+  return Math.max(1, Math.ceil(contentHeightCssPixels / pageHeight))
+}
+
 function cleanWords(value: string): string[] {
   return value.trim().split(/\s+/).filter(Boolean)
 }

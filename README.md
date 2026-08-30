@@ -15,6 +15,8 @@ The product is deliberately industry-flexible. Its generic entry model supports 
 - Section and entry creation, duplication, hiding, deletion, and keyboard-accessible reordering
 - Readiness review for focus, contactability, evidence, scanability, and likely page length
 - JSON v2 import/export, automatic migration from the original v1 schema, plain-text export, and browser-native PDF output
+- Validated whole-library backups that restore non-destructively and preserve newer versions as well as historical copies
+- Live rendered page-count feedback for catching overflow before opening the PDF dialog
 - Strict runtime validation, bounded content, portable IDs, duplicate-ID protection, and last-valid-document behavior in the advanced JSON editor
 - Responsive studio and a cross-industry writing guide
 
