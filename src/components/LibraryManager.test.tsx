@@ -8,13 +8,19 @@ import { createBlankResume, createStarter } from '../lib/resume'
 describe('resume library manager', () => {
   it('shows targets, active state, recency, and starter-data risk', () => {
     const sample = createStarter('healthcare')
-    const blank = { ...createBlankResume(), title: 'Research target', targetRole: 'Research coordinator', industry: 'Public health' }
-    const library = { activeId: blank.id, documents: [sample, blank] }
+    const blank = { ...createBlankResume(), title: 'Research target', targetRole: 'Research coordinator', industry: 'Public health', updatedAt: '2020-01-01T00:00:00.000Z' }
+    const copy = { ...blank, id: 'resume-research-copy', title: 'Research target copy', updatedAt: '2026-08-01T00:00:00.000Z' }
+    const library = { activeId: blank.id, documents: [sample, blank, copy] }
     const html = renderToStaticMarkup(<LibraryManager library={library} dialogRef={createRef<HTMLElement>()} onActivate={() => undefined} onDuplicate={() => undefined} onDelete={() => undefined} onNew={() => undefined} onBackup={() => undefined} onClose={() => undefined} />)
     assert.ok(html.includes('Manage resume versions'))
     assert.ok(html.includes('Research coordinator · Public health'))
     assert.ok(html.includes('Sample content'))
     assert.ok(html.includes('Active'))
-    assert.ok(html.includes('2 of 24 versions'))
+    assert.ok(html.includes('3 of 24 versions'))
+    assert.ok(html.includes('Sort resume versions'))
+    assert.ok(html.includes('Review '))
+    assert.ok(html.includes('Same content'))
+    assert.ok(html.includes('6+ months old'))
+    assert.ok(html.includes('need essential fixes'))
   })
 })

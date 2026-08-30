@@ -9,6 +9,7 @@ The product is deliberately industry-flexible. Its generic entry model supports 
 - Form-first editing with a live, semantic resume preview
 - A device-local library of up to 24 targeted resume versions
 - Searchable version manager with active, target, industry, recency, sample-risk, duplicate, delete, new, and backup controls
+- Local editorial snapshots, same-content and staleness cues, and useful sorting across every saved resume version
 - Automatic local autosave with no account, analytics, or resume-content API
 - Last-chance page-hide saving, explicit storage-failure recovery, and transparent repair notices for damaged local libraries
 - Latest-state library commits that protect rapid edits and asynchronous backup restores from stale-render overwrites
@@ -67,6 +68,7 @@ The dependency lockfile is committed. `npm audit` should report zero known vulne
 - `src/lib/history.ts` — bounded, field-aware resume revision history
 - `src/lib/tailoring.ts` — bounded, transparent opportunity-language comparison
 - `src/lib/latestState.ts` — synchronous latest-state commits for race-resistant local mutations
+- `src/lib/libraryInsights.ts` — local multi-version review snapshots, similarity cues, age cues, and sorting
 - `src/components/Studio.tsx` — application state, autosave, document management, tabs, preview, and export flow
 - `src/components/ContentEditor.tsx` — profile, section, entry, bullet, keyword, link, and ordering forms
 - `src/components/ResumePreview.tsx` — one semantic document tree shared by every visual layout
