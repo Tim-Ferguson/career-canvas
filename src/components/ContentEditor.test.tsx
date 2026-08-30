@@ -34,4 +34,18 @@ describe('bounded cross-industry content editor', () => {
     assert.ok(html.includes('The 32-section document limit is reached.'))
     assert.ok(html.includes('disabled=""'))
   })
+
+  it('provides an exact, keyboard-accessible outline for long resumes', () => {
+    const resume = createBlankResume()
+    resume.sections[1]!.visible = false
+    resume.sections[2]!.title = 'Technical toolkit'
+    const html = renderToStaticMarkup(<ContentEditor resume={resume} onChange={() => undefined} />)
+    assert.ok(html.includes('Resume outline'))
+    assert.ok(html.includes('3 sections · 2 shown'))
+    assert.ok(html.includes('aria-label="Resume sections"'))
+    assert.ok(html.includes('Expand all editors'))
+    assert.ok(html.includes('Collapse all editors'))
+    assert.ok(html.includes('Education · 1 entry · Hidden'))
+    assert.ok(html.includes('Technical toolkit'))
+  })
 })

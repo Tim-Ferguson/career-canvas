@@ -19,6 +19,7 @@ The product is deliberately industry-flexible. Its generic entry model supports 
 - Six ATS-conscious layouts: modern, classic, executive, compact, minimal, and academic
 - US Letter and A4 output, three spacing levels, three font treatments, and custom accent colors
 - Section and entry creation, duplication, hiding, deletion, and keyboard-accessible reordering
+- A long-resume outline with hidden-state cues, exact section jumps, and session-only expand/collapse controls
 - Readiness review for focus, contactability, evidence, scanability, and likely page length
 - Review findings that open collapsed content and focus the exact field, entry, or section needing attention
 - Session-only opportunity comparison that surfaces honest vocabulary gaps without exporting pasted job descriptions or claiming an ATS score

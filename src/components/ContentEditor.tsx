@@ -202,6 +202,19 @@ export function ContentEditor({ resume, onChange }: ContentEditorProps) {
     if (hasContent && !window.confirm(`Delete ${target.title} and all of its entries?`)) return
     patch({ sections: resume.sections.filter((_, sectionIndex) => sectionIndex !== index) })
   }
+  const setAllSectionsOpen = (open: boolean) => {
+    document.querySelectorAll<HTMLDetailsElement>('#content-sections > .section-editor').forEach((element) => { element.open = open })
+  }
+  const openSectionEditor = (sectionId: string) => {
+    const element = document.getElementById(`section-editor-${sectionId}`)
+    if (!(element instanceof HTMLDetailsElement)) return
+    element.open = true
+    window.requestAnimationFrame(() => {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      element.querySelector<HTMLElement>(':scope > summary')?.focus({ preventScroll: true })
+    })
+  }
+  const visibleSections = resume.sections.filter((section) => section.visible).length
   return (
     <div className="editor-stack">
       <section className="editor-card" aria-labelledby="target-heading">
@@ -228,6 +241,25 @@ export function ContentEditor({ resume, onChange }: ContentEditorProps) {
         {resume.profile.links.map((link, index) => <LinkEditor key={link.id} link={link} onChange={(value) => patchProfile({ links: resume.profile.links.map((item, itemIndex) => itemIndex === index ? value : item) })} onDelete={() => patchProfile({ links: resume.profile.links.filter((_, itemIndex) => itemIndex !== index) })} />)}
         <button className="text-button compact-button" type="button" disabled={resume.profile.links.length >= MAX_PROFILE_LINKS} onClick={() => patchProfile({ links: [...resume.profile.links, { id: createId('link'), label: '', url: '' }] })}><Plus size={14} /> {resume.profile.links.length >= MAX_PROFILE_LINKS ? 'Profile link limit reached' : 'Add profile link'}</button>
       </details>
+
+      {resume.sections.length ? (
+        <details className="editor-card resume-outline">
+          <summary>
+            <div><span className="eyebrow">Navigate</span><h2>Resume outline</h2></div>
+            <small>{resume.sections.length} {resume.sections.length === 1 ? 'section' : 'sections'} · {visibleSections} shown</small>
+          </summary>
+          <div className="resume-outline-body">
+            <div className="resume-outline-actions"><button type="button" onClick={() => setAllSectionsOpen(true)}>Expand all editors</button><button type="button" onClick={() => setAllSectionsOpen(false)}>Collapse all editors</button></div>
+            <nav className="resume-outline-list" aria-label="Resume sections">
+              {resume.sections.map((section, index) => (
+                <button type="button" className={section.visible ? '' : 'hidden-section'} key={section.id} onClick={() => openSectionEditor(section.id)}>
+                  <span>{index + 1}</span><strong>{section.title || 'Untitled section'}</strong><small>{SECTION_CATALOG.find((item) => item.kind === section.kind)?.title || section.kind} · {section.entries.length} {section.entries.length === 1 ? 'entry' : 'entries'}{section.visible ? '' : ' · Hidden'}</small>
+                </button>
+              ))}
+            </nav>
+          </div>
+        </details>
+      ) : null}
 
       <section className="content-sections" id="content-sections" aria-labelledby="sections-heading">
         <div className="card-heading section-list-heading"><div><span className="eyebrow">Your evidence</span><h2 id="sections-heading">Sections</h2></div><p>Order them by relevance for this target.</p></div>
