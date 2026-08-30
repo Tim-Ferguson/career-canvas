@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ArchiveRestore, Check, Clipboard, Download, FileJson, FileText, FolderDown, RefreshCw, Upload } from 'lucide-react'
-import { MAX_DOCUMENT_BYTES, MAX_RESUMES, containsStarterSampleContent, parseJsonText, parseResumeJson, resumeToText, utf8ByteLength, type ResumeDocument, type ResumeLibrary } from '../lib/resume'
+import { MAX_DOCUMENT_BYTES, MAX_RESUMES, containsStarterSampleContent, parseJsonText, parseResumeImportJson, parseResumeJson, resumeToText, utf8ByteLength, type ResumeDocument, type ResumeLibrary } from '../lib/resume'
 import { createLibraryBackup, parseLibraryBackup, summarizeLibraryMerge, type LibraryMergeSummary } from '../lib/storage'
 import { buildExportPreflight, exportConfirmationMessage } from '../lib/exportReadiness'
 import { advancedDraftIsStale, createAdvancedDraftAnchor } from '../lib/draftSafety'
@@ -99,7 +99,8 @@ export function DataPanel({ resume, library, onChange, onImport, onRestoreLibrar
     if (!file) return
     try {
       if (file.size > MAX_DOCUMENT_BYTES) throw new Error('File is larger than the 2 MB safety limit.')
-      const imported = parseResumeJson(await file.text())
+      const importResult = parseResumeImportJson(await file.text())
+      const imported = importResult.document
       const sameId = library.documents.find((document) => document.id === imported.id)
       if (sameId && JSON.stringify(sameId) === JSON.stringify(imported)) {
         announce(`Import skipped: “${imported.title || 'Untitled resume'}” is already in this library unchanged.`)
@@ -108,9 +109,11 @@ export function DataPanel({ resume, library, onChange, onImport, onRestoreLibrar
       if (library.documents.length >= MAX_RESUMES) throw new Error(`Your device library is full at ${MAX_RESUMES} resumes. Export and remove one before importing.`)
       const details = [
         `Import “${imported.title || 'Untitled resume'}” from ${file.name}?`,
+        importResult.format === 'json-resume' ? 'Source: JSON Resume. Career Canvas will convert its portable content into strict schema v2.' : importResult.format === 'career-canvas-v1' ? 'Source: Career Canvas v1. It will migrate automatically to schema v2.' : 'Source: Career Canvas schema v2.',
         `Target: ${imported.targetRole || 'not specified'}. Industry: ${imported.industry || 'not specified'}. ${countLabel(imported.sections.length, 'section')}.`,
         sameId ? 'Its internal ID matches an existing version, so Career Canvas will assign a new ID and “copy” title.' : '',
         containsStarterSampleContent(imported) ? 'Warning: this file still contains fictional starter content.' : '',
+        ...importResult.warnings.map((warning) => `Note: ${warning}`),
         'The imported file will become active; every existing version stays unchanged.',
       ].filter(Boolean).join('\n\n')
       if (!window.confirm(details)) {
@@ -118,7 +121,7 @@ export function DataPanel({ resume, library, onChange, onImport, onRestoreLibrar
         return
       }
       if (!onImport({ ...imported, updatedAt: new Date().toISOString() })) return
-      announce(`Imported “${imported.title || 'Untitled resume'}” from ${file.name} as the active resume. Existing versions are unchanged.`)
+      announce(`Imported “${imported.title || 'Untitled resume'}” from ${file.name}${importResult.format === 'json-resume' ? ' and converted it from JSON Resume' : ''} as the active resume. Existing versions are unchanged.`)
     } catch (caught) {
       announce(caught instanceof Error ? `Import refused: ${caught.message}` : 'Import refused.')
     }
@@ -168,7 +171,7 @@ export function DataPanel({ resume, library, onChange, onImport, onRestoreLibrar
     <div className="editor-stack data-panel">
       <section className="editor-card">
         <div className="card-heading"><div><span className="eyebrow">Portable by design</span><h2>Import & export</h2></div><FileJson size={19} aria-hidden="true" /></div>
-        <p className="card-intro">Your v2 JSON keeps content, layout, and ordering together. Version 1 files from the original studio migrate automatically.</p>
+        <p className="card-intro">Your v2 JSON keeps content, layout, and ordering together. Career Canvas v1 files migrate automatically, and standard JSON Resume files convert into editable v2 documents.</p>
         <ExportReadinessSummary preflight={exportPreflight} />
         {dirty ? <div className="draft-export-warning" role="status"><RefreshCw size={16} aria-hidden="true" /><span><strong>Unapplied JSON is session-only</strong> Exports and library backups use the last valid resume. Apply or discard the draft before switching versions or leaving this page.</span></div> : null}
         <div className="export-grid">
