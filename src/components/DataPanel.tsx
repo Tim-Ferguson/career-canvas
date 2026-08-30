@@ -3,6 +3,7 @@ import { ArchiveRestore, Check, Clipboard, Download, FileJson, FileText, FolderD
 import { MAX_DOCUMENT_BYTES, MAX_RESUMES, containsStarterSampleContent, parseJsonText, parseResumeJson, resumeToText, utf8ByteLength, type ResumeDocument, type ResumeLibrary } from '../lib/resume'
 import { createLibraryBackup, parseLibraryBackup, summarizeLibraryMerge, type LibraryMergeSummary } from '../lib/storage'
 import { buildExportPreflight, exportConfirmationMessage } from '../lib/exportReadiness'
+import { advancedDraftIsStale, createAdvancedDraftAnchor } from '../lib/draftSafety'
 import { ExportReadinessSummary } from './ExportReadinessSummary'
 
 function downloadFile(contents: string, filename: string, type: string) {
@@ -33,33 +34,50 @@ function describeMerge(summary: LibraryMergeSummary) {
   ].join(', ')
 }
 
-export function DataPanel({ resume, library, onChange, onImport, onRestoreLibrary, announce }: {
+export function DataPanel({ resume, library, onChange, onImport, onRestoreLibrary, onDraftStateChange, announce }: {
   resume: ResumeDocument
   library: ResumeLibrary
   onChange: (resume: ResumeDocument) => void
   onImport: (resume: ResumeDocument) => boolean
   onRestoreLibrary: (library: ResumeLibrary) => LibraryMergeSummary
+  onDraftStateChange: (dirty: boolean) => void
   announce: (message: string) => void
 }) {
   const [draft, setDraft] = useState(() => `${JSON.stringify(resume, null, 2)}\n`)
   const [dirty, setDirty] = useState(false)
   const [error, setError] = useState('')
+  const [draftAnchor, setDraftAnchor] = useState(() => createAdvancedDraftAnchor(resume))
+
+  const setDraftDirty = (value: boolean) => {
+    setDirty(value)
+    onDraftStateChange(value)
+  }
 
   useEffect(() => {
     setDraft(`${JSON.stringify(resume, null, 2)}\n`)
-    setDirty(false)
+    setDraftDirty(false)
+    setDraftAnchor(createAdvancedDraftAnchor(resume))
     setError('')
   }, [resume.id])
 
   useEffect(() => {
-    if (!dirty) setDraft(`${JSON.stringify(resume, null, 2)}\n`)
+    if (!dirty) {
+      setDraft(`${JSON.stringify(resume, null, 2)}\n`)
+      setDraftAnchor(createAdvancedDraftAnchor(resume))
+    }
   }, [resume, dirty])
 
   const applyJson = () => {
     try {
       const parsed = parseResumeJson(draft)
-      onChange({ ...parsed, id: resume.id, updatedAt: new Date().toISOString() })
-      setDirty(false)
+      if (advancedDraftIsStale(draftAnchor, resume) && !window.confirm('This resume changed in the visual editor after this JSON draft began. Applying the draft will replace those newer valid changes. Apply it anyway?')) {
+        announce('JSON apply canceled. Your draft and newer visual changes are both still available.')
+        return
+      }
+      const nextResume = { ...parsed, id: resume.id, updatedAt: new Date().toISOString() }
+      onChange(nextResume)
+      setDraftAnchor(createAdvancedDraftAnchor(nextResume))
+      setDraftDirty(false)
       setError('')
       announce('Advanced JSON changes applied.')
     } catch (caught) {
@@ -136,6 +154,10 @@ export function DataPanel({ resume, library, onChange, onImport, onRestoreLibrar
   const exportPreflight = buildExportPreflight(resume)
   const baseName = exportPreflight.filenameBase
   const downloadPlainText = () => {
+    if (dirty && !window.confirm('Unapplied advanced JSON changes are not included in exports. Download plain text from the last valid resume anyway?')) {
+      announce('Plain-text export canceled. Apply or discard the advanced JSON draft first.')
+      return
+    }
     if (exportPreflight.needsConfirmation && !window.confirm(exportConfirmationMessage(exportPreflight, 'plain-text file'))) {
       announce('Plain-text export canceled. Review the essential sharing checks first.')
       return
@@ -148,9 +170,10 @@ export function DataPanel({ resume, library, onChange, onImport, onRestoreLibrar
         <div className="card-heading"><div><span className="eyebrow">Portable by design</span><h2>Import & export</h2></div><FileJson size={19} aria-hidden="true" /></div>
         <p className="card-intro">Your v2 JSON keeps content, layout, and ordering together. Version 1 files from the original studio migrate automatically.</p>
         <ExportReadinessSummary preflight={exportPreflight} />
+        {dirty ? <div className="draft-export-warning" role="status"><RefreshCw size={16} aria-hidden="true" /><span><strong>Unapplied JSON is session-only</strong> Exports and library backups use the last valid resume. Apply or discard the draft before switching versions or leaving this page.</span></div> : null}
         <div className="export-grid">
-          <button type="button" className="export-action" onClick={() => downloadFile(`${JSON.stringify(resume, null, 2)}\n`, `${baseName}.json`, 'application/json')}><Download size={18} /><span><strong>Download JSON</strong><small>Portable editable source</small></span></button>
-          <button type="button" className="export-action" onClick={copyJson}><Clipboard size={18} /><span><strong>Copy JSON</strong><small>Paste into another tool</small></span></button>
+          <button type="button" className="export-action" disabled={dirty} title={dirty ? 'Apply or discard the advanced JSON draft first' : undefined} onClick={() => downloadFile(`${JSON.stringify(resume, null, 2)}\n`, `${baseName}.json`, 'application/json')}><Download size={18} /><span><strong>Download JSON</strong><small>{dirty ? 'Apply or discard draft first' : 'Portable editable source'}</small></span></button>
+          <button type="button" className="export-action" disabled={dirty} title={dirty ? 'Apply or discard the advanced JSON draft first' : undefined} onClick={copyJson}><Clipboard size={18} /><span><strong>Copy JSON</strong><small>{dirty ? 'Apply or discard draft first' : 'Paste into another tool'}</small></span></button>
           <button type="button" className="export-action" onClick={downloadPlainText}><FileText size={18} /><span><strong>Plain text</strong><small>Quick ATS sanity check</small></span></button>
           <label className="export-action file-action"><Upload size={18} /><span><strong>Import resume</strong><small>Add JSON as a new version</small></span><input type="file" accept="application/json,.json" onChange={(event) => { void importFile(event.currentTarget.files?.[0]); event.currentTarget.value = '' }} /></label>
           <button type="button" className="export-action" onClick={() => downloadFile(`${JSON.stringify(createLibraryBackup(library), null, 2)}\n`, `career-canvas-backup-${new Date().toISOString().slice(0, 10)}.json`, 'application/json')}><FolderDown size={18} /><span><strong>Back up library</strong><small>Save all {library.documents.length} versions</small></span></button>
@@ -162,10 +185,10 @@ export function DataPanel({ resume, library, onChange, onImport, onRestoreLibrar
         <div className="card-heading"><div><span className="eyebrow">Advanced</span><h2>Edit JSON directly</h2></div><span className={`draft-state ${dirty ? 'dirty' : ''}`}>{dirty ? 'Unapplied changes' : <><Check size={13} /> In sync</>}</span></div>
         <p className="card-intro">The visual editor is safer for everyday updates. Invalid JSON here never replaces the last valid resume.</p>
         <label className="json-editor-label" htmlFor="advanced-json">Resume document · strict schema v2</label>
-        <textarea id="advanced-json" className="json-editor" spellCheck={false} value={draft} aria-invalid={Boolean(error)} aria-describedby="json-message" onChange={(event) => { setDraft(event.currentTarget.value); setDirty(true); setError('') }} />
+        <textarea id="advanced-json" className="json-editor" spellCheck={false} value={draft} aria-invalid={Boolean(error)} aria-describedby="json-message" onChange={(event) => { setDraft(event.currentTarget.value); setDraftDirty(true); setError('') }} />
         <div id="json-message" className={error ? 'json-message error-message' : 'json-message'}>{error || `${utf8ByteLength(draft).toLocaleString()} of ${MAX_DOCUMENT_BYTES.toLocaleString()} bytes`}</div>
         <div className="json-actions">
-          <button className="secondary-button" type="button" disabled={!dirty} onClick={() => { setDraft(`${JSON.stringify(resume, null, 2)}\n`); setDirty(false); setError('') }}><RefreshCw size={15} /> Discard draft</button>
+          <button className="secondary-button" type="button" disabled={!dirty} onClick={() => { setDraft(`${JSON.stringify(resume, null, 2)}\n`); setDraftAnchor(createAdvancedDraftAnchor(resume)); setDraftDirty(false); setError(''); announce('Advanced JSON draft discarded. The last valid resume is unchanged.') }}><RefreshCw size={15} /> Discard draft</button>
           <button className="primary-button" type="button" disabled={!dirty} onClick={applyJson}>Apply JSON</button>
         </div>
       </section>

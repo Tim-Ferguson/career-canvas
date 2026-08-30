@@ -293,11 +293,16 @@ details > summary::-webkit-details-marker { display: none; }
 .export-readiness-summary span { color: inherit; opacity: .82; }
 .export-action { position: relative; min-height: 72px; display: flex; align-items: center; gap: 10px; padding: 11px; border: 1px solid var(--line); border-radius: 9px; color: var(--brand-dark); background: #fbfbf9; text-align: left; overflow: hidden; }
 .export-action:hover { border-color: #9aafa9; background: var(--brand-soft); }
+.export-action:disabled { cursor: not-allowed; border-color: var(--line); color: var(--faint); background: #f2f2ef; opacity: .72; }
+.export-action:disabled:hover { border-color: var(--line); background: #f2f2ef; }
 .export-action > svg { flex: 0 0 auto; }
 .export-action > span { display: flex; flex-direction: column; gap: 3px; }
 .export-action strong { font-size: .68rem; }
 .export-action small { color: var(--muted); font-size: .57rem; }
 .file-action input { position: absolute; inset: 0; opacity: 0; }
+.draft-export-warning { display: grid; grid-template-columns: auto 1fr; align-items: start; gap: 8px; margin: -2px 0 12px; padding: 9px 10px; border: 1px solid #e2c294; border-radius: 8px; color: #755124; background: #fbf2e4; font-size: .59rem; line-height: 1.45; }
+.draft-export-warning > svg { margin-top: 1px; }
+.draft-export-warning strong { display: block; font-size: .62rem; }
 .draft-state { display: inline-flex; align-items: center; gap: 4px; color: var(--brand); font-size: .6rem; font-weight: 700; }
 .draft-state.dirty { color: #96621f; }
 .json-editor-label { display: block; margin: 12px 0 6px; }

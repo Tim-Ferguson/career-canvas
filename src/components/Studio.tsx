@@ -45,6 +45,7 @@ export function Studio() {
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'limited'>('saved')
   const [zoom, setZoom] = useState(0.82)
   const [renderedPages, setRenderedPages] = useState(1)
+  const [advancedDraftDirty, setAdvancedDraftDirty] = useState(false)
   const [, setHistoryRevision] = useState(0)
   const newResumeButtonRef = useRef<HTMLButtonElement>(null)
   const newResumeDialogRef = useRef<HTMLElement>(null)
@@ -115,6 +116,16 @@ export function Studio() {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [hydrated])
+
+  useEffect(() => {
+    if (!advancedDraftDirty) return
+    const protectAdvancedDraft = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', protectAdvancedDraft)
+    return () => window.removeEventListener('beforeunload', protectAdvancedDraft)
+  }, [advancedDraftDirty])
 
   const retrySave = () => {
     setSaveState('saving')
@@ -283,11 +294,22 @@ export function Studio() {
     setStatus('Redid the most recent studio change.')
   }
 
+  const confirmDiscardAdvancedDraft = () => {
+    if (!advancedDraftDirty) return true
+    const confirmed = window.confirm('You have unapplied advanced JSON changes. Switching resumes or leaving the studio will discard that session-only draft. Continue?')
+    if (!confirmed) {
+      setStatus('Action canceled. Your advanced JSON draft is still open in Data.')
+      setActiveTab('data')
+    }
+    return confirmed
+  }
+
   const addResume = (document: ResumeDocument): boolean => {
     if (libraryRef.current.documents.length >= MAX_RESUMES) {
       setStatus(`Your device library is full at ${MAX_RESUMES} resumes. Export and remove one before adding another.`)
       return false
     }
+    if (!confirmDiscardAdvancedDraft()) return false
     updateLibrary((current) => {
       const ids = new Set(current.documents.map((item) => item.id))
       const unique = ids.has(document.id) ? { ...document, id: createId('resume'), title: `${document.title || 'Imported resume'} copy` } : document
@@ -331,6 +353,7 @@ export function Studio() {
       return false
     }
     if (!window.confirm(`Delete “${currentResume.title || 'Untitled resume'}” from this device? Download it first if you may need it later.`)) return false
+    if (current.activeId === resumeId && !confirmDiscardAdvancedDraft()) return false
     updateLibrary((latest) => removeDocument(latest, currentResume.id))
     historiesRef.current.delete(currentResume.id)
     setHistoryRevision((value) => value + 1)
@@ -346,6 +369,11 @@ export function Studio() {
 
   const activateResume = (resumeId: string) => {
     if (!libraryRef.current.documents.some((item) => item.id === resumeId)) return
+    if (libraryRef.current.activeId === resumeId) {
+      setShowLibraryManager(false)
+      return
+    }
+    if (!confirmDiscardAdvancedDraft()) return
     updateLibrary((current) => ({ ...current, activeId: resumeId }))
     setShowLibraryManager(false)
     setStatus('Resume version opened.')
@@ -424,6 +452,11 @@ export function Studio() {
   const activeHistory = historiesRef.current.get(activeResume.id) ?? createResumeHistory()
   const sampleContentPresent = containsStarterSampleContent(activeResume)
   const printResume = () => {
+    if (advancedDraftDirty && !window.confirm('The PDF will use the last valid resume; unapplied advanced JSON changes are not included. Open the print dialog anyway?')) {
+      setStatus('PDF export canceled. Apply or discard the advanced JSON draft first.')
+      setActiveTab('data')
+      return
+    }
     const preflight = buildExportPreflight(activeResume, renderedPages)
     if (preflight.needsConfirmation && !window.confirm(exportConfirmationMessage(preflight, 'PDF'))) {
       setStatus('PDF export canceled. Resolve the sharing checks or verify that the exception is intentional.')
@@ -451,7 +484,7 @@ export function Studio() {
         <div className="resume-switcher">
           <label htmlFor="resume-select">Resume</label>
           <div className="select-wrap">
-            <select id="resume-select" value={activeResume.id} onChange={(event) => { const activeId = event.currentTarget.value; updateLibrary((current) => ({ ...current, activeId })) }}>
+            <select id="resume-select" value={activeResume.id} onChange={(event) => activateResume(event.currentTarget.value)}>
               {library.documents.map((document) => <option value={document.id} key={document.id}>{document.title || 'Untitled resume'}</option>)}
             </select>
             <ChevronDown size={14} aria-hidden="true" />
@@ -464,7 +497,7 @@ export function Studio() {
         </div>
         <div className="header-right">
           <div className={`save-indicator ${saveState}`}><Check size={13} /><span>{saveLabel}</span></div>
-          <Link className="guide-link" to="/guide">Resume guide</Link>
+          <Link className="guide-link" to="/guide" onClick={(event) => { if (!confirmDiscardAdvancedDraft()) event.preventDefault() }}>Resume guide</Link>
           <button className="print-button" type="button" onClick={printResume}><Printer size={16} /> Save PDF</button>
         </div>
       </header>
@@ -492,7 +525,7 @@ export function Studio() {
             <div id="studio-panel-content" role="tabpanel" aria-labelledby="studio-tab-content" tabIndex={0} hidden={activeTab !== 'content'}><ContentEditor resume={activeResume} onChange={changeResume} /></div>
             <div id="studio-panel-design" role="tabpanel" aria-labelledby="studio-tab-design" tabIndex={0} hidden={activeTab !== 'design'}><DesignPanel resume={activeResume} renderedPages={renderedPages} onChange={changeResume} onPrint={printResume} /></div>
             <div id="studio-panel-review" role="tabpanel" aria-labelledby="studio-tab-review" tabIndex={0} hidden={activeTab !== 'review'}><ReviewPanel resume={activeResume} onEdit={editReviewIssue} /></div>
-            <div id="studio-panel-data" role="tabpanel" aria-labelledby="studio-tab-data" tabIndex={0} hidden={activeTab !== 'data'}><DataPanel resume={activeResume} library={library} onChange={changeResume} onImport={addResume} onRestoreLibrary={restoreLibrary} announce={setStatus} /></div>
+            <div id="studio-panel-data" role="tabpanel" aria-labelledby="studio-tab-data" tabIndex={0} hidden={activeTab !== 'data'}><DataPanel resume={activeResume} library={library} onChange={changeResume} onImport={addResume} onRestoreLibrary={restoreLibrary} onDraftStateChange={setAdvancedDraftDirty} announce={setStatus} /></div>
           </div>
           <div className="editor-status" role="status" aria-live="polite"><ShieldCheck size={14} /><span>{status}</span></div>
         </aside>
