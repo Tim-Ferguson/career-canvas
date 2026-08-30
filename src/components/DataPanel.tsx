@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ArchiveRestore, Check, Clipboard, Download, FileJson, FileText, FolderDown, RefreshCw, Upload } from 'lucide-react'
-import { MAX_DOCUMENT_BYTES, MAX_RESUMES, parseJsonText, parseResumeJson, resumeToText, safeFilename, utf8ByteLength, type ResumeDocument, type ResumeLibrary } from '../lib/resume'
+import { MAX_DOCUMENT_BYTES, MAX_RESUMES, containsStarterSampleContent, parseJsonText, parseResumeJson, resumeToText, safeFilename, utf8ByteLength, type ResumeDocument, type ResumeLibrary } from '../lib/resume'
 import { createLibraryBackup, parseLibraryBackup } from '../lib/storage'
 
 function downloadFile(contents: string, filename: string, type: string) {
@@ -84,6 +84,13 @@ export function DataPanel({ resume, library, onChange, onImport, onRestoreLibrar
   }
 
   const baseName = safeFilename(resume.title || resume.profile.name)
+  const downloadPlainText = () => {
+    if (containsStarterSampleContent(resume) && !window.confirm('This plain-text resume still contains fictional starter content. Download it anyway?')) {
+      announce('Plain-text export canceled. Replace the fictional starter content first.')
+      return
+    }
+    downloadFile(resumeToText(resume), `${baseName}.txt`, 'text/plain')
+  }
   return (
     <div className="editor-stack data-panel">
       <section className="editor-card">
@@ -92,7 +99,7 @@ export function DataPanel({ resume, library, onChange, onImport, onRestoreLibrar
         <div className="export-grid">
           <button type="button" className="export-action" onClick={() => downloadFile(`${JSON.stringify(resume, null, 2)}\n`, `${baseName}.json`, 'application/json')}><Download size={18} /><span><strong>Download JSON</strong><small>Portable editable source</small></span></button>
           <button type="button" className="export-action" onClick={copyJson}><Clipboard size={18} /><span><strong>Copy JSON</strong><small>Paste into another tool</small></span></button>
-          <button type="button" className="export-action" onClick={() => downloadFile(resumeToText(resume), `${baseName}.txt`, 'text/plain')}><FileText size={18} /><span><strong>Plain text</strong><small>Quick ATS sanity check</small></span></button>
+          <button type="button" className="export-action" onClick={downloadPlainText}><FileText size={18} /><span><strong>Plain text</strong><small>Quick ATS sanity check</small></span></button>
           <label className="export-action file-action"><Upload size={18} /><span><strong>Import resume</strong><small>Add JSON as a new version</small></span><input type="file" accept="application/json,.json" onChange={(event) => { void importFile(event.currentTarget.files?.[0]); event.currentTarget.value = '' }} /></label>
           <button type="button" className="export-action" onClick={() => downloadFile(`${JSON.stringify(createLibraryBackup(library), null, 2)}\n`, `career-canvas-backup-${new Date().toISOString().slice(0, 10)}.json`, 'application/json')}><FolderDown size={18} /><span><strong>Back up library</strong><small>Save all {library.documents.length} versions</small></span></button>
           <label className="export-action file-action"><ArchiveRestore size={18} /><span><strong>Restore backup</strong><small>Merge without overwriting</small></span><input type="file" accept="application/json,.json" onChange={(event) => { void restoreLibrary(event.currentTarget.files?.[0]); event.currentTarget.value = '' }} /></label>

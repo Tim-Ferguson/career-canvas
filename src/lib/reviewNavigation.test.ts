@@ -27,9 +27,9 @@ describe('review-to-editor navigation', () => {
     assert.equal(reviewDestination(issue(resume, 'links'), resume).id, `entry-url-${entry.id}`)
   })
 
-  it('opens the add-section control when experience is absent', () => {
+  it('opens the add-section control when substantive evidence is absent', () => {
     const resume = createBlankResume()
-    resume.sections = resume.sections.filter((section) => section.kind !== 'experience')
-    assert.equal(reviewDestination(issue(resume, 'experience'), resume).id, 'add-section-control')
+    resume.sections = resume.sections.filter((section) => section.kind === 'skills')
+    assert.equal(reviewDestination(issue(resume, 'evidence'), resume).id, 'add-section-control')
   })
 })

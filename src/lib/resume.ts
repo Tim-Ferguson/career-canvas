@@ -499,10 +499,35 @@ function cleanWords(value: string): string[] {
   return value.trim().split(/\s+/).filter(Boolean)
 }
 
+const starterEvidenceMarkers = [
+  'Reduced customer onboarding time 34%',
+  'Expanded operating margin 6 points',
+  'Reduced unit medication-reconciliation exceptions 23%',
+  'Increased ninth-grade on-track completion from 78% to 89%',
+  'Grew retained creative revenue 42%',
+  'Reduced unplanned conveyor downtime 28%',
+  'Cleaned and joined five public datasets in Python',
+  'Advised 18 graduate and honors researchers',
+]
+
+export function containsStarterSampleContent(resume: ResumeDocument): boolean {
+  const starterIdentityMatches = [
+    resume.profile.name.trim().toLocaleLowerCase() === 'jordan lee',
+    resume.profile.email.trim().toLocaleLowerCase() === 'jordan.lee@example.com',
+    resume.profile.phone.replace(/\D/g, '') === '15550142030',
+    resume.profile.website.trim().toLocaleLowerCase().startsWith('jordanlee.'),
+    resume.profile.links.some((link) => link.url.toLocaleLowerCase().includes('linkedin.com/in/jordanlee')),
+  ].filter(Boolean).length
+  if (starterIdentityMatches >= 2) return true
+  const evidence = resume.sections.flatMap((sectionItem) => sectionItem.entries.flatMap((entryItem) => [entryItem.summary, ...entryItem.highlights])).join('\n')
+  return starterEvidenceMarkers.some((marker) => evidence.includes(marker))
+}
+
 export function analyzeResume(resume: ResumeDocument): ResumeAnalysis {
   const issues: ResumeIssue[] = []
   let penalty = 0
   const add = (issue: ResumeIssue, points: number) => { issues.push(issue); penalty += points }
+  if (containsStarterSampleContent(resume)) add({ id: 'sample-content', severity: 'essential', title: 'Replace the fictional starter content', detail: 'A sample identity or result is still present. Replace every name, contact detail, organization, and claim with accurate information before exporting.' }, 25)
   if (!resume.profile.name.trim()) add({ id: 'name', severity: 'essential', title: 'Add your name', detail: 'Every exported resume needs a clear candidate name.' }, 20)
   if (!resume.profile.email.trim() && !resume.profile.phone.trim()) add({ id: 'contact', severity: 'essential', title: 'Add a direct contact method', detail: 'Include an email address or phone number recruiters can use.' }, 15)
   if (resume.profile.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resume.profile.email.trim())) add({ id: 'email-format', severity: 'essential', title: 'Check the email address', detail: 'It does not look complete. Verify it before anyone receives this resume.' }, 8)
@@ -512,7 +537,9 @@ export function analyzeResume(resume: ResumeDocument): ResumeAnalysis {
   if (summaryWords < 25) add({ id: 'summary-short', severity: 'improvement', title: 'Strengthen the opening summary', detail: 'Aim for 35–70 words covering scope, strengths, and the value you create.' }, 8)
   if (summaryWords > 100) add({ id: 'summary-long', severity: 'tip', title: 'Tighten the opening summary', detail: 'A concise summary is easier to scan; keep the strongest 2–4 lines.' }, 3)
   const visible = resume.sections.filter((item) => item.visible)
-  if (!visible.some((item) => item.kind === 'experience' && item.entries.some((entryItem) => entryItem.title.trim()))) add({ id: 'experience', severity: 'improvement', title: 'Add relevant experience', detail: 'Paid work is not required—projects, service, clinicals, and leadership can all show evidence.' }, 10)
+  const evidenceKinds = new Set<SectionKind>(['experience', 'education', 'projects', 'certifications', 'volunteering', 'awards', 'publications', 'custom'])
+  const hasSubstantiveEvidence = visible.some((sectionItem) => evidenceKinds.has(sectionItem.kind) && sectionItem.entries.some((entryItem) => entryItem.title.trim() && (entryItem.organization.trim() || entryItem.summary.trim() || entryItem.highlights.some((item) => item.trim()))))
+  if (!hasSubstantiveEvidence) add({ id: 'evidence', severity: 'improvement', title: 'Add proof of your capabilities', detail: 'Use relevant work, projects, education, clinicals, research, service, credentials, or leadership—paid employment is not required.' }, 10)
   for (const sectionItem of visible) {
     if (!sectionItem.title.trim()) add({ id: `section-title-${sectionItem.id}`, sectionId: sectionItem.id, severity: 'essential', title: 'Name this section', detail: 'Section headings help people and screening systems understand the document.' }, 6)
     if (!sectionItem.entries.length || !sectionItem.entries.some((entryItem) => entryItem.title.trim() || entryItem.keywords.some(Boolean))) add({ id: `empty-${sectionItem.id}`, sectionId: sectionItem.id, severity: 'improvement', title: `${sectionItem.title || 'A section'} is empty`, detail: 'Add useful evidence or hide the section before exporting.' }, 4)

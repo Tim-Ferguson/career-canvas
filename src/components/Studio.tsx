@@ -6,7 +6,7 @@ import { DataPanel } from './DataPanel'
 import { DesignPanel } from './DesignPanel'
 import { ResumePreview } from './ResumePreview'
 import { ReviewPanel } from './ReviewPanel'
-import { MAX_RESUMES, STARTERS, cloneResume, createBlankResume, createId, createStarter, renderedPageCount, touchResume, type ResumeDocument, type ResumeIssue, type ResumeLibrary, type StarterId } from '../lib/resume'
+import { MAX_RESUMES, STARTERS, cloneResume, containsStarterSampleContent, createBlankResume, createId, createStarter, renderedPageCount, touchResume, type ResumeDocument, type ResumeIssue, type ResumeLibrary, type StarterId } from '../lib/resume'
 import { createDefaultLibrary, loadLibraryResult, mergeLibraries, removeDocument, saveLibrary, upsertDocument } from '../lib/storage'
 import { createResumeHistory, recordResumeChange, redoResumeChange, undoResumeChange, type ResumeHistory } from '../lib/history'
 import { reviewDestination } from '../lib/reviewNavigation'
@@ -296,7 +296,13 @@ export function Studio() {
 
   const saveLabel = saveState === 'saving' ? 'Saving…' : saveState === 'limited' ? 'Not saved' : formatSavedTime(activeResume.updatedAt)
   const activeHistory = historiesRef.current.get(activeResume.id) ?? createResumeHistory()
+  const sampleContentPresent = containsStarterSampleContent(activeResume)
   const printResume = () => {
+    if (sampleContentPresent && !window.confirm('This resume still contains fictional starter content. Replace every sample identity and claim before sending it. Open the print dialog anyway?')) {
+      setStatus('Print canceled. Replace the fictional starter content in the Review workspace first.')
+      setActiveTab('review')
+      return
+    }
     setStatus(`Opening the print dialog for ${activeResume.settings.pageSize === 'a4' ? 'A4' : 'US Letter'}. Turn off browser headers and footers before saving.`)
     window.print()
   }
@@ -347,6 +353,7 @@ export function Studio() {
             </div>
             {saveState === 'limited' ? <div className="storage-alert" role="alert"><AlertTriangle size={18} /><div><strong>Changes are not saved on this device</strong><span>Keep editing, then download JSON or a library backup before closing this page.</span></div><div><button type="button" onClick={retrySave}>Retry save</button><button type="button" onClick={() => setActiveTab('data')}>Open Data</button></div></div> : null}
             {recoveryNotice && saveState !== 'limited' ? <div className="recovery-alert" role="status"><ShieldCheck size={18} /><span>{recoveryNotice}</span><button type="button" aria-label="Dismiss recovery notice" onClick={() => setRecoveryNotice('')}><X size={15} /></button></div> : null}
+            {sampleContentPresent ? <div className="sample-content-alert" role="alert"><AlertTriangle size={18} /><div><strong>Fictional starter content is still present</strong><span>Replace every sample identity, organization, and result with your own accurate evidence before exporting.</span></div><button type="button" onClick={() => setActiveTab('review')}>Review it</button></div> : null}
             <div hidden={activeTab !== 'content'}><ContentEditor resume={activeResume} onChange={changeResume} /></div>
             <div hidden={activeTab !== 'design'}><DesignPanel resume={activeResume} renderedPages={renderedPages} onChange={changeResume} onPrint={printResume} /></div>
             <div hidden={activeTab !== 'review'}><ReviewPanel resume={activeResume} onEdit={editReviewIssue} /></div>

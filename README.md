@@ -12,6 +12,7 @@ The product is deliberately industry-flexible. Its generic entry model supports 
 - Last-chance page-hide saving, explicit storage-failure recovery, and transparent repair notices for damaged local libraries
 - Bounded per-resume undo and redo that groups typing bursts while preserving native field-level undo
 - Eight field-aware starter stories: universal, leadership, healthcare, education, creative, skilled trades, student, and academic
+- Persistent fictional-sample detection with Review, plain-text, and PDF export safeguards
 - Five ATS-conscious layouts: modern, classic, executive, compact, and academic
 - US Letter and A4 output, three spacing levels, three font treatments, and custom accent colors
 - Section and entry creation, duplication, hiding, deletion, and keyboard-accessible reordering

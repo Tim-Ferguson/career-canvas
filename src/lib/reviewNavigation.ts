@@ -30,6 +30,7 @@ export function reviewDestination(issue: ResumeIssue, resume: ResumeDocument): R
   if (issue.id === 'contact' || issue.id === 'email-format') return destination('profile-email')
   if (issue.id === 'phone-format') return destination('profile-phone')
   if (issue.id === 'target') return destination('resume-target-role')
+  if (issue.id === 'sample-content') return destination('profile-name')
   if (issue.id.startsWith('summary-')) return destination('profile-summary')
   if (issue.id.startsWith('section-title-') && section) return destination(`section-title-${section.id}`)
   if (issue.id.startsWith('empty-') && section) return destination(`section-editor-${section.id}`)
@@ -41,7 +42,7 @@ export function reviewDestination(issue: ResumeIssue, resume: ResumeDocument): R
     const entry = section.entries.find((item) => item.highlights.filter((highlight) => highlight.trim()).length > 7)
     return destination(entry ? `entry-editor-${entry.id}` : `section-editor-${section.id}`)
   }
-  if (issue.id === 'experience') {
+  if (issue.id === 'evidence') {
     const experience = resume.sections.find((item) => item.kind === 'experience')
     return destination(experience ? `section-editor-${experience.id}` : 'add-section-control')
   }

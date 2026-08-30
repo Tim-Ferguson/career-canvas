@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { MAX_DOCUMENT_BYTES, analyzeResume, cloneResume, createBlankResume, createSection, createStarter, migrateResume, moveInArray, parseResumeJson, renderedPageCount, resumeToText, utf8ByteLength, validateResume } from './resume'
+import { MAX_DOCUMENT_BYTES, analyzeResume, cloneResume, containsStarterSampleContent, createBlankResume, createSection, createStarter, migrateResume, moveInArray, parseResumeJson, renderedPageCount, resumeToText, utf8ByteLength, validateResume } from './resume'
 
 describe('resume document model', () => {
   it('validates every industry starter', () => {
@@ -94,7 +94,32 @@ describe('resume output and review', () => {
     assert.ok(ids.includes('weak-bullets'))
   })
 
-  it('treats the universal starter as a strong editable foundation', () => {
-    assert.ok(analyzeResume(createStarter()).score >= 85)
+  it('flags every fictional starter until its identity and example results are replaced', () => {
+    for (const id of ['universal', 'leadership', 'healthcare', 'education', 'creative', 'trades', 'student', 'academic'] as const) {
+      const resume = createStarter(id)
+      assert.equal(containsStarterSampleContent(resume), true)
+      assert.ok(analyzeResume(resume).issues.some((issue) => issue.id === 'sample-content' && issue.severity === 'essential'))
+    }
+    assert.equal(containsStarterSampleContent(createBlankResume()), false)
+  })
+
+  it('treats a personalized starter as a strong editable foundation', () => {
+    const resume = createStarter()
+    resume.profile = { ...resume.profile, name: 'Taylor Kim', email: 'taylor@example.com', phone: '+1 555 555 0199', website: 'taylorkim.example', links: [] }
+    let result = 10
+    for (const section of resume.sections) {
+      for (const entry of section.entries) {
+        entry.highlights = entry.highlights.map(() => `Improved a relevant outcome by ${result++}%.`)
+      }
+    }
+    assert.equal(containsStarterSampleContent(resume), false)
+    assert.ok(analyzeResume(resume).score >= 85)
+  })
+
+  it('accepts substantial projects without requiring conventional employment', () => {
+    const resume = createBlankResume()
+    resume.sections = [createSection('projects')]
+    resume.sections[0]!.entries[0] = { ...resume.sections[0]!.entries[0]!, title: 'Community research project', organization: 'Neighborhood coalition', highlights: ['Interviewed 24 residents and presented three service recommendations.'] }
+    assert.equal(analyzeResume(resume).issues.some((issue) => issue.id === 'evidence'), false)
   })
 })
