@@ -32,7 +32,7 @@ export function buildExportPreflight(resume: ResumeDocument, renderedPages?: num
   }
 }
 
-export function exportConfirmationMessage(preflight: ExportPreflight, outputLabel: 'PDF' | 'plain-text file'): string {
+export function exportConfirmationMessage(preflight: ExportPreflight, outputLabel: 'PDF' | 'plain-text file' | 'JSON Resume file'): string {
   const notes: string[] = []
   if (preflight.sampleContent) notes.push('Fictional starter identity or evidence is still present. Do not send it as your own work.')
   const otherEssential = preflight.essentialIssues.filter((issue) => issue.id !== 'sample-content')

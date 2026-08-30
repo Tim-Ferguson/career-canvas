@@ -4,6 +4,7 @@ import { MAX_DOCUMENT_BYTES, MAX_RESUMES, containsStarterSampleContent, parseJso
 import { createLibraryBackup, parseLibraryBackup, summarizeLibraryMerge, type LibraryMergeSummary } from '../lib/storage'
 import { buildExportPreflight, exportConfirmationMessage } from '../lib/exportReadiness'
 import { advancedDraftIsStale, createAdvancedDraftAnchor } from '../lib/draftSafety'
+import { buildJsonResumeExport } from '../lib/jsonResumeExport'
 import { ExportReadinessSummary } from './ExportReadinessSummary'
 
 function downloadFile(contents: string, filename: string, type: string) {
@@ -156,6 +157,16 @@ export function DataPanel({ resume, library, onChange, onImport, onRestoreLibrar
 
   const exportPreflight = buildExportPreflight(resume)
   const baseName = exportPreflight.filenameBase
+  const downloadJsonResume = () => {
+    const exported = buildJsonResumeExport(resume)
+    const confirmations = [exportPreflight.needsConfirmation ? exportConfirmationMessage(exportPreflight, 'JSON Resume file') : '', ...exported.warnings].filter(Boolean)
+    if (confirmations.length && !window.confirm([...confirmations, 'Download this visible-content interoperability copy anyway?'].join('\n\n'))) {
+      announce('JSON Resume export canceled. Review the sharing checks first.')
+      return
+    }
+    downloadFile(`${JSON.stringify(exported.document, null, 2)}\n`, `${baseName}-json-resume.json`, 'application/json')
+    announce('JSON Resume interoperability copy downloaded. Keep Career Canvas JSON as the lossless editable source.')
+  }
   const downloadPlainText = () => {
     if (dirty && !window.confirm('Unapplied advanced JSON changes are not included in exports. Download plain text from the last valid resume anyway?')) {
       announce('Plain-text export canceled. Apply or discard the advanced JSON draft first.')
@@ -177,6 +188,7 @@ export function DataPanel({ resume, library, onChange, onImport, onRestoreLibrar
         <div className="export-grid">
           <button type="button" className="export-action" disabled={dirty} title={dirty ? 'Apply or discard the advanced JSON draft first' : undefined} onClick={() => downloadFile(`${JSON.stringify(resume, null, 2)}\n`, `${baseName}.json`, 'application/json')}><Download size={18} /><span><strong>Download JSON</strong><small>{dirty ? 'Apply or discard draft first' : 'Portable editable source'}</small></span></button>
           <button type="button" className="export-action" disabled={dirty} title={dirty ? 'Apply or discard the advanced JSON draft first' : undefined} onClick={copyJson}><Clipboard size={18} /><span><strong>Copy JSON</strong><small>{dirty ? 'Apply or discard draft first' : 'Paste into another tool'}</small></span></button>
+          <button type="button" className="export-action" disabled={dirty} title={dirty ? 'Apply or discard the advanced JSON draft first' : undefined} onClick={downloadJsonResume}><FileJson size={18} /><span><strong>JSON Resume</strong><small>{dirty ? 'Apply or discard draft first' : 'Visible standard sharing copy'}</small></span></button>
           <button type="button" className="export-action" onClick={downloadPlainText}><FileText size={18} /><span><strong>Plain text</strong><small>Quick ATS sanity check</small></span></button>
           <label className="export-action file-action"><Upload size={18} /><span><strong>Import resume</strong><small>Add JSON as a new version</small></span><input type="file" accept="application/json,.json" onChange={(event) => { void importFile(event.currentTarget.files?.[0]); event.currentTarget.value = '' }} /></label>
           <button type="button" className="export-action" onClick={() => downloadFile(`${JSON.stringify(createLibraryBackup(library), null, 2)}\n`, `career-canvas-backup-${new Date().toISOString().slice(0, 10)}.json`, 'application/json')}><FolderDown size={18} /><span><strong>Back up library</strong><small>Save all {library.documents.length} versions</small></span></button>

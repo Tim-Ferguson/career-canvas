@@ -246,7 +246,7 @@ export function parseResumeImportJson(value: string): ResumeImportResult {
   if (format === 'json-resume') {
     if (isRecord(source.basics) && jsonString(source.basics, 'image', 'basics')) warnings.push('The JSON Resume profile image was not imported; Career Canvas layouts are intentionally photo-free.')
     if (source.meta !== undefined) warnings.push('JSON Resume registry metadata is not rendered; only a valid last-modified time is retained.')
-    const standardKeys = new Set(['$schema', 'basics', 'work', 'volunteer', 'education', 'awards', 'certificates', 'publications', 'skills', 'languages', 'interests', 'references', 'projects', 'meta'])
+    const standardKeys = new Set(['$schema', 'basics', 'work', 'volunteer', 'education', 'awards', 'certificates', 'publications', 'skills', 'languages', 'interests', 'references', 'projects', 'meta', 'x-career-canvas'])
     if (Object.keys(source).some((key) => !standardKeys.has(key))) warnings.push('Custom root extension fields were not imported; verify the converted resume against the source.')
   }
   return { document: migrateResume(source), format, warnings }
@@ -320,6 +320,13 @@ function jsonStrings(record: Record<string, unknown>, key: string, context: stri
   })
 }
 
+function jsonBoolean(record: Record<string, unknown>, key: string, context: string): boolean | undefined {
+  const value = record[key]
+  if (value === undefined || value === null) return undefined
+  if (typeof value !== 'boolean') throw new Error(`JSON Resume ${context}.${key} must be true or false.`)
+  return value
+}
+
 function combinedText(...values: string[]): string {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))].join('\n\n')
 }
@@ -355,7 +362,7 @@ function migrateJsonResume(value: Record<string, unknown>): ResumeDocument {
       location: fields.location ? jsonString(raw, fields.location, context) : '',
       startDate,
       endDate,
-      current: Boolean(startDate.trim() && !endDate.trim()),
+      current: jsonBoolean(raw, 'current', context) ?? Boolean(startDate.trim() && !endDate.trim()),
       url: fields.url ? jsonString(raw, fields.url, context) : '',
       summary: fields.summary ? jsonString(raw, fields.summary, context) : '',
       highlights: fields.highlights ? jsonStrings(raw, fields.highlights, context) : [],
@@ -369,15 +376,15 @@ function migrateJsonResume(value: Record<string, unknown>): ResumeDocument {
     const item = makeTimelineEntry(raw, `work[${index}]`, { title: 'position', organization: 'name', location: 'location', summary: 'summary', url: 'url', highlights: 'highlights', keywords: 'keywords' })
     return { ...item, summary: combinedText(jsonString(raw, 'description', `work[${index}]`), item.summary) }
   }))
-  addSection('volunteering', 'Community & service', jsonRecords(value, 'volunteer').map((raw, index) => makeTimelineEntry(raw, `volunteer[${index}]`, { title: 'position', organization: 'organization', summary: 'summary', url: 'url', highlights: 'highlights' })))
+  addSection('volunteering', 'Community & service', jsonRecords(value, 'volunteer').map((raw, index) => makeTimelineEntry(raw, `volunteer[${index}]`, { title: 'position', organization: 'organization', location: 'location', summary: 'summary', url: 'url', highlights: 'highlights', keywords: 'keywords' })))
   addSection('education', 'Education', jsonRecords(value, 'education').map((raw, index) => {
     const context = `education[${index}]`
     const studyType = jsonString(raw, 'studyType', context)
     const area = jsonString(raw, 'area', context)
-    const item = makeTimelineEntry(raw, context, { title: 'studyType', organization: 'institution', url: 'url' })
+    const item = makeTimelineEntry(raw, context, { title: 'studyType', organization: 'institution', location: 'location', summary: 'summary', url: 'url', highlights: 'highlights', keywords: 'keywords' })
     const score = jsonString(raw, 'score', context)
     const courses = jsonStrings(raw, 'courses', context)
-    return { ...item, title: [studyType, area].filter(Boolean).join(', '), highlights: [score ? `Score: ${score}` : '', ...courses.map((course) => `Course: ${course}`)].filter(Boolean) }
+    return { ...item, title: [studyType, area].filter(Boolean).join(', '), highlights: [...item.highlights, score ? `Score: ${score}` : '', ...courses.map((course) => `Course: ${course}`)].filter(Boolean) }
   }))
   addSection('projects', 'Projects', jsonRecords(value, 'projects').map((raw, index) => {
     const context = `projects[${index}]`
@@ -388,33 +395,53 @@ function migrateJsonResume(value: Record<string, unknown>): ResumeDocument {
   }))
   addSection('certifications', 'Licenses & certifications', jsonRecords(value, 'certificates').map((raw, index) => {
     const context = `certificates[${index}]`
-    return entry({ title: jsonString(raw, 'name', context), organization: jsonString(raw, 'issuer', context), startDate: jsonString(raw, 'date', context), url: jsonString(raw, 'url', context) })
+    return entry({ title: jsonString(raw, 'name', context), organization: jsonString(raw, 'issuer', context), location: jsonString(raw, 'location', context), startDate: jsonString(raw, 'date', context) || jsonString(raw, 'startDate', context), endDate: jsonString(raw, 'endDate', context), current: jsonBoolean(raw, 'current', context) ?? false, url: jsonString(raw, 'url', context), summary: jsonString(raw, 'summary', context), highlights: jsonStrings(raw, 'highlights', context), keywords: jsonStrings(raw, 'keywords', context) })
   }))
   addSection('awards', 'Awards & honors', jsonRecords(value, 'awards').map((raw, index) => {
     const context = `awards[${index}]`
-    return entry({ title: jsonString(raw, 'title', context), organization: jsonString(raw, 'awarder', context), endDate: jsonString(raw, 'date', context), summary: jsonString(raw, 'summary', context) })
+    return entry({ title: jsonString(raw, 'title', context), organization: jsonString(raw, 'awarder', context), location: jsonString(raw, 'location', context), startDate: jsonString(raw, 'startDate', context), endDate: jsonString(raw, 'date', context), current: jsonBoolean(raw, 'current', context) ?? false, url: jsonString(raw, 'url', context), summary: jsonString(raw, 'summary', context), highlights: jsonStrings(raw, 'highlights', context), keywords: jsonStrings(raw, 'keywords', context) })
   }))
   addSection('publications', 'Publications', jsonRecords(value, 'publications').map((raw, index) => {
     const context = `publications[${index}]`
-    return entry({ title: jsonString(raw, 'name', context), organization: jsonString(raw, 'publisher', context), endDate: jsonString(raw, 'releaseDate', context), url: jsonString(raw, 'url', context), summary: jsonString(raw, 'summary', context) })
+    return entry({ title: jsonString(raw, 'name', context), organization: jsonString(raw, 'publisher', context), location: jsonString(raw, 'location', context), startDate: jsonString(raw, 'startDate', context), endDate: jsonString(raw, 'releaseDate', context), current: jsonBoolean(raw, 'current', context) ?? false, url: jsonString(raw, 'url', context), summary: jsonString(raw, 'summary', context), highlights: jsonStrings(raw, 'highlights', context), keywords: jsonStrings(raw, 'keywords', context) })
   }))
   addSection('skills', 'Skills', jsonRecords(value, 'skills').map((raw, index) => {
     const context = `skills[${index}]`
-    return entry({ title: jsonString(raw, 'name', context), organization: jsonString(raw, 'level', context), keywords: jsonStrings(raw, 'keywords', context) })
+    return makeTimelineEntry(raw, context, { title: 'name', organization: 'level', location: 'location', summary: 'summary', url: 'url', highlights: 'highlights', keywords: 'keywords' })
   }))
   addSection('languages', 'Languages', jsonRecords(value, 'languages').map((raw, index) => {
     const context = `languages[${index}]`
-    return entry({ title: jsonString(raw, 'language', context), organization: jsonString(raw, 'fluency', context) })
+    return makeTimelineEntry(raw, context, { title: 'language', organization: 'fluency', location: 'location', summary: 'summary', url: 'url', highlights: 'highlights', keywords: 'keywords' })
   }))
   addSection('interests', 'Interests', jsonRecords(value, 'interests').map((raw, index) => {
     const context = `interests[${index}]`
-    return entry({ title: jsonString(raw, 'name', context), keywords: jsonStrings(raw, 'keywords', context) })
+    return makeTimelineEntry(raw, context, { title: 'name', organization: 'organization', location: 'location', summary: 'summary', url: 'url', highlights: 'highlights', keywords: 'keywords' })
   }))
   addSection('custom', 'References', jsonRecords(value, 'references').map((raw, index) => {
     const context = `references[${index}]`
     return entry({ title: jsonString(raw, 'name', context) || 'Reference', summary: jsonString(raw, 'reference', context) })
   }))
 
+  const extension = value['x-career-canvas'] === undefined || value['x-career-canvas'] === null ? null : isRecord(value['x-career-canvas']) ? value['x-career-canvas'] : (() => { throw new Error('JSON Resume x-career-canvas extension must be an object.') })()
+  let extensionTitle = ''
+  let extensionTarget = ''
+  let extensionIndustry = ''
+  let extensionSettings: ResumeDocument['settings'] | null = null
+  if (extension) {
+    extensionTitle = jsonString(extension, 'title', 'x-career-canvas')
+    extensionTarget = jsonString(extension, 'targetRole', 'x-career-canvas')
+    extensionIndustry = jsonString(extension, 'industry', 'x-career-canvas')
+    if (extension.settings !== undefined) {
+      const parsedSettings = settingsSchema.safeParse(extension.settings)
+      if (!parsedSettings.success) throw new Error(`JSON Resume x-career-canvas.settings: ${parsedSettings.error.issues[0]?.message || 'invalid settings'}`)
+      extensionSettings = parsedSettings.data
+    }
+    if (extension.sections !== undefined) {
+      if (!Array.isArray(extension.sections)) throw new Error('JSON Resume x-career-canvas.sections must be a list.')
+      const parsedExtension = validateResume({ schemaVersion: 2, id: createId('resume'), title: '', targetRole: '', industry: '', updatedAt: now(), profile: { name: '', headline: '', email: '', phone: '', location: '', website: '', summary: '', links: [] }, settings: extensionSettings ?? { layout: 'modern', pageSize: 'letter', fontPair: 'sans', density: 'balanced', accent: '#315f58' }, sections: extension.sections })
+      sections.push(...parsedExtension.sections)
+    }
+  }
   const publications = sections.find((item) => item.kind === 'publications')?.entries.length ?? 0
   const name = jsonString(basics, 'name', 'basics')
   const label = jsonString(basics, 'label', 'basics')
@@ -423,9 +450,9 @@ function migrateJsonResume(value: Record<string, unknown>): ResumeDocument {
   return validateResume({
     schemaVersion: 2,
     id: createId('resume'),
-    title: `${name || label || 'Imported'} — JSON Resume`,
-    targetRole: label,
-    industry: '',
+    title: extensionTitle || `${name || label || 'Imported'} — JSON Resume`,
+    targetRole: extensionTarget || label,
+    industry: extensionIndustry,
     updatedAt: lastModified && !Number.isNaN(Date.parse(lastModified)) ? lastModified : now(),
     profile: {
       name,
@@ -437,7 +464,7 @@ function migrateJsonResume(value: Record<string, unknown>): ResumeDocument {
       summary: jsonString(basics, 'summary', 'basics'),
       links: profiles,
     },
-    settings: publications >= 3 ? { layout: 'academic', pageSize: 'letter', fontPair: 'serif', density: 'comfortable', accent: '#3e4d75' } : { layout: 'modern', pageSize: 'letter', fontPair: 'sans', density: 'balanced', accent: '#315f58' },
+    settings: extensionSettings ?? (publications >= 3 ? { layout: 'academic', pageSize: 'letter', fontPair: 'serif', density: 'comfortable', accent: '#3e4d75' } : { layout: 'modern', pageSize: 'letter', fontPair: 'sans', density: 'balanced', accent: '#315f58' }),
     sections,
   })
 }
