@@ -66,9 +66,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .studio-tabs button:hover { color: var(--ink); background: rgba(255,255,255,.65); }
 .studio-tabs button.active { color: var(--brand-dark); background: white; box-shadow: 0 1px 0 rgba(20, 28, 25, .05); }
 .editor-scroll { overflow: auto; overscroll-behavior: contain; padding: 26px clamp(20px, 2.4vw, 34px) 65px; scrollbar-gutter: stable; }
-.editor-intro { margin-bottom: 20px; }
+.editor-intro { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 20px; }
 .eyebrow { display: block; color: var(--brand); font-size: .61rem; font-weight: 800; text-transform: uppercase; letter-spacing: .13em; }
 .editor-intro h1 { margin: 5px 0 0; font-family: 'DM Serif Display', Georgia, serif; font-size: clamp(1.65rem, 2.3vw, 2.15rem); font-weight: 400; letter-spacing: -.025em; }
+.history-controls { display: flex; gap: 5px; padding-top: 2px; }
+.history-controls button { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); background: white; }
+.history-controls button:hover:not(:disabled) { border-color: var(--line-strong); color: var(--ink); background: #f2f1ec; }
 .editor-status { display: flex; align-items: center; gap: 7px; padding: 0 16px; overflow: hidden; border-top: 1px solid var(--line); color: var(--muted); background: #f3f2ee; font-size: .64rem; }
 .editor-status svg { flex: 0 0 auto; color: var(--brand); }
 .editor-status span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { Check, ChevronDown, Copy, FileCheck2, FileText, LayoutTemplate, MoreHorizontal, Plus, Printer, ShieldCheck, Sparkles, Trash2, X } from 'lucide-react'
+import { Check, ChevronDown, Copy, FileCheck2, FileText, LayoutTemplate, MoreHorizontal, Plus, Printer, Redo2, ShieldCheck, Sparkles, Trash2, Undo2, X } from 'lucide-react'
 import { ContentEditor } from './ContentEditor'
 import { DataPanel } from './DataPanel'
 import { DesignPanel } from './DesignPanel'
@@ -8,6 +8,7 @@ import { ResumePreview } from './ResumePreview'
 import { ReviewPanel } from './ReviewPanel'
 import { MAX_RESUMES, STARTERS, cloneResume, createBlankResume, createId, createStarter, renderedPageCount, touchResume, type ResumeDocument, type ResumeLibrary, type StarterId } from '../lib/resume'
 import { createDefaultLibrary, loadLibrary, mergeLibraries, removeDocument, saveLibrary, upsertDocument } from '../lib/storage'
+import { createResumeHistory, recordResumeChange, redoResumeChange, undoResumeChange, type ResumeHistory } from '../lib/history'
 
 type StudioTab = 'content' | 'design' | 'review' | 'data'
 
@@ -24,6 +25,10 @@ function formatSavedTime(value: string) {
   return `Saved ${new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(date)}`
 }
 
+function isNativeEditingTarget(target: EventTarget | null): boolean {
+  return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || (target instanceof HTMLElement && target.isContentEditable)
+}
+
 export function Studio() {
   const [library, setLibrary] = useState<ResumeLibrary>(() => createDefaultLibrary())
   const [hydrated, setHydrated] = useState(false)
@@ -34,12 +39,15 @@ export function Studio() {
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'limited'>('saved')
   const [zoom, setZoom] = useState(0.82)
   const [renderedPages, setRenderedPages] = useState(1)
+  const [, setHistoryRevision] = useState(0)
   const newResumeButtonRef = useRef<HTMLButtonElement>(null)
   const newResumeDialogRef = useRef<HTMLElement>(null)
+  const historiesRef = useRef(new Map<string, ResumeHistory>())
   const activeResume = useMemo(() => library.documents.find((document) => document.id === library.activeId) ?? library.documents[0]!, [library])
 
   useEffect(() => {
     setLibrary(loadLibrary(window.localStorage))
+    historiesRef.current.clear()
     setHydrated(true)
   }, [])
 
@@ -107,7 +115,37 @@ export function Studio() {
   }, [activeResume.id, activeResume.settings.pageSize])
 
   const changeResume = (document: ResumeDocument) => {
+    const history = historiesRef.current.get(document.id) ?? createResumeHistory()
+    const nextHistory = recordResumeChange(history, activeResume, document)
+    historiesRef.current.set(document.id, nextHistory)
+    if (nextHistory !== history) setHistoryRevision((value) => value + 1)
     setLibrary((current) => upsertDocument(current, touchResume(document)))
+  }
+
+  const undo = () => {
+    const history = historiesRef.current.get(activeResume.id) ?? createResumeHistory()
+    const result = undoResumeChange(history, activeResume)
+    if (!result.document) {
+      setStatus('Nothing to undo for this resume.')
+      return
+    }
+    historiesRef.current.set(activeResume.id, result.history)
+    setLibrary((current) => upsertDocument(current, touchResume(result.document!)))
+    setHistoryRevision((value) => value + 1)
+    setStatus('Undid the most recent studio change.')
+  }
+
+  const redo = () => {
+    const history = historiesRef.current.get(activeResume.id) ?? createResumeHistory()
+    const result = redoResumeChange(history, activeResume)
+    if (!result.document) {
+      setStatus('Nothing to redo for this resume.')
+      return
+    }
+    historiesRef.current.set(activeResume.id, result.history)
+    setLibrary((current) => upsertDocument(current, touchResume(result.document!)))
+    setHistoryRevision((value) => value + 1)
+    setStatus('Redid the most recent studio change.')
   }
 
   const addResume = (document: ResumeDocument) => {
@@ -148,6 +186,8 @@ export function Studio() {
     }
     if (!window.confirm(`Delete “${activeResume.title || 'Untitled resume'}” from this device? Download it first if you may need it later.`)) return
     setLibrary((current) => removeDocument(current, activeResume.id))
+    historiesRef.current.delete(activeResume.id)
+    setHistoryRevision((value) => value + 1)
     setShowLibraryMenu(false)
     setStatus('Resume removed from this device.')
   }
@@ -155,13 +195,32 @@ export function Studio() {
   const restoreLibrary = (incoming: ResumeLibrary) => {
     try {
       setLibrary(mergeLibraries(library, incoming))
+      historiesRef.current.clear()
+      setHistoryRevision((value) => value + 1)
     } catch (caught) {
       setStatus(caught instanceof Error ? caught.message : 'The library backup could not be restored.')
       throw caught
     }
   }
 
+  useEffect(() => {
+    const handleHistoryShortcut = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || isNativeEditingTarget(event.target)) return
+      if (event.key.toLocaleLowerCase() === 'z') {
+        event.preventDefault()
+        if (event.shiftKey) redo()
+        else undo()
+      } else if (event.ctrlKey && event.key.toLocaleLowerCase() === 'y') {
+        event.preventDefault()
+        redo()
+      }
+    }
+    document.addEventListener('keydown', handleHistoryShortcut)
+    return () => document.removeEventListener('keydown', handleHistoryShortcut)
+  })
+
   const saveLabel = saveState === 'saving' ? 'Saving…' : saveState === 'limited' ? 'Not saved' : formatSavedTime(activeResume.updatedAt)
+  const activeHistory = historiesRef.current.get(activeResume.id) ?? createResumeHistory()
   return (
     <div className="studio-shell">
       <header className="app-header no-print">
@@ -200,8 +259,12 @@ export function Studio() {
           </nav>
           <div className="editor-scroll">
             <div className="editor-intro">
-              <span className="eyebrow">{activeTab === 'content' ? 'Build the story' : activeTab === 'design' ? 'Shape the page' : activeTab === 'review' ? 'Make it stronger' : 'Own your data'}</span>
-              <h1>{activeTab === 'content' ? 'Edit your resume' : activeTab === 'design' ? 'Choose your presentation' : activeTab === 'review' ? 'Review before you send' : 'Portable resume data'}</h1>
+              <div><span className="eyebrow">{activeTab === 'content' ? 'Build the story' : activeTab === 'design' ? 'Shape the page' : activeTab === 'review' ? 'Make it stronger' : 'Own your data'}</span>
+              <h1>{activeTab === 'content' ? 'Edit your resume' : activeTab === 'design' ? 'Choose your presentation' : activeTab === 'review' ? 'Review before you send' : 'Portable resume data'}</h1></div>
+              <div className="history-controls" aria-label="Revision history">
+                <button type="button" onClick={undo} disabled={!activeHistory.past.length} aria-label="Undo recent studio change" title="Undo recent studio change"><Undo2 size={16} /></button>
+                <button type="button" onClick={redo} disabled={!activeHistory.future.length} aria-label="Redo recent studio change" title="Redo recent studio change"><Redo2 size={16} /></button>
+              </div>
             </div>
             <div hidden={activeTab !== 'content'}><ContentEditor resume={activeResume} onChange={changeResume} /></div>
             <div hidden={activeTab !== 'design'}><DesignPanel resume={activeResume} onChange={changeResume} /></div>
