@@ -15,6 +15,7 @@ The product is deliberately industry-flexible. Its generic entry model supports 
 - US Letter and A4 output, three spacing levels, three font treatments, and custom accent colors
 - Section and entry creation, duplication, hiding, deletion, and keyboard-accessible reordering
 - Readiness review for focus, contactability, evidence, scanability, and likely page length
+- Session-only opportunity comparison that surfaces honest vocabulary gaps without exporting pasted job descriptions or claiming an ATS score
 - JSON v2 import/export, automatic migration from the original v1 schema, plain-text export, and browser-native PDF output
 - Validated whole-library backups that restore non-destructively and preserve newer versions as well as historical copies
 - Live rendered page-count feedback for catching overflow before opening the PDF dialog
@@ -53,6 +54,7 @@ The dependency lockfile is committed. `npm audit` should report zero known vulne
 - `src/lib/resume.ts` — versioned schema, validation, v1 migration, starters, analysis, text export, and immutable helpers
 - `src/lib/storage.ts` — bounded, validated local resume library
 - `src/lib/history.ts` — bounded, field-aware resume revision history
+- `src/lib/tailoring.ts` — bounded, transparent opportunity-language comparison
 - `src/components/Studio.tsx` — application state, autosave, document management, tabs, preview, and export flow
 - `src/components/ContentEditor.tsx` — profile, section, entry, bullet, keyword, link, and ordering forms
 - `src/components/ResumePreview.tsx` — one semantic document tree shared by every visual layout

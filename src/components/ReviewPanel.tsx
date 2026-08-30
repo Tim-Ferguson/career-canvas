@@ -1,6 +1,8 @@
-import { AlertCircle, ArrowRight, CheckCircle2, Lightbulb, Target } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { AlertCircle, ArrowRight, CheckCircle2, Lightbulb, SearchCheck, Target, X } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { analyzeResume, type ResumeDocument, type ResumeIssue } from '../lib/resume'
+import { MAX_TARGET_TEXT, compareResumeToTarget } from '../lib/tailoring'
 
 function IssueIcon({ severity }: Pick<ResumeIssue, 'severity'>) {
   if (severity === 'essential') return <AlertCircle size={17} />
@@ -9,7 +11,10 @@ function IssueIcon({ severity }: Pick<ResumeIssue, 'severity'>) {
 }
 
 export function ReviewPanel({ resume, onEdit }: { resume: ResumeDocument; onEdit: () => void }) {
+  const [targetTexts, setTargetTexts] = useState<Record<string, string>>({})
+  const targetText = targetTexts[resume.id] ?? ''
   const analysis = analyzeResume(resume)
+  const comparison = useMemo(() => compareResumeToTarget(resume, targetText), [resume, targetText])
   const scoreLabel = analysis.score >= 90 ? 'Strong and focused' : analysis.score >= 75 ? 'Solid foundation' : analysis.score >= 55 ? 'Needs a focused pass' : 'Important details missing'
   return (
     <div className="editor-stack review-panel">
@@ -36,6 +41,27 @@ export function ReviewPanel({ resume, onEdit }: { resume: ResumeDocument; onEdit
             ))}
           </div>
         ) : <div className="review-success"><CheckCircle2 size={24} /><div><strong>No structural issues found</strong><p>Do one final proofread against the job description before exporting.</p></div></div>}
+      </section>
+      <section className="editor-card targeting-card">
+        <div className="card-heading"><div><span className="eyebrow">Opportunity comparison</span><h2>Use the reader’s vocabulary</h2></div><SearchCheck size={19} aria-hidden="true" /></div>
+        <p className="targeting-intro">Paste a job description, project brief, program call, or role posting. Career Canvas compares its recurring language with the words visible on this resume—it does not predict screening results.</p>
+        <label className="targeting-field" htmlFor="target-description">
+          <span>Target description</span>
+          <textarea id="target-description" rows={7} maxLength={MAX_TARGET_TEXT} value={targetText} placeholder="Paste the opportunity text here…" aria-describedby="target-privacy" onChange={(event) => setTargetTexts((current) => ({ ...current, [resume.id]: event.currentTarget.value }))} />
+        </label>
+        <div className="targeting-meta" id="target-privacy">
+          <span>Kept only in this page session—not saved, exported, backed up, or printed.</span>
+          {targetText ? <button type="button" onClick={() => setTargetTexts((current) => { const next = { ...current }; delete next[resume.id]; return next })}><X size={13} /> Clear</button> : null}
+        </div>
+        {comparison.terms.length ? (
+          <div className="targeting-results" aria-live="polite">
+            <div className="targeting-summary"><strong>{comparison.matched.length} of {comparison.terms.length}</strong><span>high-signal terms already appear in the visible resume</span></div>
+            <div className="targeting-group"><h3>Already reflected</h3><div className="term-list">{comparison.matched.length ? comparison.matched.map((item) => <span className="term term-match" key={`match-${item.term}`}>{item.term}</span>) : <small>No high-signal overlap yet.</small>}</div></div>
+            <div className="targeting-group"><h3>Verify before adding</h3><div className="term-list">{comparison.missing.length ? comparison.missing.map((item) => <span className="term term-missing" key={`missing-${item.term}`}>{item.term}</span>) : <small>Every surfaced term appears somewhere in the visible resume.</small>}</div></div>
+            <p className="targeting-caution">Only add a missing term when it truthfully describes your work, credential, method, or outcome. Show evidence in context; do not paste a keyword list.</p>
+            <button className="text-button targeting-edit" type="button" onClick={onEdit}>Edit resume evidence <ArrowRight size={14} /></button>
+          </div>
+        ) : targetText ? <p className="targeting-empty">Add more of the opportunity text so the comparison can identify meaningful terms.</p> : null}
       </section>
       <section className="editor-card review-principles">
         <div className="card-heading"><div><span className="eyebrow">Works in every field</span><h2>Final human checks</h2></div></div>
