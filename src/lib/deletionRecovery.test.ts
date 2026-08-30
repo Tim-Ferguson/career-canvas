@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { createBlankResume, createStarter } from './resume'
-import { createDeletedResumeRecovery, loadDeletedResumeRecovery, parseDeletedResumeRecovery, recoveryAlreadyPresent, restoreDeletedResume, saveDeletedResumeRecovery, DELETION_RECOVERY_STORAGE_KEY } from './deletionRecovery'
+import { createDeletedResumeRecovery, loadDeletedResumeRecovery, loadDeletedResumeRecoveryFromProvider, parseDeletedResumeRecovery, recoveryAlreadyPresent, restoreDeletedResume, saveDeletedResumeRecovery, DELETION_RECOVERY_STORAGE_KEY } from './deletionRecovery'
 
 describe('recoverable resume removal', () => {
   it('round trips one validated recovery copy through device storage', () => {
@@ -18,6 +18,7 @@ describe('recoverable resume removal', () => {
     assert.throws(() => parseDeletedResumeRecovery({ deletedAt: 'not-a-date', document: {} }), /invalid date/)
     assert.equal(loadDeletedResumeRecovery({ getItem: () => '{bad json' }), null)
     assert.equal(loadDeletedResumeRecovery({ getItem: () => { throw new Error('blocked') } }), null)
+    assert.equal(loadDeletedResumeRecoveryFromProvider(() => { throw new DOMException('Denied', 'SecurityError') }), null)
   })
 
   it('restores the original ID or creates a safe copy on a changed collision', () => {

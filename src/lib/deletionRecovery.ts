@@ -35,6 +35,14 @@ export function loadDeletedResumeRecovery(storage: Pick<Storage, 'getItem'>): De
   }
 }
 
+export function loadDeletedResumeRecoveryFromProvider(getStorage: () => Pick<Storage, 'getItem'>): DeletedResumeRecovery | null {
+  try {
+    return loadDeletedResumeRecovery(getStorage())
+  } catch {
+    return null
+  }
+}
+
 export function saveDeletedResumeRecovery(storage: Pick<Storage, 'setItem' | 'removeItem'>, recovery: DeletedResumeRecovery | null): void {
   if (!recovery) {
     storage.removeItem(DELETION_RECOVERY_STORAGE_KEY)

@@ -1,4 +1,5 @@
 import { MAX_DOCUMENT_BYTES, MAX_RESUMES, createId, createStarter, migrateResume, type ResumeDocument, type ResumeLibrary } from './resume'
+import { classifyDeviceStorageFailure, type DeviceStorageFailure } from './deviceStorage'
 
 export const LIBRARY_STORAGE_KEY = 'career-canvas.library.v2'
 export const LIBRARY_BACKUP_FORMAT = 'career-canvas-library'
@@ -16,6 +17,7 @@ export interface LibraryLoadResult {
   discardedDocuments: number
   repairedDocuments: number
   activeIdRecovered: boolean
+  failureReason?: DeviceStorageFailure
 }
 
 export interface LibraryMergeSummary {
@@ -50,8 +52,8 @@ export function loadLibraryResult(storage: Pick<Storage, 'getItem'>): LibraryLoa
   let raw: string | null
   try {
     raw = storage.getItem(LIBRARY_STORAGE_KEY)
-  } catch {
-    return { library: createDefaultLibrary(), status: 'unavailable', discardedDocuments: 0, repairedDocuments: 0, activeIdRecovered: false }
+  } catch (error) {
+    return { library: createDefaultLibrary(), status: 'unavailable', discardedDocuments: 0, repairedDocuments: 0, activeIdRecovered: false, failureReason: classifyDeviceStorageFailure(error) }
   }
   if (!raw) return { library: createDefaultLibrary(), status: 'empty', discardedDocuments: 0, repairedDocuments: 0, activeIdRecovered: false }
   if (new TextEncoder().encode(raw).byteLength > MAX_DOCUMENT_BYTES * MAX_RESUMES) return { library: createDefaultLibrary(), status: 'reset', discardedDocuments: 0, repairedDocuments: 0, activeIdRecovered: false }
@@ -100,8 +102,8 @@ export function loadLibrary(storage: Pick<Storage, 'getItem'>): ResumeLibrary {
 export function loadLibraryFromProvider(getStorage: () => Pick<Storage, 'getItem'>): LibraryLoadResult {
   try {
     return loadLibraryResult(getStorage())
-  } catch {
-    return { library: createDefaultLibrary(), status: 'unavailable', discardedDocuments: 0, repairedDocuments: 0, activeIdRecovered: false }
+  } catch (error) {
+    return { library: createDefaultLibrary(), status: 'unavailable', discardedDocuments: 0, repairedDocuments: 0, activeIdRecovered: false, failureReason: classifyDeviceStorageFailure(error) }
   }
 }
 

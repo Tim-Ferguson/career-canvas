@@ -38,9 +38,11 @@ describe('local resume library', () => {
     assert.equal(new Set(repaired.library.documents.map((item) => item.id)).size, 2)
     const unavailable = loadLibraryResult({ getItem: () => { throw new Error('blocked') } })
     assert.equal(unavailable.status, 'unavailable')
+    assert.equal(unavailable.failureReason, 'unavailable')
     assert.equal(unavailable.library.documents.length, 1)
     const blockedGetter = loadLibraryFromProvider(() => { throw new DOMException('Denied', 'SecurityError') })
     assert.equal(blockedGetter.status, 'unavailable')
+    assert.equal(blockedGetter.failureReason, 'blocked')
   })
 
   it('adds, updates, activates, and removes document versions', () => {

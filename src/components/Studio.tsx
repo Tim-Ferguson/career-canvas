@@ -13,8 +13,9 @@ import { createResumeHistory, recordResumeChange, redoResumeChange, undoResumeCh
 import { reviewDestination } from '../lib/reviewNavigation'
 import { commitLatest } from '../lib/latestState'
 import { buildExportPreflight, exportConfirmationMessage } from '../lib/exportReadiness'
-import { createDeletedResumeRecovery, loadDeletedResumeRecovery, recoveryAlreadyPresent, restoreDeletedResume, saveDeletedResumeRecovery, type DeletedResumeRecovery } from '../lib/deletionRecovery'
+import { createDeletedResumeRecovery, loadDeletedResumeRecoveryFromProvider, recoveryAlreadyPresent, restoreDeletedResume, saveDeletedResumeRecovery, type DeletedResumeRecovery } from '../lib/deletionRecovery'
 import { buildPreviewPageGuides, MAX_PREVIEW_PAGE_GUIDES } from '../lib/pageGuides'
+import { runDeviceStorageOperation, type DeviceStorageFailure } from '../lib/deviceStorage'
 
 type StudioTab = 'content' | 'design' | 'review' | 'data'
 
@@ -51,6 +52,7 @@ export function Studio() {
   const [advancedDraftDirty, setAdvancedDraftDirty] = useState(false)
   const [deletedRecovery, setDeletedRecovery] = useState<DeletedResumeRecovery | null>(null)
   const [recoveryPersistent, setRecoveryPersistent] = useState(false)
+  const [storageFailure, setStorageFailure] = useState<DeviceStorageFailure | null>(null)
   const [, setHistoryRevision] = useState(0)
   const newResumeButtonRef = useRef<HTMLButtonElement>(null)
   const newResumeDialogRef = useRef<HTMLElement>(null)
@@ -68,12 +70,17 @@ export function Studio() {
     const loaded = loadLibraryFromProvider(() => window.localStorage)
     libraryRef.current = loaded.library
     setLibrary(loaded.library)
-    const recovery = loadDeletedResumeRecovery(window.localStorage)
+    const recovery = loadDeletedResumeRecoveryFromProvider(() => window.localStorage)
     if (recovery && !recoveryAlreadyPresent(loaded.library, recovery)) {
       setDeletedRecovery(recovery)
       setRecoveryPersistent(true)
     } else if (recovery) {
-      try { saveDeletedResumeRecovery(window.localStorage, null) } catch { /* A redundant recovery record is harmless and will be ignored again. */ }
+      const cleaned = runDeviceStorageOperation(() => window.localStorage, (storage) => saveDeletedResumeRecovery(storage, null))
+      if (!cleaned.ok) {
+        storageLimitedRef.current = true
+        setStorageFailure(cleaned.reason)
+        setSaveState('limited')
+      }
     }
     if (loaded.status === 'recovered') {
       const details = [loaded.discardedDocuments ? `${loaded.discardedDocuments} damaged ${loaded.discardedDocuments === 1 ? 'resume was' : 'resumes were'} skipped` : '', loaded.repairedDocuments ? `${loaded.repairedDocuments} duplicate ${loaded.repairedDocuments === 1 ? 'ID was' : 'IDs were'} repaired` : '', loaded.activeIdRecovered ? 'the active resume was reset' : ''].filter(Boolean).join('; ')
@@ -82,8 +89,9 @@ export function Studio() {
       setRecoveryNotice('The saved library was unreadable, so Career Canvas opened a safe starter. Restore a library backup from Data if you have one.')
     } else if (loaded.status === 'unavailable') {
       storageLimitedRef.current = true
+      setStorageFailure(loaded.failureReason ?? 'unavailable')
       setSaveState('limited')
-      setStatus('This browser is blocking device storage. Download JSON or a library backup before closing.')
+      setStatus(loaded.failureReason === 'blocked' ? 'This browser is blocking device storage. Download JSON or a library backup before closing.' : 'Device storage is unavailable. Download JSON or a library backup before closing.')
     }
     historiesRef.current.clear()
     setHydrated(true)
@@ -97,13 +105,14 @@ export function Studio() {
     }
     setSaveState('saving')
     const timer = window.setTimeout(() => {
-      try {
-        saveLibrary(window.localStorage, library)
+      const saved = runDeviceStorageOperation(() => window.localStorage, (storage) => saveLibrary(storage, library))
+      if (saved.ok) {
         setSaveState('saved')
-      } catch {
+      } else {
         storageLimitedRef.current = true
+        setStorageFailure(saved.reason)
         setSaveState('limited')
-        setStatus('This browser could not save locally. Download JSON before closing.')
+        setStatus(saved.reason === 'full' ? 'Device storage is full. Download a library backup before closing.' : saved.reason === 'blocked' ? 'This browser is blocking device storage. Download JSON or a library backup before closing.' : 'This browser could not save locally. Download JSON or a library backup before closing.')
       }
     }, 350)
     return () => window.clearTimeout(timer)
@@ -112,11 +121,7 @@ export function Studio() {
   useEffect(() => {
     if (!hydrated) return
     const flushLatestLibrary = () => {
-      try {
-        saveLibrary(window.localStorage, libraryRef.current)
-      } catch {
-        // The persistent warning is set by normal autosave; lifecycle handlers cannot safely recover a blocked store.
-      }
+      runDeviceStorageOperation(() => window.localStorage, (storage) => saveLibrary(storage, libraryRef.current))
     }
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') flushLatestLibrary()
@@ -141,20 +146,24 @@ export function Studio() {
 
   const retrySave = () => {
     setSaveState('saving')
-    try {
-      saveLibrary(window.localStorage, libraryRef.current)
+    const saved = runDeviceStorageOperation(() => window.localStorage, (storage) => {
+      saveLibrary(storage, libraryRef.current)
       if (deletedRecovery) {
-        saveDeletedResumeRecovery(window.localStorage, deletedRecovery)
-        setRecoveryPersistent(true)
+        saveDeletedResumeRecovery(storage, deletedRecovery)
       }
+    })
+    if (saved.ok) {
+      if (deletedRecovery) setRecoveryPersistent(true)
       storageLimitedRef.current = false
+      setStorageFailure(null)
       setSaveState('saved')
       setRecoveryNotice('')
       setStatus(deletedRecovery ? 'Library and deleted-resume recovery saved to this device successfully.' : 'Saved to this device successfully.')
-    } catch {
+    } else {
       storageLimitedRef.current = true
+      setStorageFailure(saved.reason)
       setSaveState('limited')
-      setStatus('Device storage is still unavailable. Download JSON before closing.')
+      setStatus(saved.reason === 'full' ? 'Device storage is still full. Download a library backup before closing.' : 'Device storage is still unavailable. Download JSON or a library backup before closing.')
     }
   }
 
@@ -373,21 +382,18 @@ export function Studio() {
     if (current.activeId === resumeId && !confirmDiscardAdvancedDraft()) return false
     const nextLibrary = removeDocument(current, currentResume.id)
     const recovery = createDeletedResumeRecovery(currentResume)
-    let librarySaved = false
     let recoverySaved = false
-    try {
-      saveLibrary(window.localStorage, nextLibrary)
-      librarySaved = true
-      saveDeletedResumeRecovery(window.localStorage, recovery)
+    const persistence = runDeviceStorageOperation(() => window.localStorage, (storage) => {
+      saveLibrary(storage, nextLibrary)
+      saveDeletedResumeRecovery(storage, recovery)
       recoverySaved = true
-    } catch {
-      // React state still preserves an in-session undo even when browser storage is unavailable or full.
-    }
+    })
     updateLibrary(() => nextLibrary)
     setDeletedRecovery(recovery)
     setRecoveryPersistent(recoverySaved)
-    if (!librarySaved) {
+    if (!persistence.ok) {
       storageLimitedRef.current = true
+      setStorageFailure(persistence.reason)
       setSaveState('limited')
     }
     historiesRef.current.delete(currentResume.id)
@@ -403,11 +409,13 @@ export function Studio() {
       updateLibrary(() => result.library)
       historiesRef.current.delete(result.library.activeId)
       setHistoryRevision((value) => value + 1)
-      try {
-        saveLibrary(window.localStorage, result.library)
-        saveDeletedResumeRecovery(window.localStorage, null)
-      } catch {
+      const persisted = runDeviceStorageOperation(() => window.localStorage, (storage) => {
+        saveLibrary(storage, result.library)
+        saveDeletedResumeRecovery(storage, null)
+      })
+      if (!persisted.ok) {
         storageLimitedRef.current = true
+        setStorageFailure(persisted.reason)
         setSaveState('limited')
       }
       setDeletedRecovery(null)
@@ -421,10 +429,24 @@ export function Studio() {
 
   const discardDeleted = () => {
     if (!deletedRecovery || !window.confirm(`Permanently discard the recovery copy of “${deletedRecovery.document.title || 'Untitled resume'}”? This cannot be undone.`)) return
-    try { saveDeletedResumeRecovery(window.localStorage, null) } catch { /* Clear in-memory state even when device storage is unavailable. */ }
+    const discarded = runDeviceStorageOperation(() => window.localStorage, (storage) => saveDeletedResumeRecovery(storage, null))
+    if (!discarded.ok && recoveryPersistent) {
+      storageLimitedRef.current = true
+      setStorageFailure(discarded.reason)
+      setSaveState('limited')
+      setStatus('The saved recovery copy could not be discarded because device storage is unavailable. It remains available to restore.')
+      return
+    }
     setDeletedRecovery(null)
     setRecoveryPersistent(false)
-    setStatus('Deleted resume recovery was permanently discarded.')
+    if (discarded.ok) {
+      setStatus('Deleted resume recovery was permanently discarded.')
+    } else {
+      storageLimitedRef.current = true
+      setStorageFailure(discarded.reason)
+      setSaveState('limited')
+      setStatus('The in-session recovery was discarded, but device storage could not be checked. An older saved recovery may reappear after reopening.')
+    }
   }
 
   const deleteActive = () => {
@@ -524,7 +546,7 @@ export function Studio() {
     return () => document.removeEventListener('keydown', handleHistoryShortcut)
   })
 
-  const saveLabel = saveState === 'saving' ? 'Saving…' : saveState === 'limited' ? 'Not saved' : formatSavedTime(activeResume.updatedAt)
+  const saveLabel = saveState === 'saving' ? 'Saving…' : saveState === 'limited' ? storageFailure === 'full' ? 'Storage full' : storageFailure === 'blocked' ? 'Storage blocked' : 'Not saved' : formatSavedTime(activeResume.updatedAt)
   const activeHistory = historiesRef.current.get(activeResume.id) ?? createResumeHistory()
   const sampleContentPresent = containsStarterSampleContent(activeResume)
   const previewPageGuides = buildPreviewPageGuides(activeResume.settings.pageSize, renderedPages, zoom)
@@ -599,7 +621,7 @@ export function Studio() {
                 <button type="button" onClick={redo} disabled={!activeHistory.future.length} aria-label="Redo recent studio change" title="Redo recent studio change"><Redo2 size={16} /></button>
               </div>
             </div>
-            {saveState === 'limited' ? <div className="storage-alert" role="alert"><AlertTriangle size={18} /><div><strong>Changes are not saved on this device</strong><span>Keep editing, then download JSON or a library backup before closing this page.</span></div><div><button type="button" onClick={retrySave}>Retry save</button><button type="button" onClick={() => setActiveTab('data')}>Open Data</button></div></div> : null}
+            {saveState === 'limited' ? <div className="storage-alert" role="alert"><AlertTriangle size={18} /><div><strong>{storageFailure === 'full' ? 'Device storage is full' : storageFailure === 'blocked' ? 'Browser storage is blocked' : 'Changes are not saved on this device'}</strong><span>{storageFailure === 'full' ? 'Keep editing, then download a library backup before closing. Removing unused resume versions can reduce future storage pressure.' : 'Keep editing, then download JSON or a library backup before closing this page.'}</span></div><div><button type="button" onClick={retrySave}>Retry save</button><button type="button" onClick={() => setActiveTab('data')}>Open Data</button></div></div> : null}
             {recoveryNotice && saveState !== 'limited' ? <div className="recovery-alert" role="status"><ShieldCheck size={18} /><span>{recoveryNotice}</span><button type="button" aria-label="Dismiss recovery notice" onClick={() => setRecoveryNotice('')}><X size={15} /></button></div> : null}
             {deletedRecovery ? <div className="deletion-recovery-alert" role="status"><RotateCcw size={18} /><div><strong>Recently removed: {deletedRecovery.document.title || 'Untitled resume'}</strong><span>{recoveryPersistent ? 'A recovery copy is saved on this device until another resume is removed.' : 'Recovery is available only while this page remains open.'}</span></div><button type="button" onClick={restoreDeleted}>Restore</button><button type="button" aria-label="Permanently discard deleted resume recovery" onClick={discardDeleted}><X size={15} /></button></div> : null}
             {sampleContentPresent ? <div className="sample-content-alert" role="alert"><AlertTriangle size={18} /><div><strong>Fictional starter content is still present</strong><span>Replace every sample identity, organization, and result with your own accurate evidence before exporting.</span></div><button type="button" onClick={() => setActiveTab('review')}>Review it</button></div> : null}
