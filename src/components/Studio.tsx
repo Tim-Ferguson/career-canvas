@@ -44,6 +44,8 @@ export function Studio() {
   const [, setHistoryRevision] = useState(0)
   const newResumeButtonRef = useRef<HTMLButtonElement>(null)
   const newResumeDialogRef = useRef<HTMLElement>(null)
+  const libraryMenuButtonRef = useRef<HTMLButtonElement>(null)
+  const libraryMenuRef = useRef<HTMLDivElement>(null)
   const historiesRef = useRef(new Map<string, ResumeHistory>())
   const storageLimitedRef = useRef(false)
   const libraryRef = useRef(library)
@@ -155,6 +157,38 @@ export function Studio() {
   }, [showNew])
 
   useEffect(() => {
+    if (!showLibraryMenu) return
+    const menu = libraryMenuRef.current
+    const buttons = () => Array.from(menu?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? [])
+    buttons()[0]?.focus()
+    const handlePointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Node && !menu?.contains(event.target) && event.target !== libraryMenuButtonRef.current) setShowLibraryMenu(false)
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const items = buttons()
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setShowLibraryMenu(false)
+        libraryMenuButtonRef.current?.focus()
+      } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault()
+        const current = items.indexOf(document.activeElement as HTMLButtonElement)
+        const offset = event.key === 'ArrowDown' ? 1 : -1
+        items[(current + offset + items.length) % items.length]?.focus()
+      } else if (event.key === 'Home' || event.key === 'End') {
+        event.preventDefault()
+        items[event.key === 'Home' ? 0 : items.length - 1]?.focus()
+      }
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [showLibraryMenu])
+
+  useEffect(() => {
     const documentElement = document.querySelector<HTMLElement>('#resume-document')
     if (!documentElement) return
     const measure = () => {
@@ -232,6 +266,7 @@ export function Studio() {
     const copy = cloneResume(activeResume)
     addResume({ ...copy, id: createId('resume'), title: `${copy.title || 'Resume'} copy`, updatedAt: new Date().toISOString() })
     setShowLibraryMenu(false)
+    window.requestAnimationFrame(() => libraryMenuButtonRef.current?.focus())
     setStatus('Resume duplicated. Tailor this version without changing the original.')
   }
 
@@ -245,6 +280,7 @@ export function Studio() {
     historiesRef.current.delete(activeResume.id)
     setHistoryRevision((value) => value + 1)
     setShowLibraryMenu(false)
+    window.requestAnimationFrame(() => libraryMenuButtonRef.current?.focus())
     setStatus('Resume removed from this device.')
   }
 
@@ -278,6 +314,21 @@ export function Studio() {
     }))
   }
 
+  const handleTabKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    const items = Array.from(event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? [])
+    const current = items.indexOf(event.currentTarget)
+    let next = current
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (current + 1) % items.length
+    else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (current - 1 + items.length) % items.length
+    else if (event.key === 'Home') next = 0
+    else if (event.key === 'End') next = items.length - 1
+    else return
+    event.preventDefault()
+    const id = items[next]?.dataset.tabId as StudioTab | undefined
+    if (id) setActiveTab(id)
+    items[next]?.focus()
+  }
+
   useEffect(() => {
     const handleHistoryShortcut = (event: KeyboardEvent) => {
       if (!(event.metaKey || event.ctrlKey) || isNativeEditingTarget(event.target)) return
@@ -308,6 +359,8 @@ export function Studio() {
   }
   return (
     <div className="studio-shell">
+      <a className="skip-link" href="#studio-editor-content">Skip to resume editor</a>
+      <a className="skip-link" href="#resume-preview">Skip to live preview</a>
       <header className="app-header no-print">
         <Link className="app-brand" to="/" aria-label="Career Canvas home">
           <span className="brand-mark">C<span>/</span></span>
@@ -322,9 +375,9 @@ export function Studio() {
             <ChevronDown size={14} aria-hidden="true" />
           </div>
           <button ref={newResumeButtonRef} className="header-icon-button" type="button" aria-label="Create a new resume" title="New resume" onClick={() => setShowNew(true)}><Plus size={18} /></button>
-          <div className="library-menu-wrap">
-            <button className="header-icon-button" type="button" aria-label="Resume actions" aria-expanded={showLibraryMenu} onClick={() => setShowLibraryMenu((value) => !value)}><MoreHorizontal size={19} /></button>
-            {showLibraryMenu ? <div className="library-menu"><button type="button" onClick={duplicateActive}><Copy size={15} /> Duplicate version</button><button type="button" className="danger" onClick={deleteActive}><Trash2 size={15} /> Delete from device</button></div> : null}
+          <div className="library-menu-wrap" ref={libraryMenuRef}>
+            <button ref={libraryMenuButtonRef} className="header-icon-button" type="button" aria-label="Resume actions" aria-haspopup="menu" aria-controls="library-menu" aria-expanded={showLibraryMenu} onClick={() => setShowLibraryMenu((value) => !value)}><MoreHorizontal size={19} /></button>
+            {showLibraryMenu ? <div className="library-menu" id="library-menu" role="menu" aria-label="Resume actions"><button type="button" role="menuitem" onClick={duplicateActive}><Copy size={15} /> Duplicate version</button><button type="button" role="menuitem" className="danger" onClick={deleteActive}><Trash2 size={15} /> Delete from device</button></div> : null}
           </div>
         </div>
         <div className="header-right">
@@ -336,13 +389,13 @@ export function Studio() {
 
       <main className="studio-workspace">
         <aside className="studio-editor no-print" aria-label="Resume editor">
-          <nav className="studio-tabs" aria-label="Editor sections">
+          <nav className="studio-tabs" role="tablist" aria-label="Resume workspaces">
             {tabs.map((tab) => {
               const Icon = tab.icon
-              return <button key={tab.id} type="button" className={activeTab === tab.id ? 'active' : ''} aria-current={activeTab === tab.id ? 'page' : undefined} onClick={() => setActiveTab(tab.id)}><Icon size={16} /><span>{tab.label}</span></button>
+              return <button key={tab.id} id={`studio-tab-${tab.id}`} data-tab-id={tab.id} role="tab" type="button" className={activeTab === tab.id ? 'active' : ''} aria-selected={activeTab === tab.id} aria-controls={`studio-panel-${tab.id}`} tabIndex={activeTab === tab.id ? 0 : -1} onKeyDown={handleTabKeyDown} onClick={() => setActiveTab(tab.id)}><Icon size={16} /><span>{tab.label}</span></button>
             })}
           </nav>
-          <div className="editor-scroll">
+          <div className="editor-scroll" id="studio-editor-content" tabIndex={-1}>
             <div className="editor-intro">
               <div><span className="eyebrow">{activeTab === 'content' ? 'Build the story' : activeTab === 'design' ? 'Shape the page' : activeTab === 'review' ? 'Make it stronger' : 'Own your data'}</span>
               <h1>{activeTab === 'content' ? 'Edit your resume' : activeTab === 'design' ? 'Choose your presentation' : activeTab === 'review' ? 'Review before you send' : 'Portable resume data'}</h1></div>
@@ -354,15 +407,15 @@ export function Studio() {
             {saveState === 'limited' ? <div className="storage-alert" role="alert"><AlertTriangle size={18} /><div><strong>Changes are not saved on this device</strong><span>Keep editing, then download JSON or a library backup before closing this page.</span></div><div><button type="button" onClick={retrySave}>Retry save</button><button type="button" onClick={() => setActiveTab('data')}>Open Data</button></div></div> : null}
             {recoveryNotice && saveState !== 'limited' ? <div className="recovery-alert" role="status"><ShieldCheck size={18} /><span>{recoveryNotice}</span><button type="button" aria-label="Dismiss recovery notice" onClick={() => setRecoveryNotice('')}><X size={15} /></button></div> : null}
             {sampleContentPresent ? <div className="sample-content-alert" role="alert"><AlertTriangle size={18} /><div><strong>Fictional starter content is still present</strong><span>Replace every sample identity, organization, and result with your own accurate evidence before exporting.</span></div><button type="button" onClick={() => setActiveTab('review')}>Review it</button></div> : null}
-            <div hidden={activeTab !== 'content'}><ContentEditor resume={activeResume} onChange={changeResume} /></div>
-            <div hidden={activeTab !== 'design'}><DesignPanel resume={activeResume} renderedPages={renderedPages} onChange={changeResume} onPrint={printResume} /></div>
-            <div hidden={activeTab !== 'review'}><ReviewPanel resume={activeResume} onEdit={editReviewIssue} /></div>
-            <div hidden={activeTab !== 'data'}><DataPanel resume={activeResume} library={library} onChange={changeResume} onImport={addResume} onRestoreLibrary={restoreLibrary} announce={setStatus} /></div>
+            <div id="studio-panel-content" role="tabpanel" aria-labelledby="studio-tab-content" tabIndex={0} hidden={activeTab !== 'content'}><ContentEditor resume={activeResume} onChange={changeResume} /></div>
+            <div id="studio-panel-design" role="tabpanel" aria-labelledby="studio-tab-design" tabIndex={0} hidden={activeTab !== 'design'}><DesignPanel resume={activeResume} renderedPages={renderedPages} onChange={changeResume} onPrint={printResume} /></div>
+            <div id="studio-panel-review" role="tabpanel" aria-labelledby="studio-tab-review" tabIndex={0} hidden={activeTab !== 'review'}><ReviewPanel resume={activeResume} onEdit={editReviewIssue} /></div>
+            <div id="studio-panel-data" role="tabpanel" aria-labelledby="studio-tab-data" tabIndex={0} hidden={activeTab !== 'data'}><DataPanel resume={activeResume} library={library} onChange={changeResume} onImport={addResume} onRestoreLibrary={restoreLibrary} announce={setStatus} /></div>
           </div>
           <div className="editor-status" role="status" aria-live="polite"><ShieldCheck size={14} /><span>{status}</span></div>
         </aside>
 
-        <section className="preview-workspace" aria-label="Live resume preview">
+        <section className="preview-workspace" id="resume-preview" tabIndex={-1} aria-label="Live resume preview">
           <div className="preview-toolbar no-print">
             <div><span className="preview-live-dot" /> Live preview <small>{activeResume.settings.pageSize === 'a4' ? 'A4' : 'US Letter'} · {activeResume.settings.layout} · <span className={renderedPages > 1 ? 'page-warning' : ''}>{renderedPages} {renderedPages === 1 ? 'page' : 'pages'}</span></small></div>
             <div className="zoom-control" aria-label="Preview zoom"><button type="button" onClick={() => setZoom((value) => Math.max(0.55, value - 0.08))} aria-label="Zoom out">−</button><span>{Math.round(zoom * 100)}%</span><button type="button" onClick={() => setZoom((value) => Math.min(1.15, value + 0.08))} aria-label="Zoom in">+</button></div>

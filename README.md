@@ -25,6 +25,7 @@ The product is deliberately industry-flexible. Its generic entry model supports 
 - Print-aware pagination that keeps normal entries together, lets oversized evidence flow safely, and provides a concrete PDF checklist
 - Strict runtime validation, bounded content, portable IDs, duplicate-ID protection, and last-valid-document behavior in the advanced JSON editor
 - Responsive studio and a cross-industry writing guide
+- Screen-reader tab/tabpanel semantics, arrow-key workspace navigation, skip links, and keyboard-managed resume actions
 - Branded, privacy-safe route error and 404 recovery with canonical/social metadata and a project favicon
 
 ## Develop

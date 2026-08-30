@@ -28,6 +28,9 @@ button, select, input[type='checkbox'], input[type='color'] { cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .45; }
 a { color: inherit; }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 3px solid color-mix(in srgb, var(--focus) 45%, transparent); outline-offset: 2px; }
+.skip-link { position: fixed; z-index: 1000; top: 8px; left: 8px; padding: 9px 12px; border-radius: 7px; color: white; background: var(--ink); font-size: .72rem; font-weight: 700; text-decoration: none; transform: translateY(-150%); }
+.skip-link + .skip-link { left: 165px; }
+.skip-link:focus { transform: translateY(0); }
 
 .studio-shell { height: 100dvh; min-height: 650px; overflow: hidden; background: var(--surface); }
 .app-header { position: relative; z-index: 20; height: 68px; display: grid; grid-template-columns: minmax(180px, 1fr) minmax(260px, 1.4fr) minmax(320px, 1fr); align-items: center; gap: 20px; padding: 0 20px; border-bottom: 1px solid var(--line); background: rgba(250, 249, 246, .96); backdrop-filter: blur(16px); }

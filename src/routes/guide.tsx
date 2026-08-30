@@ -16,8 +16,9 @@ const fieldNotes = [
 function GuidePage() {
   return (
     <main className="guide-page">
+      <a className="skip-link" href="#guide-content">Skip to resume guidance</a>
       <header className="guide-nav"><Link to="/"><ArrowLeft size={16} /> Back to studio</Link><span className="app-brand"><span className="brand-mark">C<span>/</span></span><span><strong>Career Canvas</strong><small>Resume guide</small></span></span></header>
-      <article>
+      <article id="guide-content" tabIndex={-1}>
         <section className="guide-hero"><span className="eyebrow">A resume is a decision document</span><h1>Make the right evidence easy to find.</h1><p>There is no single perfect format for every career. The durable principles are focus, clear structure, credible specifics, and respect for the reader’s time.</p><Link className="primary-button" to="/">Open your resume <ArrowRight size={16} /></Link></section>
         <section className="guide-principles">
           <div><span>01</span><h2>Choose one target</h2><p>A strong resume answers “why this person for this work?” Name the role, audience, or opportunity before deciding what to keep.</p></div>
