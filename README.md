@@ -1,37 +1,73 @@
-# Résumé Studio
+# Career Canvas
 
-A strict-TypeScript, local-first résumé builder with selectable layouts, reorderable sections, validated JSON editing, template persistence, JSON import/copy/download, and browser-native PDF export.
+Career Canvas is a private, local-first resume studio built with TanStack Start and React. It helps people maintain multiple targeted resume versions, edit them through approachable forms, review content quality, switch among print-ready layouts, and keep the underlying data portable.
+
+The product is deliberately industry-flexible. Its generic entry model supports conventional roles as well as clinical work, teaching, apprenticeships, projects, credentials, research, publications, awards, service, affiliations, languages, and custom sections.
+
+## Product highlights
+
+- Form-first editing with a live, semantic resume preview
+- A device-local library of up to 24 targeted resume versions
+- Automatic local autosave with no account, analytics, or resume-content API
+- Eight field-aware starter stories: universal, leadership, healthcare, education, creative, skilled trades, student, and academic
+- Five ATS-conscious layouts: modern, classic, executive, compact, and academic
+- US Letter and A4 output, three spacing levels, three font treatments, and custom accent colors
+- Section and entry creation, duplication, hiding, deletion, and keyboard-accessible reordering
+- Readiness review for focus, contactability, evidence, scanability, and likely page length
+- JSON v2 import/export, automatic migration from the original v1 schema, plain-text export, and browser-native PDF output
+- Strict runtime validation, bounded content, portable IDs, duplicate-ID protection, and last-valid-document behavior in the advanced JSON editor
+- Responsive studio and a cross-industry writing guide
 
 ## Develop
+
+Requirements: Node.js 20 or newer and npm.
 
 ```sh
 npm install
 npm run dev
 ```
 
-Open `http://127.0.0.1:4173`. The committed `dist/` output also works from any static server after `npm run build`.
-
-## What works
-
-- Strictly typed resume schema and runtime validation that refuses unknown fields, non-portable IDs, blank highlights, and documents over 2 MB of UTF-8 JSON.
-- Live JSON editor with bounded imports, unique section/entry IDs, and errors that never destroy the last valid document. Layout, ordering, and export controls pause while JSON is invalid so they cannot overwrite an in-progress repair; import and reset remain available for recovery.
-- Classic, editorial, and compact layouts.
-- Drag-and-drop section ordering plus keyboard-friendly move buttons.
-- One device-local saved template, restored automatically on the next visit when it still passes the current schema.
-- Import, copy, and download portable JSON.
-- Print stylesheet and **Save as PDF** through the browser print dialog.
-- Responsive editor/preview, no account, analytics, or runtime network service.
+The local server prints its URL when ready. TanStack Start uses file-based routes in `src/routes` and generates `src/routeTree.gen.ts`.
 
 ## Verify
 
 ```sh
-make check
+npm run check
 ```
 
-This performs a strict TypeScript build, Node tests against the compiled schema/order/byte-limit logic, static privacy/accessibility/print checks, and a clean diff check.
+This runs strict TypeScript checking, the Vitest model/storage suite, and a production TanStack build. To run one stage:
 
-## Boundary
+```sh
+npm run typecheck
+npm run test
+npm run build
+```
 
-PDF output uses the browser’s built-in print-to-PDF path so the document remains local and does not depend on a cloud renderer. Dragging changes section order, not arbitrary pixel positioning; a freeform page-layout engine would be a larger second product.
+The dependency lockfile is committed. `npm audit` should report zero known vulnerabilities before release.
 
-Braindump source run: `2026-08-11-2011-06`.
+## Architecture
+
+- `src/lib/resume.ts` — versioned schema, validation, v1 migration, starters, analysis, text export, and immutable helpers
+- `src/lib/storage.ts` — bounded, validated local resume library
+- `src/components/Studio.tsx` — application state, autosave, document management, tabs, preview, and export flow
+- `src/components/ContentEditor.tsx` — profile, section, entry, bullet, keyword, link, and ordering forms
+- `src/components/ResumePreview.tsx` — one semantic document tree shared by every visual layout
+- `src/styles/app.css` — studio UI, resume layouts, responsive behavior, and print rules
+- `src/routes/guide.tsx` — practical cross-industry resume guidance
+- `docs/schema-v2.md` — portable document contract and migration notes
+
+## Privacy and persistence
+
+Resume content is stored only in the browser's local storage unless the user explicitly downloads, copies, imports, or prints it. There is no login and no server-side resume database. Clearing site storage removes the device-local library, so JSON downloads are the durable backup path.
+
+The app does not load remote fonts or runtime media. The generated social card is a static project asset and contains no user data.
+
+## PDF and ATS boundary
+
+PDF export uses the browser print dialog so content remains selectable text and does not pass through a cloud rendering service. All layouts render the same heading/list/link structure in the same reading order. Visual styling can improve presentation, but no template can guarantee applicant-tracking-system behavior or replace tailoring and human proofreading.
+
+## Data compatibility
+
+Schema v2 accepts in-progress drafts while strictly enforcing structure and safety limits. Content readiness is reported separately so users can save incomplete work without weakening import validation.
+
+Original schema v1 files migrate on import. Migration preserves profile content, section order, headings, organization names, periods, locations, and highlights, while translating the original `classic`, `editorial`, and `compact` layouts to their closest v2 equivalents.

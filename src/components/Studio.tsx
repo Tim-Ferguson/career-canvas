@@ -1,0 +1,180 @@
+import { useEffect, useMemo, useState } from 'react'
+import { Link } from '@tanstack/react-router'
+import { Check, ChevronDown, Copy, FileCheck2, FileText, LayoutTemplate, MoreHorizontal, Plus, Printer, ShieldCheck, Sparkles, Trash2, X } from 'lucide-react'
+import { ContentEditor } from './ContentEditor'
+import { DataPanel } from './DataPanel'
+import { DesignPanel } from './DesignPanel'
+import { ResumePreview } from './ResumePreview'
+import { ReviewPanel } from './ReviewPanel'
+import { MAX_RESUMES, STARTERS, cloneResume, createBlankResume, createId, createStarter, touchResume, type ResumeDocument, type ResumeLibrary, type StarterId } from '../lib/resume'
+import { createDefaultLibrary, loadLibrary, removeDocument, saveLibrary, upsertDocument } from '../lib/storage'
+
+type StudioTab = 'content' | 'design' | 'review' | 'data'
+
+const tabs: Array<{ id: StudioTab; label: string; icon: typeof FileText }> = [
+  { id: 'content', label: 'Content', icon: FileText },
+  { id: 'design', label: 'Design', icon: LayoutTemplate },
+  { id: 'review', label: 'Review', icon: FileCheck2 },
+  { id: 'data', label: 'Data', icon: ShieldCheck },
+]
+
+function formatSavedTime(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Saved locally'
+  return `Saved ${new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(date)}`
+}
+
+export function Studio() {
+  const [library, setLibrary] = useState<ResumeLibrary>(() => createDefaultLibrary())
+  const [hydrated, setHydrated] = useState(false)
+  const [activeTab, setActiveTab] = useState<StudioTab>('content')
+  const [showNew, setShowNew] = useState(false)
+  const [showLibraryMenu, setShowLibraryMenu] = useState(false)
+  const [status, setStatus] = useState('Your resume stays on this device.')
+  const [saveState, setSaveState] = useState<'saved' | 'saving' | 'limited'>('saved')
+  const [zoom, setZoom] = useState(0.82)
+
+  useEffect(() => {
+    setLibrary(loadLibrary(window.localStorage))
+    setHydrated(true)
+  }, [])
+
+  useEffect(() => {
+    if (!hydrated) return
+    setSaveState('saving')
+    const timer = window.setTimeout(() => {
+      try {
+        saveLibrary(window.localStorage, library)
+        setSaveState('saved')
+      } catch {
+        setSaveState('limited')
+        setStatus('This browser could not save locally. Download JSON before closing.')
+      }
+    }, 350)
+    return () => window.clearTimeout(timer)
+  }, [hydrated, library])
+
+  const activeResume = useMemo(() => library.documents.find((document) => document.id === library.activeId) ?? library.documents[0]!, [library])
+
+  const changeResume = (document: ResumeDocument) => {
+    setLibrary((current) => upsertDocument(current, touchResume(document)))
+  }
+
+  const addResume = (document: ResumeDocument) => {
+    try {
+      setLibrary((current) => {
+        const ids = new Set(current.documents.map((item) => item.id))
+        const unique = ids.has(document.id) ? { ...document, id: createId('resume'), title: `${document.title || 'Imported resume'} copy` } : document
+        return upsertDocument(current, unique)
+      })
+      setActiveTab('content')
+      setShowNew(false)
+    } catch (caught) {
+      setStatus(caught instanceof Error ? caught.message : 'The resume could not be added.')
+    }
+  }
+
+  const createNew = (starter: StarterId | 'blank') => {
+    if (library.documents.length >= MAX_RESUMES) {
+      setStatus(`Your device library is full at ${MAX_RESUMES} resumes. Export and remove one before adding another.`)
+      setShowNew(false)
+      return
+    }
+    addResume(starter === 'blank' ? createBlankResume() : createStarter(starter))
+    setStatus('New resume added. Your other versions are unchanged.')
+  }
+
+  const duplicateActive = () => {
+    const copy = cloneResume(activeResume)
+    addResume({ ...copy, id: createId('resume'), title: `${copy.title || 'Resume'} copy`, updatedAt: new Date().toISOString() })
+    setShowLibraryMenu(false)
+    setStatus('Resume duplicated. Tailor this version without changing the original.')
+  }
+
+  const deleteActive = () => {
+    if (library.documents.length <= 1) {
+      setStatus('Keep at least one resume in your library.')
+      return
+    }
+    if (!window.confirm(`Delete “${activeResume.title || 'Untitled resume'}” from this device? Download it first if you may need it later.`)) return
+    setLibrary((current) => removeDocument(current, activeResume.id))
+    setShowLibraryMenu(false)
+    setStatus('Resume removed from this device.')
+  }
+
+  const saveLabel = saveState === 'saving' ? 'Saving…' : saveState === 'limited' ? 'Not saved' : formatSavedTime(activeResume.updatedAt)
+  return (
+    <div className="studio-shell">
+      <header className="app-header no-print">
+        <Link className="app-brand" to="/" aria-label="Career Canvas home">
+          <span className="brand-mark">C<span>/</span></span>
+          <span><strong>Career Canvas</strong><small>Resume studio</small></span>
+        </Link>
+        <div className="resume-switcher">
+          <label htmlFor="resume-select">Resume</label>
+          <div className="select-wrap">
+            <select id="resume-select" value={activeResume.id} onChange={(event) => setLibrary((current) => ({ ...current, activeId: event.currentTarget.value }))}>
+              {library.documents.map((document) => <option value={document.id} key={document.id}>{document.title || 'Untitled resume'}</option>)}
+            </select>
+            <ChevronDown size={14} aria-hidden="true" />
+          </div>
+          <button className="header-icon-button" type="button" aria-label="Create a new resume" title="New resume" onClick={() => setShowNew(true)}><Plus size={18} /></button>
+          <div className="library-menu-wrap">
+            <button className="header-icon-button" type="button" aria-label="Resume actions" aria-expanded={showLibraryMenu} onClick={() => setShowLibraryMenu((value) => !value)}><MoreHorizontal size={19} /></button>
+            {showLibraryMenu ? <div className="library-menu"><button type="button" onClick={duplicateActive}><Copy size={15} /> Duplicate version</button><button type="button" className="danger" onClick={deleteActive}><Trash2 size={15} /> Delete from device</button></div> : null}
+          </div>
+        </div>
+        <div className="header-right">
+          <div className={`save-indicator ${saveState}`}><Check size={13} /><span>{saveLabel}</span></div>
+          <Link className="guide-link" to="/guide">Resume guide</Link>
+          <button className="print-button" type="button" onClick={() => window.print()}><Printer size={16} /> Save PDF</button>
+        </div>
+      </header>
+
+      <main className="studio-workspace">
+        <aside className="studio-editor no-print" aria-label="Resume editor">
+          <nav className="studio-tabs" aria-label="Editor sections">
+            {tabs.map((tab) => {
+              const Icon = tab.icon
+              return <button key={tab.id} type="button" className={activeTab === tab.id ? 'active' : ''} aria-current={activeTab === tab.id ? 'page' : undefined} onClick={() => setActiveTab(tab.id)}><Icon size={16} /><span>{tab.label}</span></button>
+            })}
+          </nav>
+          <div className="editor-scroll">
+            <div className="editor-intro">
+              <span className="eyebrow">{activeTab === 'content' ? 'Build the story' : activeTab === 'design' ? 'Shape the page' : activeTab === 'review' ? 'Make it stronger' : 'Own your data'}</span>
+              <h1>{activeTab === 'content' ? 'Edit your resume' : activeTab === 'design' ? 'Choose your presentation' : activeTab === 'review' ? 'Review before you send' : 'Portable resume data'}</h1>
+            </div>
+            {activeTab === 'content' ? <ContentEditor resume={activeResume} onChange={changeResume} /> : null}
+            {activeTab === 'design' ? <DesignPanel resume={activeResume} onChange={changeResume} /> : null}
+            {activeTab === 'review' ? <ReviewPanel resume={activeResume} onEdit={() => setActiveTab('content')} /> : null}
+            {activeTab === 'data' ? <DataPanel resume={activeResume} onChange={changeResume} onImport={addResume} announce={setStatus} /> : null}
+          </div>
+          <div className="editor-status" role="status" aria-live="polite"><ShieldCheck size={14} /><span>{status}</span></div>
+        </aside>
+
+        <section className="preview-workspace" aria-label="Live resume preview">
+          <div className="preview-toolbar no-print">
+            <div><span className="preview-live-dot" /> Live preview <small>{activeResume.settings.pageSize === 'a4' ? 'A4' : 'US Letter'} · {activeResume.settings.layout}</small></div>
+            <div className="zoom-control" aria-label="Preview zoom"><button type="button" onClick={() => setZoom((value) => Math.max(0.55, value - 0.08))} aria-label="Zoom out">−</button><span>{Math.round(zoom * 100)}%</span><button type="button" onClick={() => setZoom((value) => Math.min(1.15, value + 0.08))} aria-label="Zoom in">+</button></div>
+          </div>
+          <div className="preview-scroll">
+            <div className="preview-scale" style={{ '--preview-zoom': zoom, '--paper-width': activeResume.settings.pageSize === 'a4' ? '210mm' : '8.5in', '--paper-height': activeResume.settings.pageSize === 'a4' ? '297mm' : '11in' } as React.CSSProperties}><ResumePreview resume={activeResume} /></div>
+          </div>
+        </section>
+      </main>
+
+      {showNew ? (
+        <div className="modal-backdrop no-print" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowNew(false) }}>
+          <section className="new-resume-dialog" role="dialog" aria-modal="true" aria-labelledby="new-resume-title">
+            <button className="dialog-close" type="button" aria-label="Close" onClick={() => setShowNew(false)}><X size={19} /></button>
+            <div className="dialog-heading"><span className="dialog-icon"><Sparkles size={20} /></span><span className="eyebrow">A strong starting order</span><h2 id="new-resume-title">What kind of story are you telling?</h2><p>These are editorial starting points, not rigid industry boxes. Everything remains editable.</p></div>
+            <div className="starter-grid">
+              {STARTERS.map((starter) => <button type="button" key={starter.id} onClick={() => createNew(starter.id)}><span>{starter.eyebrow}</span><strong>{starter.label}</strong><small>{starter.description}</small></button>)}
+              <button type="button" onClick={() => createNew('blank')}><span>Clean slate</span><strong>Blank resume</strong><small>Keep only the essentials and build your own section order.</small></button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+    </div>
+  )
+}

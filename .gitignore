@@ -1,2 +1,7 @@
 node_modules/
+.output/
+dist/
+.tanstack/
+.wrangler/
+coverage/
 .DS_Store
