@@ -32,4 +32,17 @@ describe('review-to-editor navigation', () => {
     resume.sections = resume.sections.filter((section) => section.kind === 'skills')
     assert.equal(reviewDestination(issue(resume, 'evidence'), resume).id, 'add-section-control')
   })
+
+  it('focuses the exact incomplete or contradictory date field', () => {
+    const resume = createStarter()
+    const nextYear = new Date().getUTCFullYear() + 1
+    const entries = resume.sections.find((section) => section.kind === 'experience')!.entries
+    entries[0] = { ...entries[0]!, startDate: String(nextYear), current: true }
+    entries[1] = { ...entries[1]!, startDate: 'May 2025', endDate: '2024', current: false }
+    entries.push({ ...entries[1]!, id: 'experience-undated', startDate: '', endDate: '' })
+
+    assert.equal(reviewDestination(issue(resume, 'experience-dates'), resume).id, 'entry-start-experience-undated')
+    assert.equal(reviewDestination(issue(resume, 'reversed-date-range'), resume).id, `entry-end-${entries[1]!.id}`)
+    assert.equal(reviewDestination(issue(resume, 'future-current-entry'), resume).id, `entry-start-${entries[0]!.id}`)
+  })
 })

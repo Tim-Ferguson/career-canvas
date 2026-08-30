@@ -154,6 +154,28 @@ describe('resume output and review', () => {
     assert.ok(ids.includes('weak-bullets'))
   })
 
+  it('finds incomplete, reversed, and impossible current timelines without rejecting flexible dates', () => {
+    const resume = createStarter()
+    const currentYear = new Date().getUTCFullYear()
+    resume.profile = { ...resume.profile, name: 'Taylor Kim', email: 'taylor@example.com', phone: '+1 555 555 0199', website: '', links: [] }
+    const experience = resume.sections.find((section) => section.kind === 'experience')!
+    experience.entries[0] = { ...experience.entries[0]!, startDate: String(currentYear + 1), current: true }
+    experience.entries[1] = { ...experience.entries[1]!, startDate: 'May 2025', endDate: '2024', current: false }
+    experience.entries.push({ ...experience.entries[1]!, id: 'experience-undated', startDate: '', endDate: '' })
+    const ids = analyzeResume(resume).issues.map((issue) => issue.id)
+    assert.ok(ids.includes('experience-dates'))
+    assert.ok(ids.includes('reversed-date-range'))
+    assert.ok(ids.includes('future-current-entry'))
+
+    experience.entries[0] = { ...experience.entries[0]!, startDate: String(currentYear), current: true }
+    experience.entries[1] = { ...experience.entries[1]!, startDate: 'Dec 2024', endDate: '2024' }
+    experience.entries = experience.entries.slice(0, 2)
+    const repairedIds = analyzeResume(resume).issues.map((issue) => issue.id)
+    assert.equal(repairedIds.includes('experience-dates'), false)
+    assert.equal(repairedIds.includes('reversed-date-range'), false)
+    assert.equal(repairedIds.includes('future-current-entry'), false)
+  })
+
   it('flags every fictional starter until its identity and example results are replaced', () => {
     for (const id of starterIds) {
       const resume = createStarter(id)

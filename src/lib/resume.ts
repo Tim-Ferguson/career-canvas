@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { resumeDateIsDefinitelyFuture, resumeDateRangeIsReversed } from './dateIntegrity'
 
 export const MAX_DOCUMENT_BYTES = 2_000_000
 export const MAX_RESUMES = 24
@@ -113,6 +114,7 @@ export interface ResumeIssue {
   title: string
   detail: string
   sectionId?: string
+  entryId?: string
 }
 
 export interface ResumeAnalysis {
@@ -613,7 +615,12 @@ export function analyzeResume(resume: ResumeDocument): ResumeAnalysis {
     if (sectionItem.entries.some((entryItem) => entryItem.highlights.filter((item) => item.trim()).length > 7)) add({ id: `too-many-bullets-${sectionItem.id}`, sectionId: sectionItem.id, severity: 'tip', title: `Prioritize bullets in ${sectionItem.title || 'this section'}`, detail: 'More than seven bullets under one entry makes the strongest evidence harder to spot.' }, 2)
   }
   const experience = visible.filter((item) => item.kind === 'experience').flatMap((item) => item.entries)
-  if (experience.some((entryItem) => entryItem.title.trim() && !entryItem.startDate.trim() && !entryItem.endDate.trim() && !entryItem.current)) add({ id: 'experience-dates', severity: 'improvement', title: 'Add dates to each experience', detail: 'A year or month-and-year range gives readers the timeline they expect.' }, 5)
+  const incompleteExperience = experience.find((entryItem) => entryItem.title.trim() && (!entryItem.startDate.trim() || (!entryItem.current && !entryItem.endDate.trim())))
+  if (incompleteExperience) add({ id: 'experience-dates', entryId: incompleteExperience.id, severity: 'improvement', title: 'Complete each experience timeline', detail: 'Give every role a start date and either an end date or the current-role setting.' }, 5)
+  const reversedRange = visible.flatMap((sectionItem) => sectionItem.entries.map((entryItem) => ({ sectionItem, entryItem }))).find(({ entryItem }) => entryItem.startDate.trim() && entryItem.endDate.trim() && !entryItem.current && resumeDateRangeIsReversed(entryItem.startDate, entryItem.endDate))
+  if (reversedRange) add({ id: 'reversed-date-range', sectionId: reversedRange.sectionItem.id, entryId: reversedRange.entryItem.id, severity: 'essential', title: 'Fix a reversed date range', detail: `“${reversedRange.entryItem.title || reversedRange.sectionItem.title || 'This entry'}” appears to end before it starts. Verify both date fields.` }, 8)
+  const futureCurrent = visible.flatMap((sectionItem) => sectionItem.entries.map((entryItem) => ({ sectionItem, entryItem }))).find(({ entryItem }) => entryItem.current && resumeDateIsDefinitelyFuture(entryItem.startDate))
+  if (futureCurrent) add({ id: 'future-current-entry', sectionId: futureCurrent.sectionItem.id, entryId: futureCurrent.entryItem.id, severity: 'essential', title: 'Verify a future-dated current item', detail: `“${futureCurrent.entryItem.title || futureCurrent.sectionItem.title || 'This entry'}” is marked current but has a start date that is definitely in the future.` }, 8)
   const bullets = visible.flatMap((item) => item.entries.flatMap((entryItem) => entryItem.highlights)).filter((item) => item.trim())
   if (experience.length && bullets.length < 2) add({ id: 'few-bullets', severity: 'improvement', title: 'Show more evidence', detail: 'Use concise bullets to show actions, scope, and outcomes—not only responsibilities.' }, 7)
   if (bullets.length && !bullets.some((bullet) => /\d|%|\$/.test(bullet))) add({ id: 'outcomes', severity: 'improvement', title: 'Add scale or outcomes', detail: 'Numbers are useful when honest, but scope, speed, quality, safety, and stakeholder impact also count.' }, 6)

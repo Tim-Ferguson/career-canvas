@@ -47,9 +47,11 @@ export function reviewDestination(issue: ResumeIssue, resume: ResumeDocument): R
     return destination(experience ? `section-editor-${experience.id}` : 'add-section-control')
   }
   if (issue.id === 'experience-dates') {
-    const entry = visibleSections.filter((item) => item.kind === 'experience').flatMap((item) => item.entries).find((item) => item.title.trim() && !item.startDate.trim() && !item.endDate.trim() && !item.current)
-    return destination(entry ? `entry-start-${entry.id}` : 'content-sections')
+    const entry = issue.entryId ? visibleEntries.find((item) => item.id === issue.entryId) : visibleSections.filter((item) => item.kind === 'experience').flatMap((item) => item.entries).find((item) => item.title.trim() && (!item.startDate.trim() || (!item.current && !item.endDate.trim())))
+    return destination(entry ? `${entry.startDate.trim() ? 'entry-end' : 'entry-start'}-${entry.id}` : 'content-sections')
   }
+  if (issue.id === 'reversed-date-range') return destination(issue.entryId ? `entry-end-${issue.entryId}` : 'content-sections')
+  if (issue.id === 'future-current-entry') return destination(issue.entryId ? `entry-start-${issue.entryId}` : 'content-sections')
   if (issue.id === 'few-bullets') {
     const experience = visibleSections.find((item) => item.kind === 'experience')
     return destination(experience ? `section-editor-${experience.id}` : 'content-sections')

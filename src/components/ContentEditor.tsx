@@ -93,9 +93,9 @@ function EntryEditor({ entry, kind, index, total, canDuplicate, onChange, onMove
     <>
       <TextField label={labels.location} value={entry.location} onChange={(location) => patch({ location })} {...(kind === 'experience' ? { placeholder: 'City, region or Remote' } : {})} />
       <TextField id={`entry-start-${entry.id}`} label={datePresentation.startLabel} value={entry.startDate} onChange={(startDate) => patch({ startDate })} placeholder={datePresentation.startPlaceholder} />
-      <TextField label={datePresentation.endLabel} value={entry.current ? datePresentation.currentText : entry.endDate} disabled={entry.current} onChange={(endDate) => patch({ endDate })} placeholder={datePresentation.endPlaceholder} />
+      <TextField id={`entry-end-${entry.id}`} label={datePresentation.endLabel} value={entry.current ? datePresentation.currentText : entry.endDate} disabled={entry.current} onChange={(endDate) => patch({ endDate })} placeholder={datePresentation.endPlaceholder} />
       <label className="check-field field-wide">
-        <input type="checkbox" checked={entry.current} onChange={(event) => patch({ current: event.currentTarget.checked })} />
+        <input id={`entry-current-${entry.id}`} type="checkbox" checked={entry.current} onChange={(event) => patch({ current: event.currentTarget.checked })} />
         <span>{datePresentation.currentLabel}{entry.current && entry.endDate.trim() ? <small>Your previous end value is preserved and will return if you uncheck this.</small> : null}</span>
       </label>
     </>
