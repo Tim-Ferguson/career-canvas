@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { ArchiveRestore, Check, Clipboard, Download, FileJson, FileText, FolderDown, RefreshCw, Upload } from 'lucide-react'
-import { MAX_DOCUMENT_BYTES, MAX_RESUMES, containsStarterSampleContent, parseJsonText, parseResumeJson, resumeToText, safeFilename, utf8ByteLength, type ResumeDocument, type ResumeLibrary } from '../lib/resume'
+import { MAX_DOCUMENT_BYTES, MAX_RESUMES, containsStarterSampleContent, parseJsonText, parseResumeJson, resumeToText, utf8ByteLength, type ResumeDocument, type ResumeLibrary } from '../lib/resume'
 import { createLibraryBackup, parseLibraryBackup, summarizeLibraryMerge, type LibraryMergeSummary } from '../lib/storage'
+import { buildExportPreflight, exportConfirmationMessage } from '../lib/exportReadiness'
+import { ExportReadinessSummary } from './ExportReadinessSummary'
 
 function downloadFile(contents: string, filename: string, type: string) {
   const blob = new Blob([contents], { type })
@@ -131,10 +133,11 @@ export function DataPanel({ resume, library, onChange, onImport, onRestoreLibrar
     }
   }
 
-  const baseName = safeFilename(resume.title || resume.profile.name)
+  const exportPreflight = buildExportPreflight(resume)
+  const baseName = exportPreflight.filenameBase
   const downloadPlainText = () => {
-    if (containsStarterSampleContent(resume) && !window.confirm('This plain-text resume still contains fictional starter content. Download it anyway?')) {
-      announce('Plain-text export canceled. Replace the fictional starter content first.')
+    if (exportPreflight.needsConfirmation && !window.confirm(exportConfirmationMessage(exportPreflight, 'plain-text file'))) {
+      announce('Plain-text export canceled. Review the essential sharing checks first.')
       return
     }
     downloadFile(resumeToText(resume), `${baseName}.txt`, 'text/plain')
@@ -144,6 +147,7 @@ export function DataPanel({ resume, library, onChange, onImport, onRestoreLibrar
       <section className="editor-card">
         <div className="card-heading"><div><span className="eyebrow">Portable by design</span><h2>Import & export</h2></div><FileJson size={19} aria-hidden="true" /></div>
         <p className="card-intro">Your v2 JSON keeps content, layout, and ordering together. Version 1 files from the original studio migrate automatically.</p>
+        <ExportReadinessSummary preflight={exportPreflight} />
         <div className="export-grid">
           <button type="button" className="export-action" onClick={() => downloadFile(`${JSON.stringify(resume, null, 2)}\n`, `${baseName}.json`, 'application/json')}><Download size={18} /><span><strong>Download JSON</strong><small>Portable editable source</small></span></button>
           <button type="button" className="export-action" onClick={copyJson}><Clipboard size={18} /><span><strong>Copy JSON</strong><small>Paste into another tool</small></span></button>

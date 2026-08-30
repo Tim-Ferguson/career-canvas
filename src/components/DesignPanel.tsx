@@ -1,5 +1,7 @@
 import { Check, FileText, Palette, Printer, Type } from 'lucide-react'
 import { densities, fontPairs, layouts, pageSizes, type Density, type FontPair, type Layout, type PageSize, type ResumeDocument } from '../lib/resume'
+import { buildExportPreflight } from '../lib/exportReadiness'
+import { ExportReadinessSummary } from './ExportReadinessSummary'
 
 interface DesignPanelProps {
   resume: ResumeDocument
@@ -20,6 +22,7 @@ const colors = ['#315f58', '#263a51', '#17656b', '#6a4938', '#9c3f52', '#9a541c'
 
 export function DesignPanel({ resume, renderedPages, onChange, onPrint }: DesignPanelProps) {
   const patch = (updates: Partial<ResumeDocument['settings']>) => onChange({ ...resume, settings: { ...resume.settings, ...updates } })
+  const exportPreflight = buildExportPreflight(resume, renderedPages)
   return (
     <div className="editor-stack design-panel">
       <section className="editor-card">
@@ -62,6 +65,7 @@ export function DesignPanel({ resume, renderedPages, onChange, onPrint }: Design
       <section className="editor-card print-check-card">
         <div className="card-heading"><div><span className="eyebrow">Export check</span><h2>Prepare the PDF</h2></div><Printer size={18} aria-hidden="true" /></div>
         <p className="card-intro">The rendered preview currently uses {resume.settings.pageSize === 'a4' ? 'A4' : 'US Letter'} and measures {renderedPages} {renderedPages === 1 ? 'page' : 'pages'}.</p>
+        <ExportReadinessSummary preflight={exportPreflight} />
         <ul className="print-check-list">
           <li><Check size={14} /><span>Match the print dialog paper size to {resume.settings.pageSize === 'a4' ? 'A4' : 'US Letter'}.</span></li>
           <li><Check size={14} /><span>Turn off browser headers and footers so no URL or date is added.</span></li>

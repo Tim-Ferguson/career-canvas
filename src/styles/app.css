@@ -262,6 +262,13 @@ details > summary::-webkit-details-marker { display: none; }
 .targeting-edit { align-self: flex-start; }
 
 .export-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.export-readiness-summary { display: grid; grid-template-columns: auto 1fr; align-items: start; gap: 9px; margin: 0 0 12px; padding: 10px 11px; border: 1px solid; border-radius: 8px; font-size: .6rem; line-height: 1.45; }
+.export-readiness-summary.ready { border-color: #bdd4cc; color: var(--brand-dark); background: #edf5f1; }
+.export-readiness-summary.warning { border-color: #e2c294; color: #755124; background: #fbf2e4; }
+.export-readiness-summary > svg { margin-top: 1px; }
+.export-readiness-summary > div { display: flex; flex-direction: column; gap: 2px; }
+.export-readiness-summary strong { font-size: .64rem; }
+.export-readiness-summary span { color: inherit; opacity: .82; }
 .export-action { position: relative; min-height: 72px; display: flex; align-items: center; gap: 10px; padding: 11px; border: 1px solid var(--line); border-radius: 9px; color: var(--brand-dark); background: #fbfbf9; text-align: left; overflow: hidden; }
 .export-action:hover { border-color: #9aafa9; background: var(--brand-soft); }
 .export-action > svg { flex: 0 0 auto; }

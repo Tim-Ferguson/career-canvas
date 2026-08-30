@@ -12,6 +12,7 @@ import { createDefaultLibrary, loadLibraryFromProvider, mergeLibraries, removeDo
 import { createResumeHistory, recordResumeChange, redoResumeChange, undoResumeChange, type ResumeHistory } from '../lib/history'
 import { reviewDestination } from '../lib/reviewNavigation'
 import { commitLatest } from '../lib/latestState'
+import { buildExportPreflight, exportConfirmationMessage } from '../lib/exportReadiness'
 
 type StudioTab = 'content' | 'design' | 'review' | 'data'
 
@@ -423,13 +424,20 @@ export function Studio() {
   const activeHistory = historiesRef.current.get(activeResume.id) ?? createResumeHistory()
   const sampleContentPresent = containsStarterSampleContent(activeResume)
   const printResume = () => {
-    if (sampleContentPresent && !window.confirm('This resume still contains fictional starter content. Replace every sample identity and claim before sending it. Open the print dialog anyway?')) {
-      setStatus('Print canceled. Replace the fictional starter content in the Review workspace first.')
-      setActiveTab('review')
+    const preflight = buildExportPreflight(activeResume, renderedPages)
+    if (preflight.needsConfirmation && !window.confirm(exportConfirmationMessage(preflight, 'PDF'))) {
+      setStatus('PDF export canceled. Resolve the sharing checks or verify that the exception is intentional.')
+      setActiveTab(preflight.essentialIssues.length ? 'review' : 'design')
       return
     }
-    setStatus(`Opening the print dialog for ${activeResume.settings.pageSize === 'a4' ? 'A4' : 'US Letter'}. Turn off browser headers and footers before saving.`)
-    window.print()
+    setStatus(`Opening the print dialog for ${activeResume.settings.pageSize === 'a4' ? 'A4' : 'US Letter'}. Suggested filename: ${preflight.filenameBase}.pdf. Turn off browser headers and footers.`)
+    const previousTitle = document.title
+    document.title = preflight.filenameBase
+    try {
+      window.print()
+    } finally {
+      document.title = previousTitle
+    }
   }
   return (
     <div className="studio-shell">
