@@ -10,6 +10,7 @@ import { MAX_RESUMES, STARTERS, cloneResume, containsStarterSampleContent, creat
 import { createDefaultLibrary, loadLibraryFromProvider, mergeLibraries, removeDocument, saveLibrary, upsertDocument } from '../lib/storage'
 import { createResumeHistory, recordResumeChange, redoResumeChange, undoResumeChange, type ResumeHistory } from '../lib/history'
 import { reviewDestination } from '../lib/reviewNavigation'
+import { commitLatest } from '../lib/latestState'
 
 type StudioTab = 'content' | 'design' | 'review' | 'data'
 
@@ -51,9 +52,11 @@ export function Studio() {
   const libraryRef = useRef(library)
   libraryRef.current = library
   const activeResume = useMemo(() => library.documents.find((document) => document.id === library.activeId) ?? library.documents[0]!, [library])
+  const updateLibrary = (update: (current: ResumeLibrary) => ResumeLibrary) => commitLatest(libraryRef, setLibrary, update)
 
   useEffect(() => {
     const loaded = loadLibraryFromProvider(() => window.localStorage)
+    libraryRef.current = loaded.library
     setLibrary(loaded.library)
     if (loaded.status === 'recovered') {
       const details = [loaded.discardedDocuments ? `${loaded.discardedDocuments} damaged ${loaded.discardedDocuments === 1 ? 'resume was' : 'resumes were'} skipped` : '', loaded.repairedDocuments ? `${loaded.repairedDocuments} duplicate ${loaded.repairedDocuments === 1 ? 'ID was' : 'IDs were'} repaired` : '', loaded.activeIdRecovered ? 'the active resume was reset' : ''].filter(Boolean).join('; ')
@@ -205,79 +208,88 @@ export function Studio() {
   }, [activeResume.id, activeResume.settings.pageSize])
 
   const changeResume = (document: ResumeDocument) => {
+    const currentResume = libraryRef.current.documents.find((item) => item.id === document.id)
+    if (!currentResume) return
     const history = historiesRef.current.get(document.id) ?? createResumeHistory()
-    const nextHistory = recordResumeChange(history, activeResume, document)
+    const nextHistory = recordResumeChange(history, currentResume, document)
     historiesRef.current.set(document.id, nextHistory)
     if (nextHistory !== history) setHistoryRevision((value) => value + 1)
-    setLibrary((current) => upsertDocument(current, touchResume(document)))
+    updateLibrary((current) => upsertDocument(current, touchResume(document)))
   }
 
   const undo = () => {
-    const history = historiesRef.current.get(activeResume.id) ?? createResumeHistory()
-    const result = undoResumeChange(history, activeResume)
+    const current = libraryRef.current
+    const currentResume = current.documents.find((item) => item.id === current.activeId) ?? current.documents[0]!
+    const history = historiesRef.current.get(currentResume.id) ?? createResumeHistory()
+    const result = undoResumeChange(history, currentResume)
     if (!result.document) {
       setStatus('Nothing to undo for this resume.')
       return
     }
-    historiesRef.current.set(activeResume.id, result.history)
-    setLibrary((current) => upsertDocument(current, touchResume(result.document!)))
+    historiesRef.current.set(currentResume.id, result.history)
+    updateLibrary((latest) => upsertDocument(latest, touchResume(result.document!)))
     setHistoryRevision((value) => value + 1)
     setStatus('Undid the most recent studio change.')
   }
 
   const redo = () => {
-    const history = historiesRef.current.get(activeResume.id) ?? createResumeHistory()
-    const result = redoResumeChange(history, activeResume)
+    const current = libraryRef.current
+    const currentResume = current.documents.find((item) => item.id === current.activeId) ?? current.documents[0]!
+    const history = historiesRef.current.get(currentResume.id) ?? createResumeHistory()
+    const result = redoResumeChange(history, currentResume)
     if (!result.document) {
       setStatus('Nothing to redo for this resume.')
       return
     }
-    historiesRef.current.set(activeResume.id, result.history)
-    setLibrary((current) => upsertDocument(current, touchResume(result.document!)))
+    historiesRef.current.set(currentResume.id, result.history)
+    updateLibrary((latest) => upsertDocument(latest, touchResume(result.document!)))
     setHistoryRevision((value) => value + 1)
     setStatus('Redid the most recent studio change.')
   }
 
-  const addResume = (document: ResumeDocument) => {
-    if (library.documents.length >= MAX_RESUMES) {
+  const addResume = (document: ResumeDocument): boolean => {
+    if (libraryRef.current.documents.length >= MAX_RESUMES) {
       setStatus(`Your device library is full at ${MAX_RESUMES} resumes. Export and remove one before adding another.`)
-      return
+      return false
     }
-    setLibrary((current) => {
+    updateLibrary((current) => {
       const ids = new Set(current.documents.map((item) => item.id))
       const unique = ids.has(document.id) ? { ...document, id: createId('resume'), title: `${document.title || 'Imported resume'} copy` } : document
       return upsertDocument(current, unique)
     })
     setActiveTab('content')
     setShowNew(false)
+    return true
   }
 
   const createNew = (starter: StarterId | 'blank') => {
-    if (library.documents.length >= MAX_RESUMES) {
-      setStatus(`Your device library is full at ${MAX_RESUMES} resumes. Export and remove one before adding another.`)
+    if (!addResume(starter === 'blank' ? createBlankResume() : createStarter(starter))) {
       setShowNew(false)
       return
     }
-    addResume(starter === 'blank' ? createBlankResume() : createStarter(starter))
     setStatus('New resume added. Your other versions are unchanged.')
   }
 
   const duplicateActive = () => {
-    const copy = cloneResume(activeResume)
-    addResume({ ...copy, id: createId('resume'), title: `${copy.title || 'Resume'} copy`, updatedAt: new Date().toISOString() })
+    const current = libraryRef.current
+    const currentResume = current.documents.find((item) => item.id === current.activeId) ?? current.documents[0]!
+    const copy = cloneResume(currentResume)
+    if (!addResume({ ...copy, id: createId('resume'), title: `${copy.title || 'Resume'} copy`, updatedAt: new Date().toISOString() })) return
     setShowLibraryMenu(false)
     window.requestAnimationFrame(() => libraryMenuButtonRef.current?.focus())
     setStatus('Resume duplicated. Tailor this version without changing the original.')
   }
 
   const deleteActive = () => {
-    if (library.documents.length <= 1) {
+    const current = libraryRef.current
+    const currentResume = current.documents.find((item) => item.id === current.activeId) ?? current.documents[0]!
+    if (current.documents.length <= 1) {
       setStatus('Keep at least one resume in your library.')
       return
     }
-    if (!window.confirm(`Delete “${activeResume.title || 'Untitled resume'}” from this device? Download it first if you may need it later.`)) return
-    setLibrary((current) => removeDocument(current, activeResume.id))
-    historiesRef.current.delete(activeResume.id)
+    if (!window.confirm(`Delete “${currentResume.title || 'Untitled resume'}” from this device? Download it first if you may need it later.`)) return
+    updateLibrary((latest) => removeDocument(latest, currentResume.id))
+    historiesRef.current.delete(currentResume.id)
     setHistoryRevision((value) => value + 1)
     setShowLibraryMenu(false)
     window.requestAnimationFrame(() => libraryMenuButtonRef.current?.focus())
@@ -286,7 +298,8 @@ export function Studio() {
 
   const restoreLibrary = (incoming: ResumeLibrary) => {
     try {
-      setLibrary(mergeLibraries(library, incoming))
+      const merged = mergeLibraries(libraryRef.current, incoming)
+      updateLibrary(() => merged)
       historiesRef.current.clear()
       setHistoryRevision((value) => value + 1)
     } catch (caught) {
@@ -369,7 +382,7 @@ export function Studio() {
         <div className="resume-switcher">
           <label htmlFor="resume-select">Resume</label>
           <div className="select-wrap">
-            <select id="resume-select" value={activeResume.id} onChange={(event) => setLibrary((current) => ({ ...current, activeId: event.currentTarget.value }))}>
+            <select id="resume-select" value={activeResume.id} onChange={(event) => { const activeId = event.currentTarget.value; updateLibrary((current) => ({ ...current, activeId })) }}>
               {library.documents.map((document) => <option value={document.id} key={document.id}>{document.title || 'Untitled resume'}</option>)}
             </select>
             <ChevronDown size={14} aria-hidden="true" />

@@ -10,6 +10,7 @@ The product is deliberately industry-flexible. Its generic entry model supports 
 - A device-local library of up to 24 targeted resume versions
 - Automatic local autosave with no account, analytics, or resume-content API
 - Last-chance page-hide saving, explicit storage-failure recovery, and transparent repair notices for damaged local libraries
+- Latest-state library commits that protect rapid edits and asynchronous backup restores from stale-render overwrites
 - Bounded per-resume undo and redo that groups typing bursts while preserving native field-level undo
 - Eight field-aware starter stories: universal, leadership, healthcare, education, creative, skilled trades, student, and academic
 - Persistent fictional-sample detection with Review, plain-text, and PDF export safeguards
@@ -61,6 +62,7 @@ The dependency lockfile is committed. `npm audit` should report zero known vulne
 - `src/lib/storage.ts` — bounded, validated local resume library
 - `src/lib/history.ts` — bounded, field-aware resume revision history
 - `src/lib/tailoring.ts` — bounded, transparent opportunity-language comparison
+- `src/lib/latestState.ts` — synchronous latest-state commits for race-resistant local mutations
 - `src/components/Studio.tsx` — application state, autosave, document management, tabs, preview, and export flow
 - `src/components/ContentEditor.tsx` — profile, section, entry, bullet, keyword, link, and ordering forms
 - `src/components/ResumePreview.tsx` — one semantic document tree shared by every visual layout
