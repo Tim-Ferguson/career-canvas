@@ -77,6 +77,7 @@ export function DesignPanel({ resume, renderedPages, onChange, onPrint, onEditCo
         <p className="card-intro">The rendered preview currently uses {resume.settings.pageSize === 'a4' ? 'A4' : 'US Letter'} and measures {renderedPages} {renderedPages === 1 ? 'page' : 'pages'}.</p>
         <ExportReadinessSummary preflight={exportPreflight} />
         <ul className="print-check-list">
+          <li><Check size={14} /><span>Use the dashed guides in the live preview to check where each PDF page begins.</span></li>
           <li><Check size={14} /><span>Match the print dialog paper size to {resume.settings.pageSize === 'a4' ? 'A4' : 'US Letter'}.</span></li>
           <li><Check size={14} /><span>Turn off browser headers and footers so no URL or date is added.</span></li>
           <li><Check size={14} /><span>Open the saved PDF and verify page breaks, selectable text, and every link.</span></li>

@@ -338,7 +338,11 @@ details > summary::-webkit-details-marker { display: none; }
 .zoom-control button:hover { background: white; }
 .zoom-control span { min-width: 43px; text-align: center; font-size: .58rem; font-weight: 600; }
 .preview-scroll { overflow: auto; padding: 38px max(30px, calc((100% - var(--preview-paper-width, 8.5in) * var(--preview-zoom, .82)) / 2)) 80px; scrollbar-gutter: stable; }
-.preview-scale { --preview-zoom: .82; --paper-width: 8.5in; --paper-height: 11in; width: calc(var(--paper-width) * var(--preview-zoom)); min-height: calc(var(--paper-height) * var(--preview-zoom)); margin: 0 auto; }
+.preview-scale { --preview-zoom: .82; --paper-width: 8.5in; --paper-height: 11in; position: relative; width: calc(var(--paper-width) * var(--preview-zoom)); min-height: calc(var(--paper-height) * var(--preview-zoom)); margin: 0 auto; }
+.page-break-guides { position: absolute; z-index: 4; inset: 0; pointer-events: none; }
+.page-break-guide { position: absolute; left: 0; width: 100%; border-top: 2px dashed rgba(116,83,42,.62); filter: drop-shadow(0 1px 0 rgba(255,255,255,.9)); }
+.page-break-guide::after { content: attr(data-label); position: absolute; right: 7px; top: -10px; padding: 2px 5px; border-radius: 4px; color: #69491f; background: rgba(250,244,231,.94); font-size: 9px; font-weight: 800; line-height: 1.4; letter-spacing: .02em; }
+.page-break-guides > small { position: absolute; top: 8px; right: 8px; padding: 4px 6px; border-radius: 5px; color: #69491f; background: rgba(250,244,231,.94); font-size: 9px; font-weight: 700; }
 
 .resume-document { --resume-accent: #315f58; --document-pad-x: .64in; --document-pad-y: .58in; --document-gap: 20px; width: var(--paper-width); min-height: var(--paper-height); padding: var(--document-pad-y) var(--document-pad-x); color: #1c211f; background: #fff; box-shadow: 0 20px 55px rgba(25, 31, 28, .18), 0 1px 4px rgba(25, 31, 28, .14); zoom: var(--preview-zoom); font-family: 'Libre Franklin', Arial, sans-serif; font-size: 10pt; line-height: 1.42; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .resume-document[data-page-size='a4'] { --paper-width: 210mm; --paper-height: 297mm; }

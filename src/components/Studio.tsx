@@ -14,6 +14,7 @@ import { reviewDestination } from '../lib/reviewNavigation'
 import { commitLatest } from '../lib/latestState'
 import { buildExportPreflight, exportConfirmationMessage } from '../lib/exportReadiness'
 import { createDeletedResumeRecovery, loadDeletedResumeRecovery, recoveryAlreadyPresent, restoreDeletedResume, saveDeletedResumeRecovery, type DeletedResumeRecovery } from '../lib/deletionRecovery'
+import { buildPreviewPageGuides, MAX_PREVIEW_PAGE_GUIDES } from '../lib/pageGuides'
 
 type StudioTab = 'content' | 'design' | 'review' | 'data'
 
@@ -526,6 +527,7 @@ export function Studio() {
   const saveLabel = saveState === 'saving' ? 'Saving…' : saveState === 'limited' ? 'Not saved' : formatSavedTime(activeResume.updatedAt)
   const activeHistory = historiesRef.current.get(activeResume.id) ?? createResumeHistory()
   const sampleContentPresent = containsStarterSampleContent(activeResume)
+  const previewPageGuides = buildPreviewPageGuides(activeResume.settings.pageSize, renderedPages, zoom)
   const printResume = () => {
     if (advancedDraftDirty && !window.confirm('The PDF will use the last valid resume; unapplied advanced JSON changes are not included. Open the print dialog anyway?')) {
       setStatus('PDF export canceled. Apply or discard the advanced JSON draft first.')
@@ -615,7 +617,15 @@ export function Studio() {
             <div className="zoom-control" aria-label="Preview zoom"><button type="button" onClick={() => setZoom((value) => Math.max(0.55, value - 0.08))} aria-label="Zoom out">−</button><span>{Math.round(zoom * 100)}%</span><button type="button" onClick={() => setZoom((value) => Math.min(1.15, value + 0.08))} aria-label="Zoom in">+</button></div>
           </div>
           <div className="preview-scroll">
-            <div className="preview-scale" style={{ '--preview-zoom': zoom, '--paper-width': activeResume.settings.pageSize === 'a4' ? '210mm' : '8.5in', '--paper-height': activeResume.settings.pageSize === 'a4' ? '297mm' : '11in' } as React.CSSProperties}><ResumePreview resume={activeResume} /></div>
+            <div className="preview-scale" style={{ '--preview-zoom': zoom, '--paper-width': activeResume.settings.pageSize === 'a4' ? '210mm' : '8.5in', '--paper-height': activeResume.settings.pageSize === 'a4' ? '297mm' : '11in' } as React.CSSProperties}>
+              <ResumePreview resume={activeResume} />
+              {previewPageGuides.length ? (
+                <div className="page-break-guides no-print" aria-hidden="true">
+                  {previewPageGuides.map((guide) => <span className="page-break-guide" style={{ top: `${guide.offsetPixels}px` }} data-label={`PDF page ${guide.pageNumber} starts`} key={guide.pageNumber} />)}
+                  {renderedPages > MAX_PREVIEW_PAGE_GUIDES + 1 ? <small>Showing the first {MAX_PREVIEW_PAGE_GUIDES} of {renderedPages - 1} page boundaries</small> : null}
+                </div>
+              ) : null}
+            </div>
           </div>
         </section>
       </main>
