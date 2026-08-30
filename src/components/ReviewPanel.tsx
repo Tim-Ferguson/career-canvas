@@ -10,7 +10,7 @@ function IssueIcon({ severity }: Pick<ResumeIssue, 'severity'>) {
   return <Lightbulb size={17} />
 }
 
-export function ReviewPanel({ resume, onEdit }: { resume: ResumeDocument; onEdit: () => void }) {
+export function ReviewPanel({ resume, onEdit }: { resume: ResumeDocument; onEdit: (issue?: ResumeIssue) => void }) {
   const [targetTexts, setTargetTexts] = useState<Record<string, string>>({})
   const targetText = targetTexts[resume.id] ?? ''
   const analysis = analyzeResume(resume)
@@ -33,7 +33,7 @@ export function ReviewPanel({ resume, onEdit }: { resume: ResumeDocument; onEdit
         {analysis.issues.length ? (
           <div className="issue-list">
             {analysis.issues.map((issue) => (
-              <button type="button" className={`issue issue-${issue.severity}`} key={issue.id} onClick={onEdit}>
+              <button type="button" className={`issue issue-${issue.severity}`} key={issue.id} onClick={() => onEdit(issue)}>
                 <IssueIcon severity={issue.severity} />
                 <span><strong>{issue.title}</strong><small>{issue.detail}</small></span>
                 <ArrowRight size={15} />
@@ -59,7 +59,7 @@ export function ReviewPanel({ resume, onEdit }: { resume: ResumeDocument; onEdit
             <div className="targeting-group"><h3>Already reflected</h3><div className="term-list">{comparison.matched.length ? comparison.matched.map((item) => <span className="term term-match" key={`match-${item.term}`}>{item.term}</span>) : <small>No high-signal overlap yet.</small>}</div></div>
             <div className="targeting-group"><h3>Verify before adding</h3><div className="term-list">{comparison.missing.length ? comparison.missing.map((item) => <span className="term term-missing" key={`missing-${item.term}`}>{item.term}</span>) : <small>Every surfaced term appears somewhere in the visible resume.</small>}</div></div>
             <p className="targeting-caution">Only add a missing term when it truthfully describes your work, credential, method, or outcome. Show evidence in context; do not paste a keyword list.</p>
-            <button className="text-button targeting-edit" type="button" onClick={onEdit}>Edit resume evidence <ArrowRight size={14} /></button>
+            <button className="text-button targeting-edit" type="button" onClick={() => onEdit()}>Edit resume evidence <ArrowRight size={14} /></button>
           </div>
         ) : targetText ? <p className="targeting-empty">Add more of the opportunity text so the comparison can identify meaningful terms.</p> : null}
       </section>

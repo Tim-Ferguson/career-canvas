@@ -6,9 +6,10 @@ import { DataPanel } from './DataPanel'
 import { DesignPanel } from './DesignPanel'
 import { ResumePreview } from './ResumePreview'
 import { ReviewPanel } from './ReviewPanel'
-import { MAX_RESUMES, STARTERS, cloneResume, createBlankResume, createId, createStarter, renderedPageCount, touchResume, type ResumeDocument, type ResumeLibrary, type StarterId } from '../lib/resume'
+import { MAX_RESUMES, STARTERS, cloneResume, createBlankResume, createId, createStarter, renderedPageCount, touchResume, type ResumeDocument, type ResumeIssue, type ResumeLibrary, type StarterId } from '../lib/resume'
 import { createDefaultLibrary, loadLibraryResult, mergeLibraries, removeDocument, saveLibrary, upsertDocument } from '../lib/storage'
 import { createResumeHistory, recordResumeChange, redoResumeChange, undoResumeChange, type ResumeHistory } from '../lib/history'
+import { reviewDestination } from '../lib/reviewNavigation'
 
 type StudioTab = 'content' | 'design' | 'review' | 'data'
 
@@ -258,6 +259,25 @@ export function Studio() {
     }
   }
 
+  const editReviewIssue = (issue?: ResumeIssue) => {
+    setActiveTab('content')
+    const destination = issue ? reviewDestination(issue, activeResume) : { id: 'content-sections', label: 'Resume evidence' }
+    setStatus(`Opening ${destination.label.toLocaleLowerCase()} in the editor.`)
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+      const element = document.getElementById(destination.id)
+      if (!element) {
+        setStatus('The Content workspace is open. Choose the most relevant evidence to edit.')
+        return
+      }
+      const details = element instanceof HTMLDetailsElement ? element : element.closest('details')
+      if (details) details.open = true
+      const focusTarget = element.matches('input, textarea, select, button, summary') ? element : element.querySelector<HTMLElement>('input:not(:disabled), textarea:not(:disabled), select:not(:disabled), button:not(:disabled), summary')
+      element.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      focusTarget?.focus({ preventScroll: true })
+      setStatus(`${destination.label}. The relevant editor control is now focused.`)
+    }))
+  }
+
   useEffect(() => {
     const handleHistoryShortcut = (event: KeyboardEvent) => {
       if (!(event.metaKey || event.ctrlKey) || isNativeEditingTarget(event.target)) return
@@ -325,7 +345,7 @@ export function Studio() {
             {recoveryNotice && saveState !== 'limited' ? <div className="recovery-alert" role="status"><ShieldCheck size={18} /><span>{recoveryNotice}</span><button type="button" aria-label="Dismiss recovery notice" onClick={() => setRecoveryNotice('')}><X size={15} /></button></div> : null}
             <div hidden={activeTab !== 'content'}><ContentEditor resume={activeResume} onChange={changeResume} /></div>
             <div hidden={activeTab !== 'design'}><DesignPanel resume={activeResume} onChange={changeResume} /></div>
-            <div hidden={activeTab !== 'review'}><ReviewPanel resume={activeResume} onEdit={() => setActiveTab('content')} /></div>
+            <div hidden={activeTab !== 'review'}><ReviewPanel resume={activeResume} onEdit={editReviewIssue} /></div>
             <div hidden={activeTab !== 'data'}><DataPanel resume={activeResume} library={library} onChange={changeResume} onImport={addResume} onRestoreLibrary={restoreLibrary} announce={setStatus} /></div>
           </div>
           <div className="editor-status" role="status" aria-live="polite"><ShieldCheck size={14} /><span>{status}</span></div>

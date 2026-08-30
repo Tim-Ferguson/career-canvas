@@ -16,6 +16,7 @@ The product is deliberately industry-flexible. Its generic entry model supports 
 - US Letter and A4 output, three spacing levels, three font treatments, and custom accent colors
 - Section and entry creation, duplication, hiding, deletion, and keyboard-accessible reordering
 - Readiness review for focus, contactability, evidence, scanability, and likely page length
+- Review findings that open collapsed content and focus the exact field, entry, or section needing attention
 - Session-only opportunity comparison that surfaces honest vocabulary gaps without exporting pasted job descriptions or claiming an ATS score
 - JSON v2 import/export, automatic migration from the original v1 schema, plain-text export, and browser-native PDF output
 - Validated whole-library backups that restore non-destructively and preserve newer versions as well as historical copies

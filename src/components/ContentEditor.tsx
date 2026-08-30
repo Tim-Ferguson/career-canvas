@@ -8,6 +8,7 @@ interface ContentEditorProps {
 }
 
 interface TextFieldProps {
+  id?: string
   label: string
   value: string
   onChange: (value: string) => void
@@ -17,20 +18,20 @@ interface TextFieldProps {
   disabled?: boolean
 }
 
-function TextField({ label, value, onChange, placeholder, type = 'text', wide, disabled }: TextFieldProps) {
+function TextField({ id, label, value, onChange, placeholder, type = 'text', wide, disabled }: TextFieldProps) {
   return (
     <label className={`field ${wide ? 'field-wide' : ''}`}>
       <span>{label}</span>
-      <input type={type} value={value} placeholder={placeholder} disabled={disabled} onChange={(event) => onChange(event.currentTarget.value)} />
+      <input id={id} type={type} value={value} placeholder={placeholder} disabled={disabled} onChange={(event) => onChange(event.currentTarget.value)} />
     </label>
   )
 }
 
-function TextAreaField({ label, value, onChange, placeholder, hint }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; hint?: string }) {
+function TextAreaField({ id, label, value, onChange, placeholder, hint }: { id?: string; label: string; value: string; onChange: (value: string) => void; placeholder?: string; hint?: string }) {
   return (
     <label className="field field-wide">
       <span>{label}</span>
-      <textarea value={value} placeholder={placeholder} onChange={(event) => onChange(event.currentTarget.value)} rows={4} />
+      <textarea id={id} value={value} placeholder={placeholder} onChange={(event) => onChange(event.currentTarget.value)} rows={4} />
       {hint ? <small>{hint}</small> : null}
     </label>
   )
@@ -40,13 +41,13 @@ function IconButton({ label, children, onClick, disabled, danger }: { label: str
   return <button className={`icon-button ${danger ? 'danger' : ''}`} type="button" aria-label={label} title={label} onClick={onClick} disabled={disabled}>{children}</button>
 }
 
-function StringListEditor({ label, values, onChange, placeholder, addLabel }: { label: string; values: string[]; onChange: (values: string[]) => void; placeholder: string; addLabel: string }) {
+function StringListEditor({ idPrefix, label, values, onChange, placeholder, addLabel }: { idPrefix?: string; label: string; values: string[]; onChange: (values: string[]) => void; placeholder: string; addLabel: string }) {
   return (
     <fieldset className="list-field">
       <legend>{label}</legend>
       {values.map((value, index) => (
         <div className="list-field-row" key={index}>
-          <textarea rows={2} value={value} placeholder={placeholder} onChange={(event) => onChange(values.map((item, itemIndex) => itemIndex === index ? event.currentTarget.value : item))} />
+          <textarea id={idPrefix ? `${idPrefix}-${index}` : undefined} rows={2} value={value} placeholder={placeholder} onChange={(event) => onChange(values.map((item, itemIndex) => itemIndex === index ? event.currentTarget.value : item))} />
           <IconButton label={`Remove ${label.toLocaleLowerCase()} ${index + 1}`} danger onClick={() => onChange(values.filter((_, itemIndex) => itemIndex !== index))}><Trash2 size={15} /></IconButton>
         </div>
       ))}
@@ -85,7 +86,7 @@ function EntryEditor({ entry, kind, index, total, onChange, onMove, onDuplicate,
   const useKeywords = kind === 'skills' || kind === 'interests'
   const showHighlights = !['skills', 'languages', 'interests', 'certifications', 'awards', 'publications', 'affiliations'].includes(kind)
   return (
-    <div className="entry-editor">
+    <div className="entry-editor" id={`entry-editor-${entry.id}`}>
       <div className="entry-editor-toolbar">
         <span>Entry {index + 1}</span>
         <div>
@@ -96,20 +97,20 @@ function EntryEditor({ entry, kind, index, total, onChange, onMove, onDuplicate,
         </div>
       </div>
       <div className="field-grid">
-        <TextField label={labels.title} value={entry.title} onChange={(title) => patch({ title })} />
+        <TextField id={`entry-title-${entry.id}`} label={labels.title} value={entry.title} onChange={(title) => patch({ title })} />
         <TextField label={labels.organization} value={entry.organization} onChange={(organization) => patch({ organization })} />
         {kind !== 'skills' && kind !== 'interests' ? <TextField label="Location" value={entry.location} onChange={(location) => patch({ location })} placeholder="City, region or Remote" /> : null}
-        <TextField label="Link (optional)" type="url" value={entry.url} onChange={(url) => patch({ url })} placeholder="portfolio.example.com/work" />
+        <TextField id={`entry-url-${entry.id}`} label="Link (optional)" type="url" value={entry.url} onChange={(url) => patch({ url })} placeholder="portfolio.example.com/work" />
         {kind !== 'skills' && kind !== 'interests' ? (
           <>
-            <TextField label="Start" value={entry.startDate} onChange={(startDate) => patch({ startDate })} placeholder="2022 or Sep 2022" />
+            <TextField id={`entry-start-${entry.id}`} label="Start" value={entry.startDate} onChange={(startDate) => patch({ startDate })} placeholder="2022 or Sep 2022" />
             <TextField label="End" value={entry.current ? 'Present' : entry.endDate} disabled={entry.current} onChange={(endDate) => patch({ endDate })} placeholder="2025" />
             <label className="check-field field-wide"><input type="checkbox" checked={entry.current} onChange={(event) => patch({ current: event.currentTarget.checked, endDate: event.currentTarget.checked ? '' : entry.endDate })} /> <span>Current or ongoing</span></label>
           </>
         ) : null}
         {kind !== 'skills' && kind !== 'interests' ? <TextAreaField label={labels.summary} value={entry.summary} onChange={(summary) => patch({ summary })} placeholder="One concise line of useful context—not a list of duties." /> : null}
       </div>
-      {showHighlights ? <StringListEditor label="Highlights" values={entry.highlights} onChange={(highlights) => patch({ highlights })} placeholder="Start with your action, then add scope and outcome." addLabel="Add highlight" /> : null}
+      {showHighlights ? <StringListEditor idPrefix={`entry-highlight-${entry.id}`} label="Highlights" values={entry.highlights} onChange={(highlights) => patch({ highlights })} placeholder="Start with your action, then add scope and outcome." addLabel="Add highlight" /> : null}
       {useKeywords || entry.keywords.length ? <StringListEditor label={useKeywords ? 'Skills or topics' : 'Keywords'} values={entry.keywords} onChange={(keywords) => patch({ keywords })} placeholder="Add one capability per item" addLabel={useKeywords ? 'Add skill' : 'Add keyword'} /> : null}
     </div>
   )
@@ -132,7 +133,7 @@ function SectionEditor({ section, index, total, onChange, onMove, onDelete }: {
     patch({ entries: section.entries.filter((_, indexItem) => indexItem !== entryIndex) })
   }
   return (
-    <details className="section-editor" open={isOpen} onToggle={(event) => setIsOpen(event.currentTarget.open)}>
+    <details className="section-editor" id={`section-editor-${section.id}`} open={isOpen} onToggle={(event) => setIsOpen(event.currentTarget.open)}>
       <summary>
         <span className="section-summary-text"><strong>{section.title || 'Untitled section'}</strong><small>{section.visible ? `${section.entries.length} ${section.entries.length === 1 ? 'entry' : 'entries'}` : 'Hidden from resume'}</small></span>
         <span className="section-summary-actions" onClick={(event) => event.preventDefault()}>
@@ -143,7 +144,7 @@ function SectionEditor({ section, index, total, onChange, onMove, onDelete }: {
       </summary>
       <div className="section-editor-body">
         <div className="section-title-row">
-          <TextField wide label="Section heading" value={section.title} onChange={(title) => patch({ title })} />
+          <TextField id={`section-title-${section.id}`} wide label="Section heading" value={section.title} onChange={(title) => patch({ title })} />
           <IconButton label={`Delete ${section.title}`} danger onClick={onDelete}><Trash2 size={16} /></IconButton>
         </div>
         {section.entries.map((entryItem, entryIndex) => (
@@ -169,7 +170,7 @@ function LinkEditor({ link, onChange, onDelete }: { link: ResumeLink; onChange: 
   return (
     <div className="link-row">
       <TextField label="Label" value={link.label} onChange={(label) => onChange({ ...link, label })} placeholder="LinkedIn" />
-      <TextField label="URL" value={link.url} onChange={(url) => onChange({ ...link, url })} placeholder="linkedin.com/in/you" />
+      <TextField id={`profile-link-url-${link.id}`} label="URL" value={link.url} onChange={(url) => onChange({ ...link, url })} placeholder="linkedin.com/in/you" />
       <IconButton label="Remove profile link" danger onClick={onDelete}><Trash2 size={15} /></IconButton>
     </div>
   )
@@ -191,29 +192,29 @@ export function ContentEditor({ resume, onChange }: ContentEditorProps) {
       <section className="editor-card" aria-labelledby="target-heading">
         <div className="card-heading"><div><span className="eyebrow">Direction</span><h2 id="target-heading">Target</h2></div><p>Keep each version focused on one opportunity.</p></div>
         <div className="field-grid">
-          <TextField label="Resume name" value={resume.title} onChange={(title) => patch({ title })} placeholder="Senior operations — Acme" />
-          <TextField label="Target role" value={resume.targetRole} onChange={(targetRole) => patch({ targetRole })} placeholder="Director of Operations" />
+          <TextField id="resume-title" label="Resume name" value={resume.title} onChange={(title) => patch({ title })} placeholder="Senior operations — Acme" />
+          <TextField id="resume-target-role" label="Target role" value={resume.targetRole} onChange={(targetRole) => patch({ targetRole })} placeholder="Director of Operations" />
           <TextField wide label="Industry or field (optional)" value={resume.industry} onChange={(industry) => patch({ industry })} placeholder="Healthcare, education, manufacturing…" />
         </div>
       </section>
 
-      <details className="editor-card profile-card" open>
+      <details className="editor-card profile-card" id="profile-editor" open>
         <summary><div><span className="eyebrow">First impression</span><h2>Profile</h2></div></summary>
         <div className="field-grid card-fields">
-          <TextField label="Full name" value={resume.profile.name} onChange={(name) => patchProfile({ name })} placeholder="Your name" />
+          <TextField id="profile-name" label="Full name" value={resume.profile.name} onChange={(name) => patchProfile({ name })} placeholder="Your name" />
           <TextField label="Professional headline" value={resume.profile.headline} onChange={(headline) => patchProfile({ headline })} placeholder="What you do and the value you create" />
-          <TextField label="Email" type="email" value={resume.profile.email} onChange={(email) => patchProfile({ email })} placeholder="you@example.com" />
-          <TextField label="Phone" type="tel" value={resume.profile.phone} onChange={(phone) => patchProfile({ phone })} placeholder="+1 555 555 5555" />
+          <TextField id="profile-email" label="Email" type="email" value={resume.profile.email} onChange={(email) => patchProfile({ email })} placeholder="you@example.com" />
+          <TextField id="profile-phone" label="Phone" type="tel" value={resume.profile.phone} onChange={(phone) => patchProfile({ phone })} placeholder="+1 555 555 5555" />
           <TextField label="Location" value={resume.profile.location} onChange={(location) => patchProfile({ location })} placeholder="City, state or Remote" />
-          <TextField label="Website" type="url" value={resume.profile.website} onChange={(website) => patchProfile({ website })} placeholder="yourname.com" />
-          <TextAreaField label="Summary" value={resume.profile.summary} onChange={(summary) => patchProfile({ summary })} placeholder="Summarize your scope, strongest capabilities, and the outcomes you create." hint={`${resume.profile.summary.trim().split(/\s+/).filter(Boolean).length} words · aim for 35–70`} />
+          <TextField id="profile-website" label="Website" type="url" value={resume.profile.website} onChange={(website) => patchProfile({ website })} placeholder="yourname.com" />
+          <TextAreaField id="profile-summary" label="Summary" value={resume.profile.summary} onChange={(summary) => patchProfile({ summary })} placeholder="Summarize your scope, strongest capabilities, and the outcomes you create." hint={`${resume.profile.summary.trim().split(/\s+/).filter(Boolean).length} words · aim for 35–70`} />
         </div>
         <div className="subsection-heading"><h3>Profile links</h3><span>LinkedIn, portfolio, GitHub, ORCID, or another relevant profile</span></div>
         {resume.profile.links.map((link, index) => <LinkEditor key={link.id} link={link} onChange={(value) => patchProfile({ links: resume.profile.links.map((item, itemIndex) => itemIndex === index ? value : item) })} onDelete={() => patchProfile({ links: resume.profile.links.filter((_, itemIndex) => itemIndex !== index) })} />)}
         <button className="text-button compact-button" type="button" onClick={() => patchProfile({ links: [...resume.profile.links, { id: createId('link'), label: '', url: '' }] })}><Plus size={14} /> Add profile link</button>
       </details>
 
-      <section className="content-sections" aria-labelledby="sections-heading">
+      <section className="content-sections" id="content-sections" aria-labelledby="sections-heading">
         <div className="card-heading section-list-heading"><div><span className="eyebrow">Your evidence</span><h2 id="sections-heading">Sections</h2></div><p>Order them by relevance for this target.</p></div>
         {resume.sections.map((sectionItem, index) => (
           <SectionEditor
@@ -228,7 +229,7 @@ export function ContentEditor({ resume, onChange }: ContentEditorProps) {
         ))}
       </section>
 
-      <details className="add-section-card">
+      <details className="add-section-card" id="add-section-control">
         <summary><Plus size={17} /> Add another section</summary>
         <div className="section-catalog">
           {SECTION_CATALOG.map((item) => (
