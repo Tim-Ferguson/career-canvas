@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { MAX_DOCUMENT_BYTES, STARTERS, analyzeResume, cloneResume, containsStarterSampleContent, createBlankResume, createSection, createStarter, formatEntryDateRange, migrateResume, moveInArray, parseResumeJson, renderedPageCount, resumeToText, utf8ByteLength, validateResume } from './resume'
+import { MAX_DOCUMENT_BYTES, STARTERS, analyzeResume, cloneResume, containsStarterSampleContent, createBlankResume, createSection, createStarter, entryHasRenderableContent, formatEntryDateRange, migrateResume, moveInArray, parseResumeJson, renderedPageCount, resumeToText, sectionHasRenderableContent, utf8ByteLength, validateResume } from './resume'
 
 const starterIds = ['universal', 'leadership', 'healthcare', 'education', 'creative', 'trades', 'student', 'public_service', 'career_change', 'academic'] as const
 
@@ -117,6 +117,22 @@ describe('resume output and review', () => {
     credential.entries[0] = { ...credential.entries[0]!, title: 'State license', startDate: '2024', current: true }
     resume.sections = [credential]
     assert.match(resumeToText(resume), /2024 – Active/)
+  })
+
+  it('omits empty draft scaffolding from plain text without mutating it', () => {
+    const resume = createBlankResume()
+    const empty = createSection('custom')
+    empty.title = 'Empty scaffold'
+    const project = createSection('projects')
+    project.entries = [{ ...project.entries[0]!, summary: 'Useful project context.', location: 'Remote', endDate: '2026' }, createSection('custom').entries[0]!]
+    resume.sections = [empty, project]
+    const before = JSON.stringify(resume)
+    const text = resumeToText(resume)
+    assert.equal(entryHasRenderableContent(empty.entries[0]!), false)
+    assert.equal(sectionHasRenderableContent(empty), false)
+    assert.equal(text.includes('EMPTY SCAFFOLD'), false)
+    assert.match(text, /PROJECTS\nRemote \| 2026\nUseful project context\./)
+    assert.equal(JSON.stringify(resume), before)
   })
 
   it('gives a blank draft specific, prioritized guidance', () => {

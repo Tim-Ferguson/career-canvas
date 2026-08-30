@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { AlertCircle, ArrowRight, CheckCircle2, Lightbulb, SearchCheck, Target, X } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
-import { analyzeResume, type ResumeDocument, type ResumeIssue } from '../lib/resume'
+import { analyzeResume, sectionHasRenderableContent, type ResumeDocument, type ResumeIssue } from '../lib/resume'
 import { MAX_TARGET_TEXT, compareResumeToTarget } from '../lib/tailoring'
 
 function IssueIcon({ severity }: Pick<ResumeIssue, 'severity'>) {
@@ -26,7 +26,7 @@ export function ReviewPanel({ resume, onEdit }: { resume: ResumeDocument; onEdit
         <div><strong>{analysis.words}</strong><span>words</span></div>
         <div><strong>{analysis.bullets}</strong><span>evidence bullets</span></div>
         <div><strong>~{analysis.estimatedPages}</strong><span>estimated pages</span></div>
-        <div><strong>{resume.sections.filter((item) => item.visible).length}</strong><span>visible sections</span></div>
+        <div><strong>{resume.sections.filter((item) => item.visible && sectionHasRenderableContent(item)).length}</strong><span>rendered sections</span></div>
       </div>
       <section className="editor-card">
         <div className="card-heading"><div><span className="eyebrow">Priority pass</span><h2>What to improve</h2></div><span className="issue-count">{analysis.issues.length}</span></div>

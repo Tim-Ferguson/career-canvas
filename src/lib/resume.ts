@@ -189,6 +189,14 @@ export function formatEntryDateRange(entry: ResumeEntry, kind: SectionKind): str
   return [entry.startDate, entry.current ? ENTRY_DATE_PRESENTATION[kind].currentText : entry.endDate].filter((value) => value.trim()).join(' – ')
 }
 
+export function entryHasRenderableContent(entry: ResumeEntry): boolean {
+  return [entry.title, entry.organization, entry.url, entry.summary, ...entry.highlights, ...entry.keywords].some((value) => value.trim())
+}
+
+export function sectionHasRenderableContent(section: ResumeSection): boolean {
+  return section.entries.some(entryHasRenderableContent)
+}
+
 const actionVerbs = new Set([
   'accelerated', 'achieved', 'built', 'coached', 'created', 'cut', 'delivered', 'designed', 'developed', 'directed',
   'drove', 'established', 'expanded', 'grew', 'implemented', 'improved', 'increased', 'launched', 'led', 'managed',
@@ -640,9 +648,9 @@ export function resumeToText(resume: ResumeDocument): string {
   const contact = [resume.profile.email, resume.profile.phone, resume.profile.location, resume.profile.website, ...resume.profile.links.map((link) => `${link.label}: ${link.url}`)].filter((item) => item.trim())
   if (contact.length) lines.push(contact.join(' | '))
   if (resume.profile.summary.trim()) lines.push('', 'SUMMARY', resume.profile.summary.trim())
-  for (const sectionItem of resume.sections.filter((item) => item.visible)) {
+  for (const sectionItem of resume.sections.filter((item) => item.visible && sectionHasRenderableContent(item))) {
     lines.push('', sectionItem.title.toUpperCase())
-    for (const entryItem of sectionItem.entries) {
+    for (const entryItem of sectionItem.entries.filter(entryHasRenderableContent)) {
       const heading = [entryItem.title, entryItem.organization].filter((item) => item.trim()).join(' — ')
       if (heading) lines.push(heading)
       const meta = [entryItem.location, formatEntryDateRange(entryItem, sectionItem.kind)].filter((item) => item.trim()).join(' | ')

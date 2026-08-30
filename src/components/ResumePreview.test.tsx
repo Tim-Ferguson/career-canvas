@@ -25,7 +25,11 @@ describe('semantic resume rendering', () => {
 
   it('supports every cross-industry section kind without changing reading order', () => {
     const resume = createStarter()
-    resume.sections = sectionKinds.map((kind) => createSection(kind))
+    resume.sections = sectionKinds.map((kind) => {
+      const section = createSection(kind)
+      section.entries[0] = { ...section.entries[0]!, title: `${kind} evidence` }
+      return section
+    })
     const html = renderToStaticMarkup(<ResumePreview resume={resume} />)
     for (const kind of sectionKinds) assert.ok(html.includes(`document-section-${kind}`))
     const positions = sectionKinds.map((kind) => html.indexOf(`document-section-${kind}`))
@@ -67,5 +71,23 @@ describe('semantic resume rendering', () => {
     assert.ok(html.includes('2024 – Active'))
     assert.ok(html.includes('Forthcoming'))
     assert.equal(html.includes('Previously expected 2027'), false)
+  })
+
+  it('omits empty draft scaffolding while retaining meaningful orphan metadata', () => {
+    const resume = createStarter()
+    resume.profile = { name: '', headline: '', email: '', phone: '', location: '', website: '', summary: '', links: [] }
+    const empty = createSection('custom')
+    empty.title = 'Empty scaffold'
+    const project = createSection('projects')
+    project.entries = [{ ...project.entries[0]!, summary: 'A useful project description.', location: 'Remote', endDate: '2026' }, createSection('custom').entries[0]!]
+    resume.sections = [empty, project]
+    const html = renderToStaticMarkup(<ResumePreview resume={resume} />)
+    assert.equal(html.includes('document-header'), false)
+    assert.equal(html.includes('Empty scaffold'), false)
+    assert.ok(html.includes('>Projects</h2>'))
+    assert.equal((html.match(/class="document-entry /g) ?? []).length, 1)
+    assert.ok(html.includes('document-entry-meta-standalone'))
+    assert.ok(html.includes('Remote'))
+    assert.ok(html.includes('2026'))
   })
 })

@@ -29,6 +29,7 @@ The product is deliberately industry-flexible. Its generic entry model supports 
 - Shared PDF/plain-text sharing preflight for fictional data, essential editorial findings, three-page pressure, and useful portable filenames
 - Print-aware pagination that keeps normal entries together, lets oversized evidence flow safely, and provides a concrete PDF checklist
 - Strict runtime validation, bounded content, portable IDs, duplicate-ID protection, and last-valid-document behavior in the advanced JSON editor
+- Shared PDF/plain-text renderability rules that preserve draft scaffolding in the editor but omit empty headers, sections, and entries from shareable output
 - Form-level limits that prevent visual editing from creating an unsaveable document, plus optional details and keywords across section types
 - Section-aware timeline language for roles, education, credentials, projects, grants, publications, memberships, and other ongoing evidence without discarding prior dates
 - Responsive studio and a cross-industry writing guide
