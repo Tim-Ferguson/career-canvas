@@ -178,6 +178,15 @@ export function utf8ByteLength(value: string): number {
   return new TextEncoder().encode(value).byteLength
 }
 
+export function parseJsonText(value: string): unknown {
+  return JSON.parse(value.replace(/^\uFEFF/, '')) as unknown
+}
+
+export function parseResumeJson(value: string): ResumeDocument {
+  if (utf8ByteLength(value) > MAX_DOCUMENT_BYTES) throw new Error('Resume JSON is larger than the 2 MB safety limit.')
+  return migrateResume(parseJsonText(value))
+}
+
 function assertDocumentSize(value: unknown): void {
   let json: string
   try {

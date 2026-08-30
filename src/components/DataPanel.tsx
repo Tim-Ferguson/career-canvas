@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ArchiveRestore, Check, Clipboard, Download, FileJson, FileText, FolderDown, RefreshCw, Upload } from 'lucide-react'
-import { MAX_DOCUMENT_BYTES, MAX_RESUMES, migrateResume, resumeToText, safeFilename, utf8ByteLength, type ResumeDocument, type ResumeLibrary } from '../lib/resume'
+import { MAX_DOCUMENT_BYTES, MAX_RESUMES, parseJsonText, parseResumeJson, resumeToText, safeFilename, utf8ByteLength, type ResumeDocument, type ResumeLibrary } from '../lib/resume'
 import { createLibraryBackup, parseLibraryBackup } from '../lib/storage'
 
 function downloadFile(contents: string, filename: string, type: string) {
@@ -9,7 +9,9 @@ function downloadFile(contents: string, filename: string, type: string) {
   const link = document.createElement('a')
   link.href = url
   link.download = filename
+  document.body.append(link)
   link.click()
+  link.remove()
   window.setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
@@ -37,8 +39,7 @@ export function DataPanel({ resume, library, onChange, onImport, onRestoreLibrar
 
   const applyJson = () => {
     try {
-      if (utf8ByteLength(draft) > MAX_DOCUMENT_BYTES) throw new Error('Resume JSON is larger than the 2 MB safety limit.')
-      const parsed = migrateResume(JSON.parse(draft) as unknown)
+      const parsed = parseResumeJson(draft)
       onChange({ ...parsed, id: resume.id, updatedAt: new Date().toISOString() })
       setDirty(false)
       setError('')
@@ -62,7 +63,7 @@ export function DataPanel({ resume, library, onChange, onImport, onRestoreLibrar
     if (!file) return
     try {
       if (file.size > MAX_DOCUMENT_BYTES) throw new Error('File is larger than the 2 MB safety limit.')
-      const imported = migrateResume(JSON.parse(await file.text()) as unknown)
+      const imported = parseResumeJson(await file.text())
       onImport({ ...imported, id: imported.id === resume.id ? `${imported.id}-copy` : imported.id, updatedAt: new Date().toISOString() })
       announce(`Imported ${file.name} as a new resume.`)
     } catch (caught) {
@@ -74,7 +75,7 @@ export function DataPanel({ resume, library, onChange, onImport, onRestoreLibrar
     if (!file) return
     try {
       if (file.size > MAX_DOCUMENT_BYTES * MAX_RESUMES) throw new Error('Backup is larger than the library safety limit.')
-      const backup = parseLibraryBackup(JSON.parse(await file.text()) as unknown)
+      const backup = parseLibraryBackup(parseJsonText(await file.text()))
       onRestoreLibrary(backup.library)
       announce(`Restored ${backup.library.documents.length} ${backup.library.documents.length === 1 ? 'resume' : 'resumes'} without overwriting newer versions.`)
     } catch (caught) {

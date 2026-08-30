@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { MAX_DOCUMENT_BYTES, analyzeResume, cloneResume, createBlankResume, createSection, createStarter, migrateResume, moveInArray, renderedPageCount, resumeToText, utf8ByteLength, validateResume } from './resume'
+import { MAX_DOCUMENT_BYTES, analyzeResume, cloneResume, createBlankResume, createSection, createStarter, migrateResume, moveInArray, parseResumeJson, renderedPageCount, resumeToText, utf8ByteLength, validateResume } from './resume'
 
 describe('resume document model', () => {
   it('validates every industry starter', () => {
@@ -43,6 +43,11 @@ describe('resume document model', () => {
     const oversized = createStarter()
     oversized.profile.summary = '🧭'.repeat(MAX_DOCUMENT_BYTES / 2)
     assert.throws(() => validateResume(oversized), /2 MB/)
+  })
+
+  it('imports valid resume JSON with a Unicode byte-order mark', () => {
+    const resume = createStarter()
+    assert.deepEqual(parseResumeJson(`\uFEFF${JSON.stringify(resume)}`), resume)
   })
 
   it('reorders collections immutably and within bounds', () => {
