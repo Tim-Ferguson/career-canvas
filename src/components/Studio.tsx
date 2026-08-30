@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { AlertTriangle, Check, ChevronDown, Copy, FileCheck2, FileText, FolderOpen, LayoutTemplate, MoreHorizontal, Plus, Printer, Redo2, ShieldCheck, Sparkles, Trash2, Undo2, X } from 'lucide-react'
+import { AlertTriangle, Check, ChevronDown, Copy, FileCheck2, FileText, FolderOpen, LayoutTemplate, MoreHorizontal, Plus, Printer, Redo2, RotateCcw, ShieldCheck, Sparkles, Trash2, Undo2, X } from 'lucide-react'
 import { ContentEditor } from './ContentEditor'
 import { DataPanel } from './DataPanel'
 import { DesignPanel } from './DesignPanel'
@@ -13,6 +13,7 @@ import { createResumeHistory, recordResumeChange, redoResumeChange, undoResumeCh
 import { reviewDestination } from '../lib/reviewNavigation'
 import { commitLatest } from '../lib/latestState'
 import { buildExportPreflight, exportConfirmationMessage } from '../lib/exportReadiness'
+import { createDeletedResumeRecovery, loadDeletedResumeRecovery, recoveryAlreadyPresent, restoreDeletedResume, saveDeletedResumeRecovery, type DeletedResumeRecovery } from '../lib/deletionRecovery'
 
 type StudioTab = 'content' | 'design' | 'review' | 'data'
 
@@ -46,6 +47,8 @@ export function Studio() {
   const [zoom, setZoom] = useState(0.82)
   const [renderedPages, setRenderedPages] = useState(1)
   const [advancedDraftDirty, setAdvancedDraftDirty] = useState(false)
+  const [deletedRecovery, setDeletedRecovery] = useState<DeletedResumeRecovery | null>(null)
+  const [recoveryPersistent, setRecoveryPersistent] = useState(false)
   const [, setHistoryRevision] = useState(0)
   const newResumeButtonRef = useRef<HTMLButtonElement>(null)
   const newResumeDialogRef = useRef<HTMLElement>(null)
@@ -63,6 +66,13 @@ export function Studio() {
     const loaded = loadLibraryFromProvider(() => window.localStorage)
     libraryRef.current = loaded.library
     setLibrary(loaded.library)
+    const recovery = loadDeletedResumeRecovery(window.localStorage)
+    if (recovery && !recoveryAlreadyPresent(loaded.library, recovery)) {
+      setDeletedRecovery(recovery)
+      setRecoveryPersistent(true)
+    } else if (recovery) {
+      try { saveDeletedResumeRecovery(window.localStorage, null) } catch { /* A redundant recovery record is harmless and will be ignored again. */ }
+    }
     if (loaded.status === 'recovered') {
       const details = [loaded.discardedDocuments ? `${loaded.discardedDocuments} damaged ${loaded.discardedDocuments === 1 ? 'resume was' : 'resumes were'} skipped` : '', loaded.repairedDocuments ? `${loaded.repairedDocuments} duplicate ${loaded.repairedDocuments === 1 ? 'ID was' : 'IDs were'} repaired` : '', loaded.activeIdRecovered ? 'the active resume was reset' : ''].filter(Boolean).join('; ')
       setRecoveryNotice(`Your saved library needed repair: ${details}. The healthy resumes are ready; make a fresh library backup when convenient.`)
@@ -131,10 +141,14 @@ export function Studio() {
     setSaveState('saving')
     try {
       saveLibrary(window.localStorage, libraryRef.current)
+      if (deletedRecovery) {
+        saveDeletedResumeRecovery(window.localStorage, deletedRecovery)
+        setRecoveryPersistent(true)
+      }
       storageLimitedRef.current = false
       setSaveState('saved')
       setRecoveryNotice('')
-      setStatus('Saved to this device successfully.')
+      setStatus(deletedRecovery ? 'Library and deleted-resume recovery saved to this device successfully.' : 'Saved to this device successfully.')
     } catch {
       storageLimitedRef.current = true
       setSaveState('limited')
@@ -352,13 +366,63 @@ export function Studio() {
       setStatus('Keep at least one resume in your library.')
       return false
     }
-    if (!window.confirm(`Delete “${currentResume.title || 'Untitled resume'}” from this device? Download it first if you may need it later.`)) return false
+    const recoveryReplacement = deletedRecovery ? ` This permanently replaces the existing recovery copy of “${deletedRecovery.document.title || 'Untitled resume'}”.` : ''
+    if (!window.confirm(`Remove “${currentResume.title || 'Untitled resume'}” from the library? Career Canvas will keep one recovery copy on this device until another resume is removed.${recoveryReplacement}`)) return false
     if (current.activeId === resumeId && !confirmDiscardAdvancedDraft()) return false
-    updateLibrary((latest) => removeDocument(latest, currentResume.id))
+    const nextLibrary = removeDocument(current, currentResume.id)
+    const recovery = createDeletedResumeRecovery(currentResume)
+    let librarySaved = false
+    let recoverySaved = false
+    try {
+      saveLibrary(window.localStorage, nextLibrary)
+      librarySaved = true
+      saveDeletedResumeRecovery(window.localStorage, recovery)
+      recoverySaved = true
+    } catch {
+      // React state still preserves an in-session undo even when browser storage is unavailable or full.
+    }
+    updateLibrary(() => nextLibrary)
+    setDeletedRecovery(recovery)
+    setRecoveryPersistent(recoverySaved)
+    if (!librarySaved) {
+      storageLimitedRef.current = true
+      setSaveState('limited')
+    }
     historiesRef.current.delete(currentResume.id)
     setHistoryRevision((value) => value + 1)
-    setStatus('Resume removed from this device.')
+    setStatus(recoverySaved ? 'Resume removed. A recovery copy is saved on this device.' : 'Resume removed. Undo is available only while this page remains open.')
     return true
+  }
+
+  const restoreDeleted = () => {
+    if (!deletedRecovery || !confirmDiscardAdvancedDraft()) return
+    try {
+      const result = restoreDeletedResume(libraryRef.current, deletedRecovery)
+      updateLibrary(() => result.library)
+      historiesRef.current.delete(result.library.activeId)
+      setHistoryRevision((value) => value + 1)
+      try {
+        saveLibrary(window.localStorage, result.library)
+        saveDeletedResumeRecovery(window.localStorage, null)
+      } catch {
+        storageLimitedRef.current = true
+        setSaveState('limited')
+      }
+      setDeletedRecovery(null)
+      setRecoveryPersistent(false)
+      setShowLibraryManager(false)
+      setStatus(result.alreadyPresent ? 'That resume was already present and is active again.' : result.restoredAsCopy ? 'Deleted resume restored as a copy because its original ID is now in use.' : 'Deleted resume restored and opened.')
+    } catch (caught) {
+      setStatus(caught instanceof Error ? caught.message : 'The deleted resume could not be restored.')
+    }
+  }
+
+  const discardDeleted = () => {
+    if (!deletedRecovery || !window.confirm(`Permanently discard the recovery copy of “${deletedRecovery.document.title || 'Untitled resume'}”? This cannot be undone.`)) return
+    try { saveDeletedResumeRecovery(window.localStorage, null) } catch { /* Clear in-memory state even when device storage is unavailable. */ }
+    setDeletedRecovery(null)
+    setRecoveryPersistent(false)
+    setStatus('Deleted resume recovery was permanently discarded.')
   }
 
   const deleteActive = () => {
@@ -521,6 +585,7 @@ export function Studio() {
             </div>
             {saveState === 'limited' ? <div className="storage-alert" role="alert"><AlertTriangle size={18} /><div><strong>Changes are not saved on this device</strong><span>Keep editing, then download JSON or a library backup before closing this page.</span></div><div><button type="button" onClick={retrySave}>Retry save</button><button type="button" onClick={() => setActiveTab('data')}>Open Data</button></div></div> : null}
             {recoveryNotice && saveState !== 'limited' ? <div className="recovery-alert" role="status"><ShieldCheck size={18} /><span>{recoveryNotice}</span><button type="button" aria-label="Dismiss recovery notice" onClick={() => setRecoveryNotice('')}><X size={15} /></button></div> : null}
+            {deletedRecovery ? <div className="deletion-recovery-alert" role="status"><RotateCcw size={18} /><div><strong>Recently removed: {deletedRecovery.document.title || 'Untitled resume'}</strong><span>{recoveryPersistent ? 'A recovery copy is saved on this device until another resume is removed.' : 'Recovery is available only while this page remains open.'}</span></div><button type="button" onClick={restoreDeleted}>Restore</button><button type="button" aria-label="Permanently discard deleted resume recovery" onClick={discardDeleted}><X size={15} /></button></div> : null}
             {sampleContentPresent ? <div className="sample-content-alert" role="alert"><AlertTriangle size={18} /><div><strong>Fictional starter content is still present</strong><span>Replace every sample identity, organization, and result with your own accurate evidence before exporting.</span></div><button type="button" onClick={() => setActiveTab('review')}>Review it</button></div> : null}
             <div id="studio-panel-content" role="tabpanel" aria-labelledby="studio-tab-content" tabIndex={0} hidden={activeTab !== 'content'}><ContentEditor resume={activeResume} onChange={changeResume} /></div>
             <div id="studio-panel-design" role="tabpanel" aria-labelledby="studio-tab-design" tabIndex={0} hidden={activeTab !== 'design'}><DesignPanel resume={activeResume} renderedPages={renderedPages} onChange={changeResume} onPrint={printResume} onEditContent={() => { setActiveTab('content'); setStatus('Content workspace opened. Prioritize the evidence that earns space on the page.') }} /></div>
@@ -551,6 +616,10 @@ export function Studio() {
             onDelete={deleteResume}
             onNew={() => { setShowLibraryManager(false); setShowNew(true) }}
             onBackup={() => { setShowLibraryManager(false); setActiveTab('data'); setStatus('Data workspace opened. Choose Back up library to download every version.') }}
+            deletedRecovery={deletedRecovery}
+            recoveryPersistent={recoveryPersistent}
+            onRestoreDeleted={restoreDeleted}
+            onDiscardDeleted={discardDeleted}
             onClose={() => setShowLibraryManager(false)}
           />
         </div>

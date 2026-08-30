@@ -1,7 +1,8 @@
 import { useMemo, useState, type RefObject } from 'react'
-import { ArrowRight, Clock3, Copy, FileCheck2, FilePlus2, Search, ShieldCheck, Trash2, X } from 'lucide-react'
+import { ArrowRight, Clock3, Copy, FileCheck2, FilePlus2, RotateCcw, Search, ShieldCheck, Trash2, X } from 'lucide-react'
 import { containsStarterSampleContent, MAX_RESUMES, type ResumeLibrary } from '../lib/resume'
 import { buildLibraryInsights, sortLibraryInsights, type LibrarySort } from '../lib/libraryInsights'
+import type { DeletedResumeRecovery } from '../lib/deletionRecovery'
 
 interface LibraryManagerProps {
   library: ResumeLibrary
@@ -11,6 +12,10 @@ interface LibraryManagerProps {
   onDelete: (id: string) => void
   onNew: () => void
   onBackup: () => void
+  deletedRecovery: DeletedResumeRecovery | null
+  recoveryPersistent: boolean
+  onRestoreDeleted: () => void
+  onDiscardDeleted: () => void
   onClose: () => void
 }
 
@@ -20,7 +25,7 @@ function updatedLabel(value: string): string {
   return `Updated ${new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(date)}`
 }
 
-export function LibraryManager({ library, dialogRef, onActivate, onDuplicate, onDelete, onNew, onBackup, onClose }: LibraryManagerProps) {
+export function LibraryManager({ library, dialogRef, onActivate, onDuplicate, onDelete, onNew, onBackup, deletedRecovery, recoveryPersistent, onRestoreDeleted, onDiscardDeleted, onClose }: LibraryManagerProps) {
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<LibrarySort>('updated')
   const insights = useMemo(() => buildLibraryInsights(library), [library])
@@ -52,6 +57,7 @@ export function LibraryManager({ library, dialogRef, onActivate, onDuplicate, on
         <span><strong>{sampleVersions}</strong> contain sample content</span>
         <span><strong>{staleVersions}</strong> not updated in 6+ months</span>
       </div>
+      {deletedRecovery ? <section className="library-recovery" aria-label="Recently removed resume"><RotateCcw size={18} aria-hidden="true" /><div><strong>Recently removed: {deletedRecovery.document.title || 'Untitled resume'}</strong><span>{recoveryPersistent ? 'Saved as one recovery copy on this device until another version is removed.' : 'Recovery is available only while this page remains open because device storage is unavailable.'}</span></div><button className="secondary-button" type="button" onClick={onRestoreDeleted}>Restore</button><button className="text-button danger" type="button" onClick={onDiscardDeleted}>Discard permanently</button></section> : null}
       <div className="library-list" aria-live="polite">
         {filtered.length ? filtered.map(({ resume, analysis, essentialIssues, sameContent, stale }) => {
           const active = resume.id === library.activeId
