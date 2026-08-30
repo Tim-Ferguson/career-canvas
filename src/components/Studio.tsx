@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { Check, ChevronDown, Copy, FileCheck2, FileText, LayoutTemplate, MoreHorizontal, Plus, Printer, Redo2, ShieldCheck, Sparkles, Trash2, Undo2, X } from 'lucide-react'
+import { AlertTriangle, Check, ChevronDown, Copy, FileCheck2, FileText, LayoutTemplate, MoreHorizontal, Plus, Printer, Redo2, ShieldCheck, Sparkles, Trash2, Undo2, X } from 'lucide-react'
 import { ContentEditor } from './ContentEditor'
 import { DataPanel } from './DataPanel'
 import { DesignPanel } from './DesignPanel'
 import { ResumePreview } from './ResumePreview'
 import { ReviewPanel } from './ReviewPanel'
 import { MAX_RESUMES, STARTERS, cloneResume, createBlankResume, createId, createStarter, renderedPageCount, touchResume, type ResumeDocument, type ResumeLibrary, type StarterId } from '../lib/resume'
-import { createDefaultLibrary, loadLibrary, mergeLibraries, removeDocument, saveLibrary, upsertDocument } from '../lib/storage'
+import { createDefaultLibrary, loadLibraryResult, mergeLibraries, removeDocument, saveLibrary, upsertDocument } from '../lib/storage'
 import { createResumeHistory, recordResumeChange, redoResumeChange, undoResumeChange, type ResumeHistory } from '../lib/history'
 
 type StudioTab = 'content' | 'design' | 'review' | 'data'
@@ -36,6 +36,7 @@ export function Studio() {
   const [showNew, setShowNew] = useState(false)
   const [showLibraryMenu, setShowLibraryMenu] = useState(false)
   const [status, setStatus] = useState('Your resume stays on this device.')
+  const [recoveryNotice, setRecoveryNotice] = useState('')
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'limited'>('saved')
   const [zoom, setZoom] = useState(0.82)
   const [renderedPages, setRenderedPages] = useState(1)
@@ -43,28 +44,82 @@ export function Studio() {
   const newResumeButtonRef = useRef<HTMLButtonElement>(null)
   const newResumeDialogRef = useRef<HTMLElement>(null)
   const historiesRef = useRef(new Map<string, ResumeHistory>())
+  const storageLimitedRef = useRef(false)
+  const libraryRef = useRef(library)
+  libraryRef.current = library
   const activeResume = useMemo(() => library.documents.find((document) => document.id === library.activeId) ?? library.documents[0]!, [library])
 
   useEffect(() => {
-    setLibrary(loadLibrary(window.localStorage))
+    const loaded = loadLibraryResult(window.localStorage)
+    setLibrary(loaded.library)
+    if (loaded.status === 'recovered') {
+      const details = [loaded.discardedDocuments ? `${loaded.discardedDocuments} damaged ${loaded.discardedDocuments === 1 ? 'resume was' : 'resumes were'} skipped` : '', loaded.repairedDocuments ? `${loaded.repairedDocuments} duplicate ${loaded.repairedDocuments === 1 ? 'ID was' : 'IDs were'} repaired` : '', loaded.activeIdRecovered ? 'the active resume was reset' : ''].filter(Boolean).join('; ')
+      setRecoveryNotice(`Your saved library needed repair: ${details}. The healthy resumes are ready; make a fresh library backup when convenient.`)
+    } else if (loaded.status === 'reset') {
+      setRecoveryNotice('The saved library was unreadable, so Career Canvas opened a safe starter. Restore a library backup from Data if you have one.')
+    } else if (loaded.status === 'unavailable') {
+      storageLimitedRef.current = true
+      setSaveState('limited')
+      setStatus('This browser is blocking device storage. Download JSON or a library backup before closing.')
+    }
     historiesRef.current.clear()
     setHydrated(true)
   }, [])
 
   useEffect(() => {
     if (!hydrated) return
+    if (storageLimitedRef.current) {
+      setSaveState('limited')
+      return
+    }
     setSaveState('saving')
     const timer = window.setTimeout(() => {
       try {
         saveLibrary(window.localStorage, library)
         setSaveState('saved')
       } catch {
+        storageLimitedRef.current = true
         setSaveState('limited')
         setStatus('This browser could not save locally. Download JSON before closing.')
       }
     }, 350)
     return () => window.clearTimeout(timer)
   }, [hydrated, library])
+
+  useEffect(() => {
+    if (!hydrated) return
+    const flushLatestLibrary = () => {
+      try {
+        saveLibrary(window.localStorage, libraryRef.current)
+      } catch {
+        // The persistent warning is set by normal autosave; lifecycle handlers cannot safely recover a blocked store.
+      }
+    }
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') flushLatestLibrary()
+    }
+    window.addEventListener('pagehide', flushLatestLibrary)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      window.removeEventListener('pagehide', flushLatestLibrary)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [hydrated])
+
+  const retrySave = () => {
+    setSaveState('saving')
+    try {
+      saveLibrary(window.localStorage, libraryRef.current)
+      storageLimitedRef.current = false
+      setSaveState('saved')
+      setRecoveryNotice('')
+      setStatus('Saved to this device successfully.')
+    } catch {
+      storageLimitedRef.current = true
+      setSaveState('limited')
+      setStatus('Device storage is still unavailable. Download JSON before closing.')
+    }
+  }
 
   useEffect(() => {
     if (!showNew) return
@@ -266,6 +321,8 @@ export function Studio() {
                 <button type="button" onClick={redo} disabled={!activeHistory.future.length} aria-label="Redo recent studio change" title="Redo recent studio change"><Redo2 size={16} /></button>
               </div>
             </div>
+            {saveState === 'limited' ? <div className="storage-alert" role="alert"><AlertTriangle size={18} /><div><strong>Changes are not saved on this device</strong><span>Keep editing, then download JSON or a library backup before closing this page.</span></div><div><button type="button" onClick={retrySave}>Retry save</button><button type="button" onClick={() => setActiveTab('data')}>Open Data</button></div></div> : null}
+            {recoveryNotice && saveState !== 'limited' ? <div className="recovery-alert" role="status"><ShieldCheck size={18} /><span>{recoveryNotice}</span><button type="button" aria-label="Dismiss recovery notice" onClick={() => setRecoveryNotice('')}><X size={15} /></button></div> : null}
             <div hidden={activeTab !== 'content'}><ContentEditor resume={activeResume} onChange={changeResume} /></div>
             <div hidden={activeTab !== 'design'}><DesignPanel resume={activeResume} onChange={changeResume} /></div>
             <div hidden={activeTab !== 'review'}><ReviewPanel resume={activeResume} onEdit={() => setActiveTab('content')} /></div>

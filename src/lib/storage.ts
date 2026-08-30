@@ -10,6 +10,14 @@ export interface LibraryBackup {
   library: ResumeLibrary
 }
 
+export interface LibraryLoadResult {
+  library: ResumeLibrary
+  status: 'empty' | 'loaded' | 'recovered' | 'reset' | 'unavailable'
+  discardedDocuments: number
+  repairedDocuments: number
+  activeIdRecovered: boolean
+}
+
 export function createDefaultLibrary(): ResumeLibrary {
   const document = createStarter('universal')
   return { activeId: document.id, documents: [document] }
@@ -28,32 +36,55 @@ export function parseLibrary(value: unknown): ResumeLibrary {
   return { activeId: ids.includes(requestedActiveId) ? requestedActiveId : documents[0]!.id, documents }
 }
 
-export function loadLibrary(storage: Pick<Storage, 'getItem'>): ResumeLibrary {
+export function loadLibraryResult(storage: Pick<Storage, 'getItem'>): LibraryLoadResult {
+  let raw: string | null
   try {
-    const raw = storage.getItem(LIBRARY_STORAGE_KEY)
-    if (!raw || new TextEncoder().encode(raw).byteLength > MAX_DOCUMENT_BYTES * MAX_RESUMES) return createDefaultLibrary()
+    raw = storage.getItem(LIBRARY_STORAGE_KEY)
+  } catch {
+    return { library: createDefaultLibrary(), status: 'unavailable', discardedDocuments: 0, repairedDocuments: 0, activeIdRecovered: false }
+  }
+  if (!raw) return { library: createDefaultLibrary(), status: 'empty', discardedDocuments: 0, repairedDocuments: 0, activeIdRecovered: false }
+  if (new TextEncoder().encode(raw).byteLength > MAX_DOCUMENT_BYTES * MAX_RESUMES) return { library: createDefaultLibrary(), status: 'reset', discardedDocuments: 0, repairedDocuments: 0, activeIdRecovered: false }
+  try {
     const parsed = JSON.parse(raw) as unknown
-    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return createDefaultLibrary()
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return { library: createDefaultLibrary(), status: 'reset', discardedDocuments: 0, repairedDocuments: 0, activeIdRecovered: false }
     const source = parsed as Record<string, unknown>
-    if (!Array.isArray(source.documents)) return createDefaultLibrary()
+    if (!Array.isArray(source.documents)) return { library: createDefaultLibrary(), status: 'reset', discardedDocuments: 0, repairedDocuments: 0, activeIdRecovered: false }
     const documents: ResumeDocument[] = []
     const ids = new Set<string>()
+    let discardedDocuments = Math.max(0, source.documents.length - MAX_RESUMES)
+    let repairedDocuments = 0
     for (const value of source.documents.slice(0, MAX_RESUMES)) {
       try {
         let document = migrateResume(value)
-        if (ids.has(document.id)) document = { ...document, id: createId('resume'), title: `${document.title || 'Resume'} recovered copy` }
+        if (ids.has(document.id)) {
+          document = { ...document, id: createId('resume'), title: `${document.title || 'Resume'} recovered copy` }
+          repairedDocuments += 1
+        }
         documents.push(document)
         ids.add(document.id)
       } catch {
         // Preserve every healthy resume even when another saved record is corrupt.
+        discardedDocuments += 1
       }
     }
-    if (!documents.length) return createDefaultLibrary()
+    if (!documents.length) return { library: createDefaultLibrary(), status: 'reset', discardedDocuments, repairedDocuments, activeIdRecovered: false }
     const requestedActiveId = typeof source.activeId === 'string' ? source.activeId : ''
-    return { activeId: ids.has(requestedActiveId) ? requestedActiveId : documents[0]!.id, documents }
+    const activeIdRecovered = !ids.has(requestedActiveId)
+    return {
+      library: { activeId: activeIdRecovered ? documents[0]!.id : requestedActiveId, documents },
+      status: discardedDocuments || repairedDocuments || activeIdRecovered ? 'recovered' : 'loaded',
+      discardedDocuments,
+      repairedDocuments,
+      activeIdRecovered,
+    }
   } catch {
-    return createDefaultLibrary()
+    return { library: createDefaultLibrary(), status: 'reset', discardedDocuments: 0, repairedDocuments: 0, activeIdRecovered: false }
   }
+}
+
+export function loadLibrary(storage: Pick<Storage, 'getItem'>): ResumeLibrary {
+  return loadLibraryResult(storage).library
 }
 
 export function saveLibrary(storage: Pick<Storage, 'setItem'>, library: ResumeLibrary): void {

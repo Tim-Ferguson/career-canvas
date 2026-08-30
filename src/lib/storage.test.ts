@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { createBlankResume, createStarter } from './resume'
-import { createDefaultLibrary, createLibraryBackup, loadLibrary, mergeLibraries, parseLibrary, parseLibraryBackup, removeDocument, saveLibrary, upsertDocument } from './storage'
+import { createDefaultLibrary, createLibraryBackup, loadLibrary, loadLibraryResult, mergeLibraries, parseLibrary, parseLibraryBackup, removeDocument, saveLibrary, upsertDocument } from './storage'
 
 describe('local resume library', () => {
   it('round trips validated documents through a storage boundary', () => {
@@ -13,18 +13,32 @@ describe('local resume library', () => {
   })
 
   it('falls back safely when persisted data is malformed', () => {
-    const library = loadLibrary({ getItem: () => '{bad json' })
-    assert.equal(library.documents.length, 1)
-    assert.equal(library.activeId, library.documents[0]!.id)
+    const result = loadLibraryResult({ getItem: () => '{bad json' })
+    assert.equal(result.status, 'reset')
+    assert.equal(result.library.documents.length, 1)
+    assert.equal(result.library.activeId, result.library.documents[0]!.id)
   })
 
   it('salvages healthy resumes when one saved record is corrupt', () => {
     const healthy = createStarter()
     const storage = { getItem: () => JSON.stringify({ activeId: 'broken', documents: [{ schemaVersion: 2, id: 'broken' }, healthy] }) }
-    const recovered = loadLibrary(storage)
-    assert.equal(recovered.documents.length, 1)
-    assert.equal(recovered.documents[0]!.profile.name, healthy.profile.name)
-    assert.equal(recovered.activeId, healthy.id)
+    const result = loadLibraryResult(storage)
+    assert.equal(result.status, 'recovered')
+    assert.equal(result.discardedDocuments, 1)
+    assert.equal(result.library.documents.length, 1)
+    assert.equal(result.library.documents[0]!.profile.name, healthy.profile.name)
+    assert.equal(result.library.activeId, healthy.id)
+  })
+
+  it('repairs duplicate IDs and reports unavailable browser storage', () => {
+    const resume = createStarter()
+    const repaired = loadLibraryResult({ getItem: () => JSON.stringify({ activeId: resume.id, documents: [resume, resume] }) })
+    assert.equal(repaired.status, 'recovered')
+    assert.equal(repaired.repairedDocuments, 1)
+    assert.equal(new Set(repaired.library.documents.map((item) => item.id)).size, 2)
+    const unavailable = loadLibraryResult({ getItem: () => { throw new Error('blocked') } })
+    assert.equal(unavailable.status, 'unavailable')
+    assert.equal(unavailable.library.documents.length, 1)
   })
 
   it('adds, updates, activates, and removes document versions', () => {

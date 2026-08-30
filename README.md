@@ -9,6 +9,7 @@ The product is deliberately industry-flexible. Its generic entry model supports 
 - Form-first editing with a live, semantic resume preview
 - A device-local library of up to 24 targeted resume versions
 - Automatic local autosave with no account, analytics, or resume-content API
+- Last-chance page-hide saving, explicit storage-failure recovery, and transparent repair notices for damaged local libraries
 - Bounded per-resume undo and redo that groups typing bursts while preserving native field-level undo
 - Eight field-aware starter stories: universal, leadership, healthcare, education, creative, skilled trades, student, and academic
 - Five ATS-conscious layouts: modern, classic, executive, compact, and academic

@@ -72,6 +72,16 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .history-controls { display: flex; gap: 5px; padding-top: 2px; }
 .history-controls button { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); background: white; }
 .history-controls button:hover:not(:disabled) { border-color: var(--line-strong); color: var(--ink); background: #f2f1ec; }
+.storage-alert, .recovery-alert { display: grid; align-items: center; gap: 10px; margin-bottom: 13px; padding: 12px; border: 1px solid; border-radius: 9px; font-size: .62rem; line-height: 1.45; }
+.storage-alert { grid-template-columns: auto 1fr auto; border-color: #e4c7a4; color: #704b20; background: #fff6e9; }
+.storage-alert > svg, .recovery-alert > svg { align-self: flex-start; margin-top: 2px; }
+.storage-alert > div:nth-child(2) { display: flex; flex-direction: column; gap: 2px; }
+.storage-alert > div:last-child { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
+.storage-alert button { padding: 6px 8px; border: 1px solid #d9b98f; border-radius: 6px; color: inherit; background: rgba(255,255,255,.65); font-size: .58rem; font-weight: 700; }
+.storage-alert button:hover { background: white; }
+.recovery-alert { grid-template-columns: auto 1fr auto; border-color: #bfd5cc; color: var(--brand-dark); background: #edf6f2; }
+.recovery-alert button { width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: 6px; color: inherit; background: transparent; }
+.recovery-alert button:hover { background: rgba(49,95,88,.08); }
 .editor-status { display: flex; align-items: center; gap: 7px; padding: 0 16px; overflow: hidden; border-top: 1px solid var(--line); color: var(--muted); background: #f3f2ee; font-size: .64rem; }
 .editor-status svg { flex: 0 0 auto; color: var(--brand); }
 .editor-status span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -423,6 +433,8 @@ details > summary::-webkit-details-marker { display: none; }
   .print-button { font-size: 0; }
   .studio-tabs button { flex-direction: column; font-size: .57rem; }
   .field-grid, .setting-row, .section-catalog, .export-grid { grid-template-columns: 1fr; }
+  .storage-alert { grid-template-columns: auto 1fr; }
+  .storage-alert > div:last-child { grid-column: 1 / -1; justify-content: flex-start; }
   .field-wide { grid-column: auto; }
   .link-row { grid-template-columns: 1fr auto; }
   .link-row .field:first-child { grid-column: 1 / -1; }
