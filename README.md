@@ -8,6 +8,7 @@ The product is deliberately industry-flexible. Its generic entry model supports 
 
 - Form-first editing with a live, semantic resume preview
 - A device-local library of up to 24 targeted resume versions
+- Searchable version manager with active, target, industry, recency, sample-risk, duplicate, delete, new, and backup controls
 - Automatic local autosave with no account, analytics, or resume-content API
 - Last-chance page-hide saving, explicit storage-failure recovery, and transparent repair notices for damaged local libraries
 - Latest-state library commits that protect rapid edits and asynchronous backup restores from stale-render overwrites

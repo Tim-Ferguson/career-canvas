@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { AlertTriangle, Check, ChevronDown, Copy, FileCheck2, FileText, LayoutTemplate, MoreHorizontal, Plus, Printer, Redo2, ShieldCheck, Sparkles, Trash2, Undo2, X } from 'lucide-react'
+import { AlertTriangle, Check, ChevronDown, Copy, FileCheck2, FileText, FolderOpen, LayoutTemplate, MoreHorizontal, Plus, Printer, Redo2, ShieldCheck, Sparkles, Trash2, Undo2, X } from 'lucide-react'
 import { ContentEditor } from './ContentEditor'
 import { DataPanel } from './DataPanel'
 import { DesignPanel } from './DesignPanel'
 import { ResumePreview } from './ResumePreview'
 import { ReviewPanel } from './ReviewPanel'
+import { LibraryManager } from './LibraryManager'
 import { MAX_RESUMES, STARTERS, cloneResume, containsStarterSampleContent, createBlankResume, createId, createStarter, renderedPageCount, touchResume, type ResumeDocument, type ResumeIssue, type ResumeLibrary, type StarterId } from '../lib/resume'
 import { createDefaultLibrary, loadLibraryFromProvider, mergeLibraries, removeDocument, saveLibrary, upsertDocument } from '../lib/storage'
 import { createResumeHistory, recordResumeChange, redoResumeChange, undoResumeChange, type ResumeHistory } from '../lib/history'
@@ -36,6 +37,7 @@ export function Studio() {
   const [hydrated, setHydrated] = useState(false)
   const [activeTab, setActiveTab] = useState<StudioTab>('content')
   const [showNew, setShowNew] = useState(false)
+  const [showLibraryManager, setShowLibraryManager] = useState(false)
   const [showLibraryMenu, setShowLibraryMenu] = useState(false)
   const [status, setStatus] = useState('Your resume stays on this device.')
   const [recoveryNotice, setRecoveryNotice] = useState('')
@@ -45,6 +47,7 @@ export function Studio() {
   const [, setHistoryRevision] = useState(0)
   const newResumeButtonRef = useRef<HTMLButtonElement>(null)
   const newResumeDialogRef = useRef<HTMLElement>(null)
+  const libraryDialogRef = useRef<HTMLElement>(null)
   const libraryMenuButtonRef = useRef<HTMLButtonElement>(null)
   const libraryMenuRef = useRef<HTMLDivElement>(null)
   const historiesRef = useRef(new Map<string, ResumeHistory>())
@@ -160,6 +163,38 @@ export function Studio() {
   }, [showNew])
 
   useEffect(() => {
+    if (!showLibraryManager) return
+    const dialog = libraryDialogRef.current
+    const previous = libraryMenuButtonRef.current
+    const focusable = () => Array.from(dialog?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled)') ?? [])
+    focusable()[0]?.focus()
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setShowLibraryManager(false)
+        return
+      }
+      if (event.key !== 'Tab') return
+      const items = focusable()
+      if (!items.length) return
+      const first = items[0]!
+      const last = items.at(-1)!
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      previous?.focus()
+    }
+  }, [showLibraryManager])
+
+  useEffect(() => {
     if (!showLibraryMenu) return
     const menu = libraryMenuRef.current
     const buttons = () => Array.from(menu?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? [])
@@ -270,30 +305,49 @@ export function Studio() {
     setStatus('New resume added. Your other versions are unchanged.')
   }
 
-  const duplicateActive = () => {
+  const duplicateResume = (resumeId: string): boolean => {
     const current = libraryRef.current
-    const currentResume = current.documents.find((item) => item.id === current.activeId) ?? current.documents[0]!
-    const copy = cloneResume(currentResume)
-    if (!addResume({ ...copy, id: createId('resume'), title: `${copy.title || 'Resume'} copy`, updatedAt: new Date().toISOString() })) return
-    setShowLibraryMenu(false)
-    window.requestAnimationFrame(() => libraryMenuButtonRef.current?.focus())
+    const source = current.documents.find((item) => item.id === resumeId)
+    if (!source) return false
+    const copy = cloneResume(source)
+    if (!addResume({ ...copy, id: createId('resume'), title: `${copy.title || 'Resume'} copy`, updatedAt: new Date().toISOString() })) return false
     setStatus('Resume duplicated. Tailor this version without changing the original.')
+    return true
   }
 
-  const deleteActive = () => {
+  const duplicateActive = () => {
+    if (!duplicateResume(libraryRef.current.activeId)) return
+    setShowLibraryMenu(false)
+    window.requestAnimationFrame(() => libraryMenuButtonRef.current?.focus())
+  }
+
+  const deleteResume = (resumeId: string): boolean => {
     const current = libraryRef.current
-    const currentResume = current.documents.find((item) => item.id === current.activeId) ?? current.documents[0]!
+    const currentResume = current.documents.find((item) => item.id === resumeId)
+    if (!currentResume) return false
     if (current.documents.length <= 1) {
       setStatus('Keep at least one resume in your library.')
-      return
+      return false
     }
-    if (!window.confirm(`Delete “${currentResume.title || 'Untitled resume'}” from this device? Download it first if you may need it later.`)) return
+    if (!window.confirm(`Delete “${currentResume.title || 'Untitled resume'}” from this device? Download it first if you may need it later.`)) return false
     updateLibrary((latest) => removeDocument(latest, currentResume.id))
     historiesRef.current.delete(currentResume.id)
     setHistoryRevision((value) => value + 1)
+    setStatus('Resume removed from this device.')
+    return true
+  }
+
+  const deleteActive = () => {
+    if (!deleteResume(libraryRef.current.activeId)) return
     setShowLibraryMenu(false)
     window.requestAnimationFrame(() => libraryMenuButtonRef.current?.focus())
-    setStatus('Resume removed from this device.')
+  }
+
+  const activateResume = (resumeId: string) => {
+    if (!libraryRef.current.documents.some((item) => item.id === resumeId)) return
+    updateLibrary((current) => ({ ...current, activeId: resumeId }))
+    setShowLibraryManager(false)
+    setStatus('Resume version opened.')
   }
 
   const restoreLibrary = (incoming: ResumeLibrary) => {
@@ -390,7 +444,7 @@ export function Studio() {
           <button ref={newResumeButtonRef} className="header-icon-button" type="button" aria-label="Create a new resume" title="New resume" onClick={() => setShowNew(true)}><Plus size={18} /></button>
           <div className="library-menu-wrap" ref={libraryMenuRef}>
             <button ref={libraryMenuButtonRef} className="header-icon-button" type="button" aria-label="Resume actions" aria-haspopup="menu" aria-controls="library-menu" aria-expanded={showLibraryMenu} onClick={() => setShowLibraryMenu((value) => !value)}><MoreHorizontal size={19} /></button>
-            {showLibraryMenu ? <div className="library-menu" id="library-menu" role="menu" aria-label="Resume actions"><button type="button" role="menuitem" onClick={duplicateActive}><Copy size={15} /> Duplicate version</button><button type="button" role="menuitem" className="danger" onClick={deleteActive}><Trash2 size={15} /> Delete from device</button></div> : null}
+            {showLibraryMenu ? <div className="library-menu" id="library-menu" role="menu" aria-label="Resume actions"><button type="button" role="menuitem" onClick={() => { setShowLibraryMenu(false); setShowLibraryManager(true) }}><FolderOpen size={15} /> Manage all versions</button><button type="button" role="menuitem" onClick={duplicateActive}><Copy size={15} /> Duplicate version</button><button type="button" role="menuitem" className="danger" onClick={deleteActive}><Trash2 size={15} /> Delete from device</button></div> : null}
           </div>
         </div>
         <div className="header-right">
@@ -438,6 +492,21 @@ export function Studio() {
           </div>
         </section>
       </main>
+
+      {showLibraryManager ? (
+        <div className="modal-backdrop no-print" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowLibraryManager(false) }}>
+          <LibraryManager
+            library={library}
+            dialogRef={libraryDialogRef}
+            onActivate={activateResume}
+            onDuplicate={duplicateResume}
+            onDelete={deleteResume}
+            onNew={() => { setShowLibraryManager(false); setShowNew(true) }}
+            onBackup={() => { setShowLibraryManager(false); setActiveTab('data'); setStatus('Data workspace opened. Choose Back up library to download every version.') }}
+            onClose={() => setShowLibraryManager(false)}
+          />
+        </div>
+      ) : null}
 
       {showNew ? (
         <div className="modal-backdrop no-print" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowNew(false) }}>
