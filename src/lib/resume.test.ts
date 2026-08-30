@@ -68,4 +68,20 @@ describe('resume output and review', () => {
     assert.ok(analysis.issues.some((issue) => issue.id === 'name' && issue.severity === 'essential'))
     assert.ok(analysis.estimatedPages >= 1)
   })
+
+  it('flags contact mistakes, repeated evidence, weak phrasing, and incomplete links', () => {
+    const resume = createStarter()
+    resume.profile.email = 'not-an-email'
+    resume.profile.website = 'not a website'
+    resume.sections[0]!.entries[0]!.highlights = ['Responsible for weekly reports', 'Responsible for weekly reports']
+    const ids = analyzeResume(resume).issues.map((issue) => issue.id)
+    assert.ok(ids.includes('email-format'))
+    assert.ok(ids.includes('links'))
+    assert.ok(ids.includes('duplicate-bullets'))
+    assert.ok(ids.includes('weak-bullets'))
+  })
+
+  it('treats the universal starter as a strong editable foundation', () => {
+    assert.ok(analyzeResume(createStarter()).score >= 85)
+  })
 })

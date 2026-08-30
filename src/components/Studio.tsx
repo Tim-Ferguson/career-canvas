@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Check, ChevronDown, Copy, FileCheck2, FileText, LayoutTemplate, MoreHorizontal, Plus, Printer, ShieldCheck, Sparkles, Trash2, X } from 'lucide-react'
 import { ContentEditor } from './ContentEditor'
@@ -33,6 +33,8 @@ export function Studio() {
   const [status, setStatus] = useState('Your resume stays on this device.')
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'limited'>('saved')
   const [zoom, setZoom] = useState(0.82)
+  const newResumeButtonRef = useRef<HTMLButtonElement>(null)
+  const newResumeDialogRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
     setLibrary(loadLibrary(window.localStorage))
@@ -54,6 +56,38 @@ export function Studio() {
     return () => window.clearTimeout(timer)
   }, [hydrated, library])
 
+  useEffect(() => {
+    if (!showNew) return
+    const dialog = newResumeDialogRef.current
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : newResumeButtonRef.current
+    const focusable = () => Array.from(dialog?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled)') ?? [])
+    focusable()[0]?.focus()
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setShowNew(false)
+        return
+      }
+      if (event.key !== 'Tab') return
+      const items = focusable()
+      if (!items.length) return
+      const first = items[0]!
+      const last = items.at(-1)!
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      previous?.focus()
+    }
+  }, [showNew])
+
   const activeResume = useMemo(() => library.documents.find((document) => document.id === library.activeId) ?? library.documents[0]!, [library])
 
   const changeResume = (document: ResumeDocument) => {
@@ -61,17 +95,17 @@ export function Studio() {
   }
 
   const addResume = (document: ResumeDocument) => {
-    try {
-      setLibrary((current) => {
-        const ids = new Set(current.documents.map((item) => item.id))
-        const unique = ids.has(document.id) ? { ...document, id: createId('resume'), title: `${document.title || 'Imported resume'} copy` } : document
-        return upsertDocument(current, unique)
-      })
-      setActiveTab('content')
-      setShowNew(false)
-    } catch (caught) {
-      setStatus(caught instanceof Error ? caught.message : 'The resume could not be added.')
+    if (library.documents.length >= MAX_RESUMES) {
+      setStatus(`Your device library is full at ${MAX_RESUMES} resumes. Export and remove one before adding another.`)
+      return
     }
+    setLibrary((current) => {
+      const ids = new Set(current.documents.map((item) => item.id))
+      const unique = ids.has(document.id) ? { ...document, id: createId('resume'), title: `${document.title || 'Imported resume'} copy` } : document
+      return upsertDocument(current, unique)
+    })
+    setActiveTab('content')
+    setShowNew(false)
   }
 
   const createNew = (starter: StarterId | 'blank') => {
@@ -118,7 +152,7 @@ export function Studio() {
             </select>
             <ChevronDown size={14} aria-hidden="true" />
           </div>
-          <button className="header-icon-button" type="button" aria-label="Create a new resume" title="New resume" onClick={() => setShowNew(true)}><Plus size={18} /></button>
+          <button ref={newResumeButtonRef} className="header-icon-button" type="button" aria-label="Create a new resume" title="New resume" onClick={() => setShowNew(true)}><Plus size={18} /></button>
           <div className="library-menu-wrap">
             <button className="header-icon-button" type="button" aria-label="Resume actions" aria-expanded={showLibraryMenu} onClick={() => setShowLibraryMenu((value) => !value)}><MoreHorizontal size={19} /></button>
             {showLibraryMenu ? <div className="library-menu"><button type="button" onClick={duplicateActive}><Copy size={15} /> Duplicate version</button><button type="button" className="danger" onClick={deleteActive}><Trash2 size={15} /> Delete from device</button></div> : null}
@@ -144,10 +178,10 @@ export function Studio() {
               <span className="eyebrow">{activeTab === 'content' ? 'Build the story' : activeTab === 'design' ? 'Shape the page' : activeTab === 'review' ? 'Make it stronger' : 'Own your data'}</span>
               <h1>{activeTab === 'content' ? 'Edit your resume' : activeTab === 'design' ? 'Choose your presentation' : activeTab === 'review' ? 'Review before you send' : 'Portable resume data'}</h1>
             </div>
-            {activeTab === 'content' ? <ContentEditor resume={activeResume} onChange={changeResume} /> : null}
-            {activeTab === 'design' ? <DesignPanel resume={activeResume} onChange={changeResume} /> : null}
-            {activeTab === 'review' ? <ReviewPanel resume={activeResume} onEdit={() => setActiveTab('content')} /> : null}
-            {activeTab === 'data' ? <DataPanel resume={activeResume} onChange={changeResume} onImport={addResume} announce={setStatus} /> : null}
+            <div hidden={activeTab !== 'content'}><ContentEditor resume={activeResume} onChange={changeResume} /></div>
+            <div hidden={activeTab !== 'design'}><DesignPanel resume={activeResume} onChange={changeResume} /></div>
+            <div hidden={activeTab !== 'review'}><ReviewPanel resume={activeResume} onEdit={() => setActiveTab('content')} /></div>
+            <div hidden={activeTab !== 'data'}><DataPanel resume={activeResume} onChange={changeResume} onImport={addResume} announce={setStatus} /></div>
           </div>
           <div className="editor-status" role="status" aria-live="polite"><ShieldCheck size={14} /><span>{status}</span></div>
         </aside>
@@ -165,9 +199,9 @@ export function Studio() {
 
       {showNew ? (
         <div className="modal-backdrop no-print" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowNew(false) }}>
-          <section className="new-resume-dialog" role="dialog" aria-modal="true" aria-labelledby="new-resume-title">
+          <section ref={newResumeDialogRef} className="new-resume-dialog" role="dialog" aria-modal="true" aria-labelledby="new-resume-title" aria-describedby="new-resume-description">
             <button className="dialog-close" type="button" aria-label="Close" onClick={() => setShowNew(false)}><X size={19} /></button>
-            <div className="dialog-heading"><span className="dialog-icon"><Sparkles size={20} /></span><span className="eyebrow">A strong starting order</span><h2 id="new-resume-title">What kind of story are you telling?</h2><p>These are editorial starting points, not rigid industry boxes. Everything remains editable.</p></div>
+            <div className="dialog-heading"><span className="dialog-icon"><Sparkles size={20} /></span><span className="eyebrow">A strong starting order</span><h2 id="new-resume-title">What kind of story are you telling?</h2><p id="new-resume-description">These are editorial starting points, not rigid industry boxes. Everything remains editable.</p><p className="sample-warning">Sample names, organizations, and results are fictional. Replace every claim with your own accurate experience.</p></div>
             <div className="starter-grid">
               {STARTERS.map((starter) => <button type="button" key={starter.id} onClick={() => createNew(starter.id)}><span>{starter.eyebrow}</span><strong>{starter.label}</strong><small>{starter.description}</small></button>)}
               <button type="button" onClick={() => createNew('blank')}><span>Clean slate</span><strong>Blank resume</strong><small>Keep only the essentials and build your own section order.</small></button>

@@ -18,6 +18,15 @@ describe('local resume library', () => {
     assert.equal(library.activeId, library.documents[0]!.id)
   })
 
+  it('salvages healthy resumes when one saved record is corrupt', () => {
+    const healthy = createStarter()
+    const storage = { getItem: () => JSON.stringify({ activeId: 'broken', documents: [{ schemaVersion: 2, id: 'broken' }, healthy] }) }
+    const recovered = loadLibrary(storage)
+    assert.equal(recovered.documents.length, 1)
+    assert.equal(recovered.documents[0]!.profile.name, healthy.profile.name)
+    assert.equal(recovered.activeId, healthy.id)
+  })
+
   it('adds, updates, activates, and removes document versions', () => {
     const first = createStarter()
     const second = createBlankResume()

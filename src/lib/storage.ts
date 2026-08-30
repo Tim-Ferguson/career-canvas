@@ -1,4 +1,4 @@
-import { MAX_DOCUMENT_BYTES, MAX_RESUMES, createStarter, migrateResume, type ResumeDocument, type ResumeLibrary } from './resume'
+import { MAX_DOCUMENT_BYTES, MAX_RESUMES, createId, createStarter, migrateResume, type ResumeDocument, type ResumeLibrary } from './resume'
 
 export const LIBRARY_STORAGE_KEY = 'career-canvas.library.v2'
 
@@ -24,7 +24,25 @@ export function loadLibrary(storage: Pick<Storage, 'getItem'>): ResumeLibrary {
   try {
     const raw = storage.getItem(LIBRARY_STORAGE_KEY)
     if (!raw || new TextEncoder().encode(raw).byteLength > MAX_DOCUMENT_BYTES * MAX_RESUMES) return createDefaultLibrary()
-    return parseLibrary(JSON.parse(raw) as unknown)
+    const parsed = JSON.parse(raw) as unknown
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return createDefaultLibrary()
+    const source = parsed as Record<string, unknown>
+    if (!Array.isArray(source.documents)) return createDefaultLibrary()
+    const documents: ResumeDocument[] = []
+    const ids = new Set<string>()
+    for (const value of source.documents.slice(0, MAX_RESUMES)) {
+      try {
+        let document = migrateResume(value)
+        if (ids.has(document.id)) document = { ...document, id: createId('resume'), title: `${document.title || 'Resume'} recovered copy` }
+        documents.push(document)
+        ids.add(document.id)
+      } catch {
+        // Preserve every healthy resume even when another saved record is corrupt.
+      }
+    }
+    if (!documents.length) return createDefaultLibrary()
+    const requestedActiveId = typeof source.activeId === 'string' ? source.activeId : ''
+    return { activeId: ids.has(requestedActiveId) ? requestedActiveId : documents[0]!.id, documents }
   } catch {
     return createDefaultLibrary()
   }

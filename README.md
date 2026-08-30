@@ -20,7 +20,7 @@ The product is deliberately industry-flexible. Its generic entry model supports 
 
 ## Develop
 
-Requirements: Node.js 20 or newer and npm.
+Requirements: Node.js 22.13 or newer and npm.
 
 ```sh
 npm install
@@ -35,7 +35,7 @@ The local server prints its URL when ready. TanStack Start uses file-based route
 npm run check
 ```
 
-This runs strict TypeScript checking, the Vitest model/storage suite, and a production TanStack build. To run one stage:
+This runs strict TypeScript checking, the Node test suite for the model and storage boundary, and a production TanStack/Cloudflare build. To run one stage:
 
 ```sh
 npm run typecheck

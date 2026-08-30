@@ -323,7 +323,7 @@ function universalResume(): ResumeDocument {
       phone: '+1 555 014 2030',
       location: 'Phoenix, AZ',
       website: 'jordanlee.com',
-      summary: 'Collaborative leader with 9+ years guiding cross-functional programs, improving customer outcomes, and building practical systems that help teams do their best work.',
+      summary: 'Collaborative leader with 9+ years guiding cross-functional programs, improving customer outcomes, and building practical operating systems. Known for turning ambiguous priorities into clear ownership, useful measures, and sustainable progress.',
       links: [{ id: 'link-linkedin', label: 'LinkedIn', url: 'linkedin.com/in/jordanlee' }],
     },
     settings: { layout: 'modern', pageSize: 'letter', fontPair: 'sans', density: 'balanced', accent: '#315f58' },
@@ -490,6 +490,8 @@ export function analyzeResume(resume: ResumeDocument): ResumeAnalysis {
   const add = (issue: ResumeIssue, points: number) => { issues.push(issue); penalty += points }
   if (!resume.profile.name.trim()) add({ id: 'name', severity: 'essential', title: 'Add your name', detail: 'Every exported resume needs a clear candidate name.' }, 20)
   if (!resume.profile.email.trim() && !resume.profile.phone.trim()) add({ id: 'contact', severity: 'essential', title: 'Add a direct contact method', detail: 'Include an email address or phone number recruiters can use.' }, 15)
+  if (resume.profile.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resume.profile.email.trim())) add({ id: 'email-format', severity: 'essential', title: 'Check the email address', detail: 'It does not look complete. Verify it before anyone receives this resume.' }, 8)
+  if (resume.profile.phone.trim() && resume.profile.phone.replace(/\D/g, '').length < 7) add({ id: 'phone-format', severity: 'improvement', title: 'Check the phone number', detail: 'Include enough digits and any country or area code your reader will need.' }, 4)
   if (!resume.targetRole.trim()) add({ id: 'target', severity: 'improvement', title: 'Name the target role', detail: 'A target helps you decide which evidence deserves space.' }, 7)
   const summaryWords = cleanWords(resume.profile.summary).length
   if (summaryWords < 25) add({ id: 'summary-short', severity: 'improvement', title: 'Strengthen the opening summary', detail: 'Aim for 35–70 words covering scope, strengths, and the value you create.' }, 8)
@@ -499,12 +501,20 @@ export function analyzeResume(resume: ResumeDocument): ResumeAnalysis {
   for (const sectionItem of visible) {
     if (!sectionItem.title.trim()) add({ id: `section-title-${sectionItem.id}`, sectionId: sectionItem.id, severity: 'essential', title: 'Name this section', detail: 'Section headings help people and screening systems understand the document.' }, 6)
     if (!sectionItem.entries.length || !sectionItem.entries.some((entryItem) => entryItem.title.trim() || entryItem.keywords.some(Boolean))) add({ id: `empty-${sectionItem.id}`, sectionId: sectionItem.id, severity: 'improvement', title: `${sectionItem.title || 'A section'} is empty`, detail: 'Add useful evidence or hide the section before exporting.' }, 4)
+    const orphan = sectionItem.entries.find((entryItem) => !entryItem.title.trim() && (entryItem.organization.trim() || entryItem.summary.trim() || entryItem.highlights.some((item) => item.trim())))
+    if (orphan) add({ id: `missing-entry-title-${sectionItem.id}`, sectionId: sectionItem.id, severity: 'improvement', title: `Name an entry in ${sectionItem.title || 'this section'}`, detail: 'An organization, description, or bullet is present without a role, credential, project, or item title.' }, 4)
+    if (sectionItem.entries.some((entryItem) => entryItem.highlights.filter((item) => item.trim()).length > 7)) add({ id: `too-many-bullets-${sectionItem.id}`, sectionId: sectionItem.id, severity: 'tip', title: `Prioritize bullets in ${sectionItem.title || 'this section'}`, detail: 'More than seven bullets under one entry makes the strongest evidence harder to spot.' }, 2)
   }
   const experience = visible.filter((item) => item.kind === 'experience').flatMap((item) => item.entries)
+  if (experience.some((entryItem) => entryItem.title.trim() && !entryItem.startDate.trim() && !entryItem.endDate.trim() && !entryItem.current)) add({ id: 'experience-dates', severity: 'improvement', title: 'Add dates to each experience', detail: 'A year or month-and-year range gives readers the timeline they expect.' }, 5)
   const bullets = visible.flatMap((item) => item.entries.flatMap((entryItem) => entryItem.highlights)).filter((item) => item.trim())
   if (experience.length && bullets.length < 2) add({ id: 'few-bullets', severity: 'improvement', title: 'Show more evidence', detail: 'Use concise bullets to show actions, scope, and outcomes—not only responsibilities.' }, 7)
   if (bullets.length && !bullets.some((bullet) => /\d|%|\$/.test(bullet))) add({ id: 'outcomes', severity: 'improvement', title: 'Add scale or outcomes', detail: 'Numbers are useful when honest, but scope, speed, quality, safety, and stakeholder impact also count.' }, 6)
   if (bullets.some((bullet) => cleanWords(bullet).length > 35)) add({ id: 'long-bullets', severity: 'tip', title: 'Shorten long bullets', detail: 'Keep most bullets under 25–30 words so the outcome is visible at a glance.' }, 3)
+  const normalizedBullets = bullets.map((bullet) => bullet.toLocaleLowerCase().replace(/[^a-z0-9]+/g, ' ').trim())
+  if (new Set(normalizedBullets).size !== normalizedBullets.length) add({ id: 'duplicate-bullets', severity: 'improvement', title: 'Remove repeated bullets', detail: 'Use the space for a different contribution, capability, or outcome.' }, 4)
+  if (bullets.some((bullet) => /^(responsible for|duties included|helped (with|to)|worked on)\b/i.test(bullet.trim()))) add({ id: 'weak-bullets', severity: 'tip', title: 'Clarify ownership in a few bullets', detail: 'Replace responsibility phrases with the action you took and why it mattered.' }, 3)
+  if (bullets.some((bullet) => /\b(i|me|my|we|our)\b/i.test(bullet))) add({ id: 'first-person-bullets', severity: 'tip', title: 'Remove first-person pronouns from bullets', detail: 'Resume bullets conventionally begin with the action; “I” and “we” are usually unnecessary.' }, 2)
   if (bullets.length >= 3) {
     const weakStarts = bullets.filter((bullet) => {
       const first = bullet.trim().toLowerCase().replace(/[^a-z].*$/, '')
@@ -512,6 +522,15 @@ export function analyzeResume(resume: ResumeDocument): ResumeAnalysis {
     })
     if (weakStarts.length / bullets.length > 0.65) add({ id: 'verbs', severity: 'tip', title: 'Lead more bullets with decisive verbs', detail: 'Starting with your action makes ownership and contribution easier to understand.' }, 3)
   }
+  const links = [resume.profile.website, ...resume.profile.links.map((link) => link.url), ...visible.flatMap((sectionItem) => sectionItem.entries.map((entryItem) => entryItem.url))].filter((value) => value.trim())
+  if (links.some((value) => {
+    try {
+      const parsed = new URL(externalHref(value))
+      return !['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname.includes('.')
+    } catch {
+      return true
+    }
+  })) add({ id: 'links', severity: 'improvement', title: 'Check every web link', detail: 'At least one website or profile link looks incomplete. Open each link before sending.' }, 4)
   const allText = [resume.profile.name, resume.profile.headline, resume.profile.summary, ...visible.flatMap((item) => [item.title, ...item.entries.flatMap((entryItem) => [entryItem.title, entryItem.organization, entryItem.summary, ...entryItem.highlights, ...entryItem.keywords])])].join(' ')
   const words = cleanWords(allText).length
   return { score: Math.max(0, Math.min(100, 100 - penalty)), issues, words, bullets: bullets.length, estimatedPages: Math.max(1, Math.ceil(words / (resume.settings.density === 'tight' ? 720 : resume.settings.density === 'comfortable' ? 480 : 600))) }

@@ -1,4 +1,5 @@
 import { AlertCircle, ArrowRight, CheckCircle2, Lightbulb, Target } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
 import { analyzeResume, type ResumeDocument, type ResumeIssue } from '../lib/resume'
 
 function IssueIcon({ severity }: Pick<ResumeIssue, 'severity'>) {
@@ -44,6 +45,7 @@ export function ReviewPanel({ resume, onEdit }: { resume: ResumeDocument; onEdit
           <li><strong>Translate field language.</strong><span>Keep required credentials and keywords, but expand acronyms a broad reader may not know.</span></li>
           <li><strong>Proof the PDF.</strong><span>Check links, page breaks, dates, spelling, and that nothing important is stranded on a page.</span></li>
         </ol>
+        <Link className="review-guide-link" to="/guide">Open the cross-industry resume guide <ArrowRight size={14} /></Link>
       </section>
     </div>
   )

@@ -14,13 +14,14 @@ interface TextFieldProps {
   placeholder?: string
   type?: 'text' | 'email' | 'tel' | 'url'
   wide?: boolean
+  disabled?: boolean
 }
 
-function TextField({ label, value, onChange, placeholder, type = 'text', wide }: TextFieldProps) {
+function TextField({ label, value, onChange, placeholder, type = 'text', wide, disabled }: TextFieldProps) {
   return (
     <label className={`field ${wide ? 'field-wide' : ''}`}>
       <span>{label}</span>
-      <input type={type} value={value} placeholder={placeholder} onChange={(event) => onChange(event.currentTarget.value)} />
+      <input type={type} value={value} placeholder={placeholder} disabled={disabled} onChange={(event) => onChange(event.currentTarget.value)} />
     </label>
   )
 }
@@ -102,7 +103,7 @@ function EntryEditor({ entry, kind, index, total, onChange, onMove, onDuplicate,
         {kind !== 'skills' && kind !== 'interests' ? (
           <>
             <TextField label="Start" value={entry.startDate} onChange={(startDate) => patch({ startDate })} placeholder="2022 or Sep 2022" />
-            <TextField label={entry.current ? 'End' : 'End'} value={entry.current ? 'Present' : entry.endDate} onChange={(endDate) => patch({ endDate })} placeholder="2025" />
+            <TextField label="End" value={entry.current ? 'Present' : entry.endDate} disabled={entry.current} onChange={(endDate) => patch({ endDate })} placeholder="2025" />
             <label className="check-field field-wide"><input type="checkbox" checked={entry.current} onChange={(event) => patch({ current: event.currentTarget.checked, endDate: event.currentTarget.checked ? '' : entry.endDate })} /> <span>Current or ongoing</span></label>
           </>
         ) : null}
