@@ -1,6 +1,7 @@
-import { Check, FileText, Palette, Printer, Type } from 'lucide-react'
+import { ArrowRight, Check, FileText, Palette, Printer, ScanText, Type } from 'lucide-react'
 import { densities, fontPairs, layouts, pageSizes, type Density, type FontPair, type Layout, type PageSize, type ResumeDocument } from '../lib/resume'
 import { buildExportPreflight } from '../lib/exportReadiness'
+import { buildDesignGuidance } from '../lib/designGuidance'
 import { ExportReadinessSummary } from './ExportReadinessSummary'
 
 interface DesignPanelProps {
@@ -8,31 +9,39 @@ interface DesignPanelProps {
   renderedPages: number
   onChange: (resume: ResumeDocument) => void
   onPrint: () => void
+  onEditContent: () => void
 }
 
-const layoutDetails: Record<Layout, { name: string; note: string }> = {
-  modern: { name: 'Modern', note: 'Clear hierarchy with a crisp, flexible feel' },
-  classic: { name: 'Classic', note: 'Centered and traditional for conservative fields' },
-  executive: { name: 'Executive', note: 'Confident framing for leadership and strategy' },
-  compact: { name: 'Compact', note: 'Space-efficient without sacrificing readability' },
-  minimal: { name: 'Minimal', note: 'Restrained, globally conventional, and easy to reproduce' },
-  academic: { name: 'Academic', note: 'Publication-friendly structure for CVs and research' },
+const layoutDetails: Record<Layout, { name: string; note: string; traits: string[] }> = {
+  modern: { name: 'Modern', note: 'Clear hierarchy with a crisp, flexible feel', traits: ['Balanced spacing', 'Accent headings'] },
+  classic: { name: 'Classic', note: 'Centered identity with a formal, familiar rhythm', traits: ['Centered header', 'Traditional serif'] },
+  executive: { name: 'Executive', note: 'Strong framing with section labels set apart', traits: ['Bold header', 'Side labels'] },
+  compact: { name: 'Compact', note: 'The most space-efficient layout in the set', traits: ['Smaller type', 'Tighter rhythm'] },
+  minimal: { name: 'Minimal', note: 'Restrained presentation with low visual noise', traits: ['Open spacing', 'Quiet rules'] },
+  academic: { name: 'Academic', note: 'Long-form hierarchy for citations and research', traits: ['Serif structure', 'CV-friendly'] },
 }
 
 const colors = ['#315f58', '#263a51', '#17656b', '#6a4938', '#9c3f52', '#9a541c', '#415ca4', '#3e4d75', '#242424']
 
-export function DesignPanel({ resume, renderedPages, onChange, onPrint }: DesignPanelProps) {
+export function DesignPanel({ resume, renderedPages, onChange, onPrint, onEditContent }: DesignPanelProps) {
   const patch = (updates: Partial<ResumeDocument['settings']>) => onChange({ ...resume, settings: { ...resume.settings, ...updates } })
   const exportPreflight = buildExportPreflight(resume, renderedPages)
+  const guidance = buildDesignGuidance(resume, renderedPages)
   return (
     <div className="editor-stack design-panel">
+      <section className={`design-guidance ${guidance.tone}`} aria-live="polite">
+        <ScanText size={20} aria-hidden="true" />
+        <div><span className="eyebrow">Content-aware fit</span><h2>{guidance.title}</h2><p>{guidance.detail}</p>
+          {guidance.actions.length ? <div className="design-guidance-actions">{guidance.actions.map((action) => <button type="button" key={action.id} onClick={() => action.id === 'edit-content' ? onEditContent() : action.settings ? patch(action.settings) : undefined}>{action.label}<ArrowRight size={13} /></button>)}</div> : null}
+        </div>
+      </section>
       <section className="editor-card">
         <div className="card-heading"><div><span className="eyebrow">Structure</span><h2>Layout</h2></div><p>Every option keeps a single semantic reading order for screening systems.</p></div>
         <div className="layout-grid">
           {layouts.map((layout) => (
             <button key={layout} type="button" className={`layout-choice ${resume.settings.layout === layout ? 'selected' : ''}`} onClick={() => patch({ layout })} aria-pressed={resume.settings.layout === layout}>
               <span className={`layout-thumbnail layout-thumbnail-${layout}`}><i /><i /><i /><i /></span>
-              <span><strong>{layoutDetails[layout].name}</strong><small>{layoutDetails[layout].note}</small></span>
+              <span><strong>{layoutDetails[layout].name}</strong><small>{layoutDetails[layout].note}</small><em>{layoutDetails[layout].traits.map((trait) => <i key={trait}>{trait}</i>)}</em></span>
               {resume.settings.layout === layout ? <Check className="choice-check" size={16} /> : null}
             </button>
           ))}
