@@ -8,7 +8,7 @@ import { ResumePreview } from './ResumePreview'
 import { ReviewPanel } from './ReviewPanel'
 import { LibraryManager } from './LibraryManager'
 import { MAX_RESUMES, STARTERS, cloneResume, containsStarterSampleContent, createBlankResume, createId, createStarter, renderedPageCount, touchResume, type ResumeDocument, type ResumeIssue, type ResumeLibrary, type StarterId } from '../lib/resume'
-import { createDefaultLibrary, loadLibraryFromProvider, mergeLibraries, removeDocument, saveLibrary, summarizeLibraryMerge, upsertDocument, type LibraryMergeSummary } from '../lib/storage'
+import { createDefaultLibrary, loadLibraryFromProvider, removeDocument, saveLibrary, upsertDocument } from '../lib/storage'
 import { createResumeHistory, recordResumeChange, redoResumeChange, undoResumeChange, type ResumeHistory } from '../lib/history'
 import { reviewDestination } from '../lib/reviewNavigation'
 import { commitLatest } from '../lib/latestState'
@@ -16,6 +16,7 @@ import { buildExportPreflight, exportConfirmationMessage } from '../lib/exportRe
 import { createDeletedResumeRecovery, loadDeletedResumeRecoveryFromProvider, recoveryAlreadyPresent, restoreDeletedResume, saveDeletedResumeRecovery, type DeletedResumeRecovery } from '../lib/deletionRecovery'
 import { buildPreviewPageGuides, MAX_PREVIEW_PAGE_GUIDES } from '../lib/pageGuides'
 import { runDeviceStorageOperation, type DeviceStorageFailure } from '../lib/deviceStorage'
+import { restoreLibraryBackup, type LibraryBackupRestoreSummary, type ParsedLibraryBackup } from '../lib/libraryBackup'
 
 type StudioTab = 'content' | 'design' | 'review' | 'data'
 
@@ -467,16 +468,12 @@ export function Studio() {
     setStatus('Resume version opened.')
   }
 
-  const restoreLibrary = (incoming: ResumeLibrary): LibraryMergeSummary => {
+  const restoreBackup = (backup: ParsedLibraryBackup): LibraryBackupRestoreSummary => {
     try {
-      const current = libraryRef.current
-      const summary = summarizeLibraryMerge(current, incoming)
-      if (summary.exceedsLimit) {
-        throw new Error(`Restoring this backup needs ${summary.requiredSlots} open ${summary.requiredSlots === 1 ? 'slot' : 'slots'} and would exceed the ${MAX_RESUMES}-resume device limit.`)
-      }
+      const restored = restoreLibraryBackup(libraryRef.current, backup)
+      const summary = restored.summary
       if (!summary.requiredSlots) return summary
-      const merged = mergeLibraries(current, incoming)
-      updateLibrary(() => merged)
+      updateLibrary(() => restored.library)
       historiesRef.current.clear()
       setHistoryRevision((value) => value + 1)
       return summary
@@ -628,7 +625,7 @@ export function Studio() {
             <div id="studio-panel-content" role="tabpanel" aria-labelledby="studio-tab-content" tabIndex={0} hidden={activeTab !== 'content'}><ContentEditor resume={activeResume} onChange={changeResume} /></div>
             <div id="studio-panel-design" role="tabpanel" aria-labelledby="studio-tab-design" tabIndex={0} hidden={activeTab !== 'design'}><DesignPanel resume={activeResume} renderedPages={renderedPages} onChange={changeResume} onPrint={printResume} onEditContent={() => { setMobileView('editor'); setActiveTab('content'); setStatus('Content workspace opened. Prioritize the evidence that earns space on the page.') }} /></div>
             <div id="studio-panel-review" role="tabpanel" aria-labelledby="studio-tab-review" tabIndex={0} hidden={activeTab !== 'review'}><ReviewPanel resume={activeResume} onEdit={editReviewIssue} /></div>
-            <div id="studio-panel-data" role="tabpanel" aria-labelledby="studio-tab-data" tabIndex={0} hidden={activeTab !== 'data'}><DataPanel resume={activeResume} library={library} onChange={changeResume} onImport={addResume} onRestoreLibrary={restoreLibrary} onDraftStateChange={setAdvancedDraftDirty} announce={setStatus} /></div>
+            <div id="studio-panel-data" role="tabpanel" aria-labelledby="studio-tab-data" tabIndex={0} hidden={activeTab !== 'data'}><DataPanel resume={activeResume} library={library} deletedRecovery={deletedRecovery} onChange={changeResume} onImport={addResume} onRestoreBackup={restoreBackup} onDraftStateChange={setAdvancedDraftDirty} announce={setStatus} /></div>
           </div>
           <div className="editor-status" role="status" aria-live="polite"><ShieldCheck size={14} /><span>{status}</span></div>
         </aside>
@@ -661,7 +658,7 @@ export function Studio() {
             onDuplicate={duplicateResume}
             onDelete={deleteResume}
             onNew={() => { setShowLibraryManager(false); setShowNew(true) }}
-            onBackup={() => { setShowLibraryManager(false); setActiveTab('data'); setStatus('Data workspace opened. Choose Back up library to download every version.') }}
+            onBackup={() => { setShowLibraryManager(false); setActiveTab('data'); setStatus('Data workspace opened. Choose Back up library to download every saved version and the current recovery copy.') }}
             deletedRecovery={deletedRecovery}
             recoveryPersistent={recoveryPersistent}
             onRestoreDeleted={restoreDeleted}

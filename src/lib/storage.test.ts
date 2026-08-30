@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { createBlankResume, createStarter } from './resume'
-import { createDefaultLibrary, createLibraryBackup, loadLibrary, loadLibraryFromProvider, loadLibraryResult, mergeLibraries, parseLibrary, parseLibraryBackup, removeDocument, saveLibrary, summarizeLibraryMerge, upsertDocument } from './storage'
+import { createDefaultLibrary, loadLibrary, loadLibraryFromProvider, loadLibraryResult, mergeLibraries, parseLibrary, removeDocument, saveLibrary, summarizeLibraryMerge, upsertDocument } from './storage'
 
 describe('local resume library', () => {
   it('round trips validated documents through a storage boundary', () => {
@@ -59,13 +59,11 @@ describe('local resume library', () => {
     assert.throws(() => removeDocument(library, first.id), /at least one/)
   })
 
-  it('round trips a whole-library backup and restores changed collisions as copies', () => {
+  it('restores changed library collisions as copies', () => {
     const original = createDefaultLibrary()
-    const backup = parseLibraryBackup(JSON.parse(JSON.stringify(createLibraryBackup(original))) as unknown)
-    assert.deepEqual(backup.library, original)
     const edited = { ...original.documents[0]!, title: 'Edited after backup' }
     const current = { activeId: edited.id, documents: [edited] }
-    const merged = mergeLibraries(current, backup.library)
+    const merged = mergeLibraries(current, original)
     assert.equal(merged.documents.length, 2)
     assert.equal(merged.documents[0]!.title, 'Edited after backup')
     assert.match(merged.documents[1]!.title, /restored copy/)
@@ -103,9 +101,4 @@ describe('local resume library', () => {
     assert.equal(current.documents.length, 24)
   })
 
-  it('refuses unsupported or structurally invalid library backups', () => {
-    assert.throws(() => parseLibraryBackup({ format: 'something-else', schemaVersion: 1 }), /not a supported/)
-    assert.throws(() => parseLibraryBackup({ format: 'career-canvas-library', schemaVersion: 1, exportedAt: '2026-08-30T12:00:00.000Z', library: { documents: [] } }), /at least one/)
-    assert.throws(() => parseLibraryBackup({ format: 'career-canvas-library', schemaVersion: 1, exportedAt: 'not-a-date', library: createDefaultLibrary() }), /invalid export date/)
-  })
 })

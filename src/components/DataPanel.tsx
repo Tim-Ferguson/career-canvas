@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { ArchiveRestore, Check, Clipboard, Download, FileJson, FileText, FolderDown, RefreshCw, Upload } from 'lucide-react'
 import { MAX_DOCUMENT_BYTES, MAX_RESUMES, containsStarterSampleContent, parseJsonText, parseResumeImportJson, parseResumeJson, resumeToText, utf8ByteLength, type ResumeDocument, type ResumeLibrary } from '../lib/resume'
-import { createLibraryBackup, parseLibraryBackup, summarizeLibraryMerge, type LibraryMergeSummary } from '../lib/storage'
 import { buildExportPreflight, exportConfirmationMessage } from '../lib/exportReadiness'
 import { advancedDraftIsStale, createAdvancedDraftAnchor } from '../lib/draftSafety'
 import { buildJsonResumeExport } from '../lib/jsonResumeExport'
+import { MAX_LIBRARY_BACKUP_BYTES, createLibraryBackup, parseLibraryBackup, summarizeLibraryBackupRestore, type LibraryBackupRestoreSummary, type ParsedLibraryBackup } from '../lib/libraryBackup'
+import type { DeletedResumeRecovery } from '../lib/deletionRecovery'
+import type { LibraryMergeSummary } from '../lib/storage'
 import { ExportReadinessSummary } from './ExportReadinessSummary'
 
 function downloadFile(contents: string, filename: string, type: string) {
@@ -35,12 +37,21 @@ function describeMerge(summary: LibraryMergeSummary) {
   ].join(', ')
 }
 
-export function DataPanel({ resume, library, onChange, onImport, onRestoreLibrary, onDraftStateChange, announce }: {
+function describeRecovery(summary: LibraryBackupRestoreSummary, backup: ParsedLibraryBackup) {
+  const title = backup.deletedRecovery?.document.title || 'Untitled resume'
+  if (summary.recoveryDisposition === 'already-present') return `Deleted recovery “${title}” is already represented and will be skipped.`
+  if (summary.recoveryDisposition === 'restore-copy') return `Deleted recovery “${title}” will be added as a copy because its internal ID is already in use.`
+  if (summary.recoveryDisposition === 'restore') return `Deleted recovery “${title}” will be added as a normal resume version.`
+  return backup.sourceSchemaVersion === 1 ? 'This older schema v1 backup predates deleted-recovery capture.' : 'No deleted-resume recovery is stored in this backup.'
+}
+
+export function DataPanel({ resume, library, deletedRecovery, onChange, onImport, onRestoreBackup, onDraftStateChange, announce }: {
   resume: ResumeDocument
   library: ResumeLibrary
+  deletedRecovery: DeletedResumeRecovery | null
   onChange: (resume: ResumeDocument) => void
   onImport: (resume: ResumeDocument) => boolean
-  onRestoreLibrary: (library: ResumeLibrary) => LibraryMergeSummary
+  onRestoreBackup: (backup: ParsedLibraryBackup) => LibraryBackupRestoreSummary
   onDraftStateChange: (dirty: boolean) => void
   announce: (message: string) => void
 }) {
@@ -131,25 +142,26 @@ export function DataPanel({ resume, library, onChange, onImport, onRestoreLibrar
   const restoreLibrary = async (file: File | undefined) => {
     if (!file) return
     try {
-      if (file.size > MAX_DOCUMENT_BYTES * MAX_RESUMES) throw new Error('Backup is larger than the library safety limit.')
+      if (file.size > MAX_LIBRARY_BACKUP_BYTES) throw new Error('Backup is larger than the library and recovery safety limit.')
       const backup = parseLibraryBackup(parseJsonText(await file.text()))
-      const preview = summarizeLibraryMerge(library, backup.library)
+      const preview = summarizeLibraryBackupRestore(library, backup)
       if (preview.exceedsLimit) throw new Error(`This backup needs ${preview.requiredSlots} open ${preview.requiredSlots === 1 ? 'slot' : 'slots'} and would grow the library to ${preview.resultingDocuments}, above the ${MAX_RESUMES}-resume device limit.`)
       if (!preview.requiredSlots) {
-        announce(`Backup checked: all ${preview.incomingDocuments} ${preview.incomingDocuments === 1 ? 'resume is' : 'resumes are'} already present and unchanged.`)
+        announce(`Backup checked: ${describeMerge(preview.library)}. ${describeRecovery(preview, backup)}`)
         return
       }
       const confirmed = window.confirm([
         `Restore ${file.name}, exported ${formatBackupDate(backup.exportedAt)}?`,
-        `The backup contains ${countLabel(preview.incomingDocuments, 'resume')}: ${describeMerge(preview)}.`,
+        `The backup contains ${countLabel(preview.library.incomingDocuments, 'saved resume')}: ${describeMerge(preview.library)}.`,
+        describeRecovery(preview, backup),
         `The library will grow from ${library.documents.length} to ${preview.resultingDocuments}. Your current active resume stays active, and no existing version is overwritten.`,
       ].join('\n\n'))
       if (!confirmed) {
         announce('Library restore canceled. Your library is unchanged.')
         return
       }
-      const restored = onRestoreLibrary(backup.library)
-      announce(`Backup restored: ${describeMerge(restored)}. Your previous active resume is still active.`)
+      const restored = onRestoreBackup(backup)
+      announce(`Backup restored: ${describeMerge(restored.library)}. ${describeRecovery(restored, backup)} Your previous active resume is still active.`)
     } catch (caught) {
       announce(caught instanceof Error ? `Backup restore refused: ${caught.message}` : 'Backup restore refused.')
     }
@@ -157,6 +169,10 @@ export function DataPanel({ resume, library, onChange, onImport, onRestoreLibrar
 
   const exportPreflight = buildExportPreflight(resume)
   const baseName = exportPreflight.filenameBase
+  const downloadLibraryBackup = () => {
+    downloadFile(`${JSON.stringify(createLibraryBackup(library, deletedRecovery), null, 2)}\n`, `career-canvas-backup-${new Date().toISOString().slice(0, 10)}.json`, 'application/json')
+    announce(`Library backup downloaded with ${countLabel(library.documents.length, 'saved resume')}${deletedRecovery ? ` and the recovery copy of “${deletedRecovery.document.title || 'Untitled resume'}”` : ''}.`)
+  }
   const downloadJsonResume = () => {
     const exported = buildJsonResumeExport(resume)
     const confirmations = [exportPreflight.needsConfirmation ? exportConfirmationMessage(exportPreflight, 'JSON Resume file') : '', ...exported.warnings].filter(Boolean)
@@ -191,7 +207,7 @@ export function DataPanel({ resume, library, onChange, onImport, onRestoreLibrar
           <button type="button" className="export-action" disabled={dirty} title={dirty ? 'Apply or discard the advanced JSON draft first' : undefined} onClick={downloadJsonResume}><FileJson size={18} /><span><strong>JSON Resume</strong><small>{dirty ? 'Apply or discard draft first' : 'Visible standard sharing copy'}</small></span></button>
           <button type="button" className="export-action" onClick={downloadPlainText}><FileText size={18} /><span><strong>Plain text</strong><small>Quick ATS sanity check</small></span></button>
           <label className="export-action file-action"><Upload size={18} /><span><strong>Import resume</strong><small>Add JSON as a new version</small></span><input type="file" accept="application/json,.json" onChange={(event) => { void importFile(event.currentTarget.files?.[0]); event.currentTarget.value = '' }} /></label>
-          <button type="button" className="export-action" onClick={() => downloadFile(`${JSON.stringify(createLibraryBackup(library), null, 2)}\n`, `career-canvas-backup-${new Date().toISOString().slice(0, 10)}.json`, 'application/json')}><FolderDown size={18} /><span><strong>Back up library</strong><small>Save all {library.documents.length} versions</small></span></button>
+          <button type="button" className="export-action" onClick={downloadLibraryBackup}><FolderDown size={18} /><span><strong>Back up library</strong><small>Save all {library.documents.length} versions{deletedRecovery ? ' + recovery' : ''}</small></span></button>
           <label className="export-action file-action"><ArchiveRestore size={18} /><span><strong>Restore backup</strong><small>Merge without overwriting</small></span><input type="file" accept="application/json,.json" onChange={(event) => { void restoreLibrary(event.currentTarget.files?.[0]); event.currentTarget.value = '' }} /></label>
         </div>
       </section>

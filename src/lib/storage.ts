@@ -2,14 +2,6 @@ import { MAX_DOCUMENT_BYTES, MAX_RESUMES, createId, createStarter, migrateResume
 import { classifyDeviceStorageFailure, type DeviceStorageFailure } from './deviceStorage'
 
 export const LIBRARY_STORAGE_KEY = 'career-canvas.library.v2'
-export const LIBRARY_BACKUP_FORMAT = 'career-canvas-library'
-
-export interface LibraryBackup {
-  format: typeof LIBRARY_BACKUP_FORMAT
-  schemaVersion: 1
-  exportedAt: string
-  library: ResumeLibrary
-}
 
 export interface LibraryLoadResult {
   library: ResumeLibrary
@@ -127,23 +119,6 @@ export function removeDocument(library: ResumeLibrary, documentId: string): Resu
   const documents = library.documents.filter((item) => item.id !== documentId)
   if (documents.length === library.documents.length) return library
   return { activeId: library.activeId === documentId ? documents[0]!.id : library.activeId, documents }
-}
-
-export function createLibraryBackup(library: ResumeLibrary): LibraryBackup {
-  return {
-    format: LIBRARY_BACKUP_FORMAT,
-    schemaVersion: 1,
-    exportedAt: new Date().toISOString(),
-    library: parseLibrary(library),
-  }
-}
-
-export function parseLibraryBackup(value: unknown): LibraryBackup {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error('Library backup must be an object.')
-  const raw = value as Record<string, unknown>
-  if (raw.format !== LIBRARY_BACKUP_FORMAT || raw.schemaVersion !== 1) throw new Error('This is not a supported Career Canvas library backup.')
-  if (typeof raw.exportedAt !== 'string' || raw.exportedAt.length > 64 || Number.isNaN(Date.parse(raw.exportedAt))) throw new Error('Library backup has an invalid export date.')
-  return { format: LIBRARY_BACKUP_FORMAT, schemaVersion: 1, exportedAt: raw.exportedAt, library: parseLibrary(raw.library) }
 }
 
 function summarizeParsedLibraryMerge(base: ResumeLibrary, restored: ResumeLibrary): LibraryMergeSummary {
