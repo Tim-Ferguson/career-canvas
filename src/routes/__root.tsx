@@ -3,10 +3,12 @@ import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-r
 import { createServerFn } from '@tanstack/react-start'
 import { getRequestUrl } from '@tanstack/react-start/server'
 import appCss from '../styles/app.css?url'
+import { NotFoundPage, RootErrorPage } from '../components/SystemPage'
 
-const getSiteOrigin = createServerFn({ method: 'GET' }).handler(() => ({
-  origin: getRequestUrl({ xForwardedHost: true }).origin,
-}))
+const getSiteOrigin = createServerFn({ method: 'GET' }).handler(() => {
+  const requestUrl = getRequestUrl({ xForwardedHost: true })
+  return { origin: requestUrl.origin, canonicalUrl: `${requestUrl.origin}${requestUrl.pathname}` }
+})
 
 export const Route = createRootRoute({
   loader: () => getSiteOrigin(),
@@ -14,6 +16,7 @@ export const Route = createRootRoute({
     const title = 'Career Canvas — Private, flexible resume studio'
     const description = 'Build, tailor, review, and export polished resumes across industries with a private local-first TanStack studio.'
     const socialImage = `${loaderData?.origin ?? 'http://localhost:3000'}/og.png`
+    const canonicalUrl = loaderData?.canonicalUrl ?? 'http://localhost:3000/'
     return {
       meta: [
       { charSet: 'utf-8' },
@@ -24,7 +27,9 @@ export const Route = createRootRoute({
       { property: 'og:type', content: 'website' },
       { property: 'og:title', content: title },
       { property: 'og:description', content: description },
+      { property: 'og:url', content: canonicalUrl },
       { property: 'og:image', content: socialImage },
+      { property: 'og:image:alt', content: 'Career Canvas — Make the right evidence easy to find.' },
       { property: 'og:image:width', content: '1731' },
       { property: 'og:image:height', content: '909' },
       { name: 'twitter:card', content: 'summary_large_image' },
@@ -32,16 +37,14 @@ export const Route = createRootRoute({
       { name: 'twitter:description', content: description },
       { name: 'twitter:image', content: socialImage },
       ],
-      links: [{ rel: 'stylesheet', href: appCss }],
+      links: [{ rel: 'stylesheet', href: appCss }, { rel: 'canonical', href: canonicalUrl }, { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' }],
     }
   },
-  component: RootComponent,
-  notFoundComponent: () => <main className="simple-page"><h1>That page is not on this canvas.</h1><a href="/">Return to your resume</a></main>,
+  shellComponent: RootDocument,
+  component: Outlet,
+  errorComponent: RootErrorPage,
+  notFoundComponent: NotFoundPage,
 })
-
-function RootComponent() {
-  return <RootDocument><Outlet /></RootDocument>
-}
 
 function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
   return (

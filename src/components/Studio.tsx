@@ -7,7 +7,7 @@ import { DesignPanel } from './DesignPanel'
 import { ResumePreview } from './ResumePreview'
 import { ReviewPanel } from './ReviewPanel'
 import { MAX_RESUMES, STARTERS, cloneResume, containsStarterSampleContent, createBlankResume, createId, createStarter, renderedPageCount, touchResume, type ResumeDocument, type ResumeIssue, type ResumeLibrary, type StarterId } from '../lib/resume'
-import { createDefaultLibrary, loadLibraryResult, mergeLibraries, removeDocument, saveLibrary, upsertDocument } from '../lib/storage'
+import { createDefaultLibrary, loadLibraryFromProvider, mergeLibraries, removeDocument, saveLibrary, upsertDocument } from '../lib/storage'
 import { createResumeHistory, recordResumeChange, redoResumeChange, undoResumeChange, type ResumeHistory } from '../lib/history'
 import { reviewDestination } from '../lib/reviewNavigation'
 
@@ -51,7 +51,7 @@ export function Studio() {
   const activeResume = useMemo(() => library.documents.find((document) => document.id === library.activeId) ?? library.documents[0]!, [library])
 
   useEffect(() => {
-    const loaded = loadLibraryResult(window.localStorage)
+    const loaded = loadLibraryFromProvider(() => window.localStorage)
     setLibrary(loaded.library)
     if (loaded.status === 'recovered') {
       const details = [loaded.discardedDocuments ? `${loaded.discardedDocuments} damaged ${loaded.discardedDocuments === 1 ? 'resume was' : 'resumes were'} skipped` : '', loaded.repairedDocuments ? `${loaded.repairedDocuments} duplicate ${loaded.repairedDocuments === 1 ? 'ID was' : 'IDs were'} repaired` : '', loaded.activeIdRecovered ? 'the active resume was reset' : ''].filter(Boolean).join('; ')

@@ -87,6 +87,14 @@ export function loadLibrary(storage: Pick<Storage, 'getItem'>): ResumeLibrary {
   return loadLibraryResult(storage).library
 }
 
+export function loadLibraryFromProvider(getStorage: () => Pick<Storage, 'getItem'>): LibraryLoadResult {
+  try {
+    return loadLibraryResult(getStorage())
+  } catch {
+    return { library: createDefaultLibrary(), status: 'unavailable', discardedDocuments: 0, repairedDocuments: 0, activeIdRecovered: false }
+  }
+}
+
 export function saveLibrary(storage: Pick<Storage, 'setItem'>, library: ResumeLibrary): void {
   storage.setItem(LIBRARY_STORAGE_KEY, JSON.stringify(parseLibrary(library)))
 }

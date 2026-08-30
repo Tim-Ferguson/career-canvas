@@ -609,5 +609,3 @@ export function externalHref(value: string): string {
   if (/^(https?:|mailto:|tel:)/i.test(trimmed)) return trimmed
   return `https://${trimmed}`
 }
-
-export const DEFAULT_RESUME = createStarter('universal')

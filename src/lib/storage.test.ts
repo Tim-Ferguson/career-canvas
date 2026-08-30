@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { createBlankResume, createStarter } from './resume'
-import { createDefaultLibrary, createLibraryBackup, loadLibrary, loadLibraryResult, mergeLibraries, parseLibrary, parseLibraryBackup, removeDocument, saveLibrary, upsertDocument } from './storage'
+import { createDefaultLibrary, createLibraryBackup, loadLibrary, loadLibraryFromProvider, loadLibraryResult, mergeLibraries, parseLibrary, parseLibraryBackup, removeDocument, saveLibrary, upsertDocument } from './storage'
 
 describe('local resume library', () => {
   it('round trips validated documents through a storage boundary', () => {
@@ -39,6 +39,8 @@ describe('local resume library', () => {
     const unavailable = loadLibraryResult({ getItem: () => { throw new Error('blocked') } })
     assert.equal(unavailable.status, 'unavailable')
     assert.equal(unavailable.library.documents.length, 1)
+    const blockedGetter = loadLibraryFromProvider(() => { throw new DOMException('Denied', 'SecurityError') })
+    assert.equal(blockedGetter.status, 'unavailable')
   })
 
   it('adds, updates, activates, and removes document versions', () => {
