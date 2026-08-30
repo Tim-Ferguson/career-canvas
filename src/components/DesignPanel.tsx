@@ -1,9 +1,11 @@
-import { Check, FileText, Palette, Type } from 'lucide-react'
+import { Check, FileText, Palette, Printer, Type } from 'lucide-react'
 import { densities, fontPairs, layouts, pageSizes, type Density, type FontPair, type Layout, type PageSize, type ResumeDocument } from '../lib/resume'
 
 interface DesignPanelProps {
   resume: ResumeDocument
+  renderedPages: number
   onChange: (resume: ResumeDocument) => void
+  onPrint: () => void
 }
 
 const layoutDetails: Record<Layout, { name: string; note: string }> = {
@@ -16,7 +18,7 @@ const layoutDetails: Record<Layout, { name: string; note: string }> = {
 
 const colors = ['#315f58', '#263a51', '#17656b', '#6a4938', '#9c3f52', '#9a541c', '#415ca4', '#3e4d75', '#242424']
 
-export function DesignPanel({ resume, onChange }: DesignPanelProps) {
+export function DesignPanel({ resume, renderedPages, onChange, onPrint }: DesignPanelProps) {
   const patch = (updates: Partial<ResumeDocument['settings']>) => onChange({ ...resume, settings: { ...resume.settings, ...updates } })
   return (
     <div className="editor-stack design-panel">
@@ -55,6 +57,17 @@ export function DesignPanel({ resume, onChange }: DesignPanelProps) {
           <label><span>Spacing</span><select value={resume.settings.density} onChange={(event) => patch({ density: event.currentTarget.value as Density })}>{densities.map((density) => <option value={density} key={density}>{density[0]!.toUpperCase() + density.slice(1)}</option>)}</select></label>
         </div>
         <p className="card-note">Choose tight spacing only after editing for relevance. Smaller type is never used to hide an overlong document.</p>
+      </section>
+
+      <section className="editor-card print-check-card">
+        <div className="card-heading"><div><span className="eyebrow">Export check</span><h2>Prepare the PDF</h2></div><Printer size={18} aria-hidden="true" /></div>
+        <p className="card-intro">The rendered preview currently uses {resume.settings.pageSize === 'a4' ? 'A4' : 'US Letter'} and measures {renderedPages} {renderedPages === 1 ? 'page' : 'pages'}.</p>
+        <ul className="print-check-list">
+          <li><Check size={14} /><span>Match the print dialog paper size to {resume.settings.pageSize === 'a4' ? 'A4' : 'US Letter'}.</span></li>
+          <li><Check size={14} /><span>Turn off browser headers and footers so no URL or date is added.</span></li>
+          <li><Check size={14} /><span>Open the saved PDF and verify page breaks, selectable text, and every link.</span></li>
+        </ul>
+        <button className="primary-button full-button" type="button" onClick={onPrint}><Printer size={15} /> Open print dialog</button>
       </section>
     </div>
   )

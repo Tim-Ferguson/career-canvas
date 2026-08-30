@@ -5,6 +5,15 @@ interface ResumePreviewProps {
   resume: ResumeDocument
 }
 
+function wordCount(value: string): number {
+  return value.trim().split(/\s+/).filter(Boolean).length
+}
+
+export function entryNeedsFlexibleBreak(entry: ResumeEntry): boolean {
+  const words = wordCount([entry.summary, ...entry.highlights, ...entry.keywords].join(' '))
+  return words > 260 || entry.highlights.filter((item) => item.trim()).length > 8
+}
+
 function DateRange({ entry }: { entry: ResumeEntry }) {
   const value = [entry.startDate, entry.current ? 'Present' : entry.endDate].filter(Boolean).join(' – ')
   return value ? <span>{value}</span> : null
@@ -19,7 +28,7 @@ function ResumeEntryView({ entry, kind }: { entry: ResumeEntry; kind: ResumeSect
   const hasHeading = entry.title.trim() || entry.organization.trim()
   const isKeywordSection = kind === 'skills' || kind === 'interests'
   return (
-    <div className={`document-entry document-entry-${kind}`}>
+    <div className={`document-entry document-entry-${kind}${entryNeedsFlexibleBreak(entry) ? ' document-entry-flow' : ''}`}>
       {hasHeading ? (
         <div className="document-entry-heading">
           <div>
@@ -77,7 +86,7 @@ export function ResumePreview({ resume }: ResumePreviewProps) {
       style={{ '--resume-accent': resume.settings.accent } as CSSProperties}
       aria-label={`Resume preview for ${resume.profile.name || 'unnamed candidate'}`}
     >
-      <header className="document-header">
+      <header className={`document-header${wordCount(resume.profile.summary) > 180 ? ' document-header-flow' : ''}`}>
         <div className="document-identity">
           <h1>{resume.profile.name || 'Your name'}</h1>
           {resume.profile.headline.trim() ? <p className="document-headline">{resume.profile.headline}</p> : null}

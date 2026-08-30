@@ -21,6 +21,7 @@ The product is deliberately industry-flexible. Its generic entry model supports 
 - JSON v2 import/export, automatic migration from the original v1 schema, plain-text export, and browser-native PDF output
 - Validated whole-library backups that restore non-destructively and preserve newer versions as well as historical copies
 - Live rendered page-count feedback for catching overflow before opening the PDF dialog
+- Print-aware pagination that keeps normal entries together, lets oversized evidence flow safely, and provides a concrete PDF checklist
 - Strict runtime validation, bounded content, portable IDs, duplicate-ID protection, and last-valid-document behavior in the advanced JSON editor
 - Responsive studio and a cross-industry writing guide
 

@@ -189,6 +189,9 @@ details > summary::-webkit-details-marker { display: none; }
 .setting-row label { display: flex; flex-direction: column; gap: 5px; }
 .setting-row select { height: 40px; padding: 0 9px; }
 .card-note { margin: 12px 0 0; padding: 10px; border-radius: 7px; color: #626963; background: #f1f2ee; font-size: .63rem; line-height: 1.5; }
+.print-check-list { display: flex; flex-direction: column; gap: 9px; margin: 0 0 15px; padding: 0; list-style: none; }
+.print-check-list li { display: grid; grid-template-columns: auto 1fr; gap: 8px; color: var(--muted); font-size: .64rem; line-height: 1.45; }
+.print-check-list svg { margin-top: 1px; color: var(--brand); }
 
 .score-card { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 18px; padding: 20px; }
 .score-ring { --score: 0deg; position: relative; width: 88px; height: 88px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 50%; background: conic-gradient(var(--brand) var(--score), #e5e5df 0); }
@@ -460,8 +463,13 @@ details > summary::-webkit-details-marker { display: none; }
   .studio-shell, .studio-workspace, .preview-workspace, .preview-scroll, .preview-scale { display: block; width: auto; height: auto; min-height: 0; overflow: visible; padding: 0; margin: 0; background: white; }
   .resume-document { width: 8.5in; min-height: 11in; margin: 0 auto; box-shadow: none; zoom: 1; page: career-letter; }
   .resume-document[data-page-size='a4'] { width: 210mm; min-height: 297mm; page: career-a4; }
-  .document-header, .document-entry { break-inside: avoid; }
-  .document-section > h2 { break-after: avoid; }
+  .document-header, .document-entry { break-inside: avoid; break-inside: avoid-page; }
+  .document-header-flow, .document-entry-flow { break-inside: auto; }
+  .document-identity, .document-contact, .document-entry-heading, .document-keywords, .document-tags { break-inside: avoid; break-inside: avoid-page; }
+  .document-entry-heading, .document-section > h2 { break-after: avoid; break-after: avoid-page; }
+  .document-section-content > .document-entry:first-child { break-before: avoid; break-before: avoid-page; }
+  .document-summary, .document-entry-summary, .document-entry li { orphans: 2; widows: 2; }
+  .document-entry li { break-inside: avoid; break-inside: avoid-page; }
   a { text-decoration: none; }
 }
 

@@ -296,6 +296,10 @@ export function Studio() {
 
   const saveLabel = saveState === 'saving' ? 'Saving…' : saveState === 'limited' ? 'Not saved' : formatSavedTime(activeResume.updatedAt)
   const activeHistory = historiesRef.current.get(activeResume.id) ?? createResumeHistory()
+  const printResume = () => {
+    setStatus(`Opening the print dialog for ${activeResume.settings.pageSize === 'a4' ? 'A4' : 'US Letter'}. Turn off browser headers and footers before saving.`)
+    window.print()
+  }
   return (
     <div className="studio-shell">
       <header className="app-header no-print">
@@ -320,7 +324,7 @@ export function Studio() {
         <div className="header-right">
           <div className={`save-indicator ${saveState}`}><Check size={13} /><span>{saveLabel}</span></div>
           <Link className="guide-link" to="/guide">Resume guide</Link>
-          <button className="print-button" type="button" onClick={() => window.print()}><Printer size={16} /> Save PDF</button>
+          <button className="print-button" type="button" onClick={printResume}><Printer size={16} /> Save PDF</button>
         </div>
       </header>
 
@@ -344,7 +348,7 @@ export function Studio() {
             {saveState === 'limited' ? <div className="storage-alert" role="alert"><AlertTriangle size={18} /><div><strong>Changes are not saved on this device</strong><span>Keep editing, then download JSON or a library backup before closing this page.</span></div><div><button type="button" onClick={retrySave}>Retry save</button><button type="button" onClick={() => setActiveTab('data')}>Open Data</button></div></div> : null}
             {recoveryNotice && saveState !== 'limited' ? <div className="recovery-alert" role="status"><ShieldCheck size={18} /><span>{recoveryNotice}</span><button type="button" aria-label="Dismiss recovery notice" onClick={() => setRecoveryNotice('')}><X size={15} /></button></div> : null}
             <div hidden={activeTab !== 'content'}><ContentEditor resume={activeResume} onChange={changeResume} /></div>
-            <div hidden={activeTab !== 'design'}><DesignPanel resume={activeResume} onChange={changeResume} /></div>
+            <div hidden={activeTab !== 'design'}><DesignPanel resume={activeResume} renderedPages={renderedPages} onChange={changeResume} onPrint={printResume} /></div>
             <div hidden={activeTab !== 'review'}><ReviewPanel resume={activeResume} onEdit={editReviewIssue} /></div>
             <div hidden={activeTab !== 'data'}><DataPanel resume={activeResume} library={library} onChange={changeResume} onImport={addResume} onRestoreLibrary={restoreLibrary} announce={setStatus} /></div>
           </div>
