@@ -193,6 +193,9 @@ details > summary::-webkit-details-marker { display: none; }
 .layout-thumbnail-executive { border-top: 5px solid var(--brand); }
 .layout-thumbnail-compact { gap: 3px; padding: 5px; }
 .layout-thumbnail-classic i:first-child { align-self: center; }
+.layout-thumbnail-minimal { box-shadow: none; }
+.layout-thumbnail-minimal i:first-child { width: 58%; height: 5px; }
+.layout-thumbnail-minimal i:nth-child(3) { height: 1px; background: #777; }
 .layout-thumbnail-academic { font-family: serif; }
 .color-row { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }
 .color-row > button { width: 32px; height: 32px; display: grid; place-items: center; border: 2px solid white; border-radius: 50%; color: white; box-shadow: 0 0 0 1px var(--line); }
@@ -360,6 +363,17 @@ details > summary::-webkit-details-marker { display: none; }
 .resume-document[data-layout='compact'] .document-entry + .document-entry { margin-top: 8px; }
 .resume-document[data-layout='compact'] .document-entry li { margin: 1px 0; font-size: 8.4pt; }
 
+.resume-document[data-layout='minimal'] { --document-pad-x: .7in; --document-pad-y: .62in; --document-gap: 18px; box-shadow: 0 14px 40px rgba(25, 31, 28, .14), 0 1px 3px rgba(25, 31, 28, .12); }
+.resume-document[data-layout='minimal'] .document-header { padding-bottom: 14px; border-bottom: 1px solid color-mix(in srgb, var(--resume-accent) 55%, #888); }
+.resume-document[data-layout='minimal'] .document-header h1 { font-size: 25pt; letter-spacing: -.018em; }
+.resume-document[data-layout='minimal'] .document-headline { margin-top: 5px; color: #303734; font-size: 10.5pt; }
+.resume-document[data-layout='minimal'] .document-contact { margin-top: 8px; }
+.resume-document[data-layout='minimal'] .document-summary { margin-top: 10px; }
+.resume-document[data-layout='minimal'] .document-section > h2 { margin-bottom: 8px; padding-bottom: 3px; border-bottom: .75px solid color-mix(in srgb, var(--resume-accent) 35%, #bbb); color: #242a27; font-size: 8.5pt; letter-spacing: .08em; }
+.resume-document[data-layout='minimal'] .document-entry + .document-entry { margin-top: 11px; }
+.resume-document[data-layout='minimal'] .document-tags span { padding: 0; border: 0; }
+.resume-document[data-layout='minimal'] .document-tags span:not(:last-child)::after { content: '·'; margin-left: 10px; color: var(--resume-accent); }
+
 .resume-document[data-layout='academic'] { --document-pad-x: .72in; font-family: 'Source Serif 4', Georgia, serif; }
 .resume-document[data-layout='academic'] .document-header { border-bottom: 3px double #4c4c4c; }
 .resume-document[data-layout='academic'] .document-header h1 { font-family: 'Source Serif 4', Georgia, serif; font-size: 26pt; font-weight: 600; letter-spacing: -.02em; }
@@ -437,7 +451,7 @@ details > summary::-webkit-details-marker { display: none; }
 .guide-principles p { margin: 0; color: var(--muted); font-size: .75rem; line-height: 1.6; }
 .guide-section { padding: 90px 0 20px; }
 .guide-section > h2, .guide-two-column h2 { max-width: 680px; margin: 8px 0 28px; font: 400 clamp(2rem, 4vw, 3.4rem)/1.05 'DM Serif Display', serif; letter-spacing: -.025em; }
-.field-notes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.field-notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
 .field-notes > div { padding: 22px; border: 1px solid var(--line); border-radius: 12px; background: #faf9f5; }
 .field-notes svg { color: var(--brand); }
 .field-notes h3 { margin: 22px 0 8px; font-size: .83rem; }

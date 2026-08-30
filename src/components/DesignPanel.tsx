@@ -15,6 +15,7 @@ const layoutDetails: Record<Layout, { name: string; note: string }> = {
   classic: { name: 'Classic', note: 'Centered and traditional for conservative fields' },
   executive: { name: 'Executive', note: 'Confident framing for leadership and strategy' },
   compact: { name: 'Compact', note: 'Space-efficient without sacrificing readability' },
+  minimal: { name: 'Minimal', note: 'Restrained, globally conventional, and easy to reproduce' },
   academic: { name: 'Academic', note: 'Publication-friendly structure for CVs and research' },
 }
 

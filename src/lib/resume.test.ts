@@ -1,12 +1,27 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { MAX_DOCUMENT_BYTES, analyzeResume, cloneResume, containsStarterSampleContent, createBlankResume, createSection, createStarter, formatEntryDateRange, migrateResume, moveInArray, parseResumeJson, renderedPageCount, resumeToText, utf8ByteLength, validateResume } from './resume'
+import { MAX_DOCUMENT_BYTES, STARTERS, analyzeResume, cloneResume, containsStarterSampleContent, createBlankResume, createSection, createStarter, formatEntryDateRange, migrateResume, moveInArray, parseResumeJson, renderedPageCount, resumeToText, utf8ByteLength, validateResume } from './resume'
+
+const starterIds = ['universal', 'leadership', 'healthcare', 'education', 'creative', 'trades', 'student', 'public_service', 'career_change', 'academic'] as const
 
 describe('resume document model', () => {
   it('validates every industry starter', () => {
-    for (const id of ['universal', 'leadership', 'healthcare', 'education', 'creative', 'trades', 'student', 'academic'] as const) {
+    assert.equal(STARTERS.length, starterIds.length)
+    for (const id of starterIds) {
       assert.equal(validateResume(createStarter(id)).schemaVersion, 2)
     }
+  })
+
+  it('gives public-service and career-change stories distinct, honest structures', () => {
+    const publicService = createStarter('public_service')
+    assert.equal(publicService.settings.layout, 'minimal')
+    assert.equal(publicService.sections[0]!.title, 'Public service experience')
+    assert.ok(publicService.sections.some((section) => section.kind === 'volunteering'))
+    const careerChange = createStarter('career_change')
+    assert.equal(careerChange.settings.layout, 'minimal')
+    assert.equal(careerChange.sections[0]!.kind, 'skills')
+    assert.ok(careerChange.sections.some((section) => section.kind === 'experience'))
+    assert.ok(careerChange.sections.some((section) => section.kind === 'projects'))
   })
 
   it('supports drafts while rejecting unsupported fields', () => {
@@ -124,10 +139,12 @@ describe('resume output and review', () => {
   })
 
   it('flags every fictional starter until its identity and example results are replaced', () => {
-    for (const id of ['universal', 'leadership', 'healthcare', 'education', 'creative', 'trades', 'student', 'academic'] as const) {
+    for (const id of starterIds) {
       const resume = createStarter(id)
       assert.equal(containsStarterSampleContent(resume), true)
       assert.ok(analyzeResume(resume).issues.some((issue) => issue.id === 'sample-content' && issue.severity === 'essential'))
+      resume.profile = { ...resume.profile, name: 'Taylor Kim', email: 'taylor@example.com', phone: '+1 555 555 0199', website: '', links: [] }
+      assert.equal(containsStarterSampleContent(resume), true, `${id} should retain a sample-evidence fingerprint after identity replacement`)
     }
     assert.equal(containsStarterSampleContent(createBlankResume()), false)
   })

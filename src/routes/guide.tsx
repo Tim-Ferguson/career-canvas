@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { ArrowLeft, ArrowRight, BriefcaseBusiness, CheckCircle2, GraduationCap, HeartPulse, Lightbulb, ShieldCheck, Wrench } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BriefcaseBusiness, CheckCircle2, GraduationCap, HeartPulse, Landmark, Lightbulb, ShieldCheck, Wrench } from 'lucide-react'
 
 export const Route = createFileRoute('/guide')({
   head: () => ({ meta: [{ title: 'Resume Guide — Career Canvas' }, { name: 'description', content: 'Practical, cross-industry guidance for writing a clear, credible, targeted resume.' }] }),
@@ -11,6 +11,7 @@ const fieldNotes = [
   { icon: HeartPulse, title: 'Healthcare & service', text: 'Make active licenses, settings, populations, specialized practice, safety, quality, and patient or client outcomes easy to find.' },
   { icon: GraduationCap, title: 'Education & research', text: 'Balance subject expertise with learner, research, curriculum, publication, grant, and community impact. Use the length your institution expects.' },
   { icon: Wrench, title: 'Trades & technical work', text: 'Lead with required credentials, systems and equipment, project complexity, safety record, diagnostics, uptime, quality, and dependable delivery.' },
+  { icon: Landmark, title: 'Public service & nonprofit', text: 'Show stewardship, policy or program delivery, public outcomes, partnerships, and trust. Follow the posting exactly: some government processes require fields a standard resume does not.' },
 ]
 
 function GuidePage() {

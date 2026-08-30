@@ -23,7 +23,7 @@ export const sectionKinds = [
   'custom',
 ] as const
 
-export const layouts = ['modern', 'classic', 'executive', 'compact', 'academic'] as const
+export const layouts = ['modern', 'classic', 'executive', 'compact', 'minimal', 'academic'] as const
 export const pageSizes = ['letter', 'a4'] as const
 export const fontPairs = ['sans', 'serif', 'editorial'] as const
 export const densities = ['comfortable', 'balanced', 'tight'] as const
@@ -130,7 +130,7 @@ export interface StarterDefinition {
   description: string
 }
 
-export type StarterId = 'universal' | 'leadership' | 'healthcare' | 'education' | 'creative' | 'trades' | 'student' | 'academic'
+export type StarterId = 'universal' | 'leadership' | 'healthcare' | 'education' | 'creative' | 'trades' | 'student' | 'public_service' | 'career_change' | 'academic'
 
 export interface EntryDatePresentation {
   startLabel: string
@@ -150,6 +150,8 @@ export const STARTERS: readonly StarterDefinition[] = [
   { id: 'creative', label: 'Creative', eyebrow: 'Portfolio', description: 'Pairs selected work and portfolio links with measurable commercial outcomes.' },
   { id: 'trades', label: 'Skilled trades', eyebrow: 'Hands-on', description: 'Highlights certifications, safety, equipment, project scope, and reliability.' },
   { id: 'student', label: 'Student', eyebrow: 'Early career', description: 'Leads with education, relevant projects, capabilities, and transferable experience.' },
+  { id: 'public_service', label: 'Public service', eyebrow: 'Stewardship', description: 'Emphasizes public outcomes, accountability, and trust; verify jurisdiction-specific application rules.' },
+  { id: 'career_change', label: 'Career change', eyebrow: 'Transferable', description: 'Connects proven capabilities to a new target without hiding work chronology.' },
   { id: 'academic', label: 'Academic', eyebrow: 'Research', description: 'Supports publications, research, teaching, awards, and professional affiliations.' },
 ] as const
 
@@ -392,6 +394,8 @@ function applyStarter(base: ResumeDocument, starter: StarterId): ResumeDocument 
     creative: { title: 'Creative resume', targetRole: 'Creative Director', industry: 'Creative & media', settings: { ...base.settings, layout: 'modern', fontPair: 'editorial', accent: '#9c3f52' } },
     trades: { title: 'Skilled trades resume', targetRole: 'Lead Technician', industry: 'Skilled trades', settings: { ...base.settings, layout: 'compact', density: 'tight', accent: '#9a541c' } },
     student: { title: 'Early career resume', targetRole: 'Entry-level opportunity', industry: 'Early career', settings: { ...base.settings, layout: 'compact', accent: '#415ca4' } },
+    public_service: { title: 'Public service resume', targetRole: 'Public Program Manager', industry: 'Government & public service', settings: { ...base.settings, layout: 'minimal', accent: '#263a51' } },
+    career_change: { title: 'Career change resume', targetRole: 'Project Coordinator', industry: 'Career transition', settings: { ...base.settings, layout: 'minimal', accent: '#315f58' } },
     academic: { title: 'Academic CV', targetRole: 'Research & Teaching', industry: 'Academic research', settings: { ...base.settings, layout: 'academic', fontPair: 'serif', density: 'comfortable', accent: '#3e4d75' } },
   }
   const result = { ...base, ...variants[starter], id: createId('resume'), updatedAt: now() }
@@ -462,6 +466,27 @@ function applyStarter(base: ResumeDocument, starter: StarterId): ResumeDocument 
       section('projects', 'Relevant projects', [entry({ title: 'Community food-access dashboard', organization: 'Applied Analytics Lab', endDate: '2026', highlights: ['Cleaned and joined five public datasets in Python to compare access patterns across 42 neighborhoods.', 'Designed an interactive dashboard and presented recommendations to a community partner.'] }), entry({ title: 'Customer retention analysis', organization: 'Business Statistics', endDate: '2025', highlights: ['Built and evaluated a regression model, documented assumptions, and translated findings for a nontechnical audience.'] })]),
       section('experience', 'Experience', [entry({ title: 'Operations Intern', organization: 'Northstar Group', location: 'Phoenix, AZ', startDate: 'May 2026', endDate: 'Aug 2026', highlights: ['Mapped a customer-request workflow and identified changes that shortened average resolution time 12%.', 'Created weekly reporting templates used by three team leads.'] }), entry({ title: 'Peer Tutor — Statistics', organization: 'University Academic Success Center', startDate: '2025', current: true, highlights: ['Support 8–12 students weekly through individualized practice, questions, and study planning.'] })]),
       section('skills', 'Skills', [entry({ title: 'Analysis', keywords: ['Excel', 'SQL', 'Python', 'Tableau', 'Statistical analysis'] }), entry({ title: 'Collaboration', keywords: ['Presentation', 'Research', 'Facilitation', 'Project coordination'] })]),
+    ]
+  }
+  if (starter === 'public_service') {
+    result.profile = { ...base.profile, headline: 'Public program manager | Accountable delivery and community partnership', summary: 'Public-service leader with 10+ years translating policy goals into accessible programs, responsible grants, and measurable community outcomes. Builds practical partnerships across agencies and nonprofits while strengthening transparency, compliance, and resident experience.' }
+    result.sections = [
+      section('experience', 'Public service experience', [
+        entry({ title: 'Program Manager, Community Services', organization: 'City of Sonoran Hills', location: 'Phoenix, AZ', startDate: '2021', current: true, highlights: ['Administer a $7.8M community-services portfolio across 14 nonprofit partners with clean annual monitoring results.', 'Cut average benefit-application wait time from 19 to 11 days by redesigning intake, review, and resident communication.', 'Built a public performance dashboard and quarterly partner forum that improved issue resolution and accountability.'] }),
+        entry({ title: 'Senior Program Analyst', organization: 'Maricopa Regional Partnership', location: 'Phoenix, AZ', startDate: '2016', endDate: '2021', highlights: ['Evaluated service access and contract performance across six municipalities and presented findings to public boards.', 'Standardized grant reporting and technical assistance, reducing incomplete partner submissions 46%.'] }),
+      ]),
+      section('skills', 'Public-service capabilities', [entry({ title: 'Program stewardship', keywords: ['Program implementation', 'Grants management', 'Contract monitoring', 'Public budgeting', 'Performance measurement'] }), entry({ title: 'Community delivery', keywords: ['Resident experience', 'Cross-agency partnership', 'Public communication', 'Facilitation', 'Continuous improvement'] })]),
+      section('education', 'Education', [entry({ title: 'Master of Public Administration', organization: 'Arizona State University', endDate: '2016' }), entry({ title: 'B.A., Sociology', organization: 'State University', endDate: '2012' })]),
+      section('volunteering', 'Community service', [entry({ title: 'Volunteer tax-preparation site lead', organization: 'Community Resource Network', startDate: '2019', current: true, highlights: ['Coordinate 18 volunteers serving low- and moderate-income households during the annual filing season.'] })]),
+    ]
+  }
+  if (starter === 'career_change') {
+    result.profile = { ...base.profile, headline: 'Customer operations leader moving into project coordination', summary: 'Operations professional bringing 9+ years coordinating people, timelines, vendors, and customer-facing change in fast-moving service environments. Ready to apply disciplined planning, clear communication, and practical problem solving to cross-functional project delivery.' }
+    result.sections = [
+      section('skills', 'Transferable capabilities', [entry({ title: 'Project coordination', keywords: ['Work planning', 'Stakeholder updates', 'Risk tracking', 'Vendor coordination', 'Process documentation'] }), entry({ title: 'Operations leadership', keywords: ['Team scheduling', 'Customer experience', 'Training', 'Quality improvement', 'Issue resolution'] })]),
+      section('projects', 'Relevant projects', [entry({ title: 'Reservation-platform rollout', organization: 'Desert Harbor Hotels', startDate: '2025', endDate: '2025', highlights: ['Coordinated a 16-week reservation-platform rollout across four properties, including testing, vendor follow-up, training, and launch support.', 'Tracked 73 readiness items to closure and helped teams sustain service during cutover with no guest-facing outage.'] }), entry({ title: 'Guest-recovery workflow redesign', organization: 'Desert Harbor Hotels', endDate: '2024', highlights: ['Mapped recurring failure points and introduced clear escalation ownership, reducing unresolved cases 31%.'] })]),
+      section('experience', 'Experience', [entry({ title: 'Guest Services Operations Lead', organization: 'Desert Harbor Hotels', location: 'Phoenix, AZ', startDate: '2020', current: true, highlights: ['Lead daily operations and scheduling for a 22-person team serving a 310-room property.', 'Coordinate facilities, technology, events, and vendor partners to resolve service risks and deliver major guest programs.', 'Created role-based onboarding that reduced new-hire time to independent work by 24%.'] }), entry({ title: 'Front Office Supervisor', organization: 'Copper Ridge Hospitality', startDate: '2017', endDate: '2020', highlights: ['Supervised shift operations, cash controls, guest recovery, and cross-department handoffs in a high-volume resort.'] })]),
+      section('education', 'Education & training', [entry({ title: 'B.A., Communication', organization: 'State University', endDate: '2016' }), entry({ title: 'Project Management Foundations', organization: 'Regional Continuing Education', endDate: '2025' })]),
     ]
   }
   if (starter === 'academic') {
@@ -538,6 +563,8 @@ const starterEvidenceMarkers = [
   'Reduced unplanned conveyor downtime 28%',
   'Cleaned and joined five public datasets in Python',
   'Advised 18 graduate and honors researchers',
+  'Cut average benefit-application wait time from 19 to 11 days',
+  'Coordinated a 16-week reservation-platform rollout',
 ]
 
 export function containsStarterSampleContent(resume: ResumeDocument): boolean {

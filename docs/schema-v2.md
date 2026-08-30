@@ -65,7 +65,7 @@ The UI changes field labels, ongoing-status language, and emphasis by section ki
 
 `settings` contains:
 
-- `layout`: `modern`, `classic`, `executive`, `compact`, or `academic`
+- `layout`: `modern`, `classic`, `executive`, `compact`, `minimal`, or `academic`
 - `pageSize`: `letter` or `a4`
 - `fontPair`: `sans`, `serif`, or `editorial`
 - `density`: `comfortable`, `balanced`, or `tight`
