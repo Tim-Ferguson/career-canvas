@@ -64,6 +64,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .print-button:hover, .primary-button:hover { background: var(--brand-dark); }
 
 .studio-workspace { height: calc(100dvh - 68px); display: grid; grid-template-columns: minmax(520px, 43vw) minmax(0, 1fr); }
+.mobile-view-switcher { display: none; }
 .studio-editor { min-width: 0; display: grid; grid-template-columns: 77px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 37px; border-right: 1px solid var(--line); background: var(--surface); }
 .studio-tabs { grid-row: 1 / 3; display: flex; flex-direction: column; gap: 5px; padding: 16px 9px; border-right: 1px solid var(--line); background: #efeee8; }
 .studio-tabs button { min-height: 57px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; border: 0; border-radius: 8px; color: var(--muted); background: transparent; font-size: .61rem; font-weight: 600; }
@@ -545,12 +546,18 @@ details > summary::-webkit-details-marker { display: none; }
   .print-button { width: 39px; padding: 0; }
   .print-button span { display: none; }
   .studio-workspace { height: auto; display: block; }
+  .mobile-view-switcher { position: sticky; z-index: 12; top: 68px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 3px; padding: 6px max(12px, calc((100vw - 640px) / 2)); border-bottom: 1px solid var(--line); background: rgba(239,238,232,.97); backdrop-filter: blur(12px); }
+  .mobile-view-switcher button { min-height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: 7px; color: var(--muted); background: transparent; font-size: .65rem; font-weight: 700; }
+  .mobile-view-switcher button.active { color: var(--brand-dark); background: white; box-shadow: 0 1px 4px rgba(20,27,24,.09); }
+  .studio-workspace[data-mobile-view='editor'] .preview-workspace { display: none; }
+  .studio-workspace[data-mobile-view='preview'] .studio-editor { display: none; }
   .studio-editor { height: auto; min-height: calc(100vh - 68px); grid-template-columns: 1fr; grid-template-rows: auto auto auto; border-right: 0; }
-  .studio-tabs { position: sticky; z-index: 10; top: 68px; grid-row: auto; flex-direction: row; justify-content: stretch; padding: 7px 10px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .studio-tabs { position: sticky; z-index: 10; top: 115px; grid-row: auto; flex-direction: row; justify-content: stretch; padding: 7px 10px; border-right: 0; border-bottom: 1px solid var(--line); }
   .studio-tabs button { min-height: 44px; flex: 1; flex-direction: row; }
   .editor-scroll { max-height: none; overflow: visible; padding: 24px max(18px, calc((100vw - 640px) / 2)) 55px; }
   .editor-status { min-height: 37px; }
   .preview-workspace { min-height: 900px; grid-template-rows: 43px auto; }
+  .preview-toolbar { position: sticky; top: 115px; }
   .preview-scroll { min-height: 850px; }
   .layout-grid { grid-template-columns: repeat(2, 1fr); }
   .guide-hero { padding-top: 70px; }
@@ -603,6 +610,7 @@ details > summary::-webkit-details-marker { display: none; }
   @page career-a4 { size: A4; margin: 0; }
   html, body { min-width: 0; background: white; }
   .no-print { display: none !important; }
+  .studio-workspace[data-mobile-view] .preview-workspace { display: block; }
   .studio-shell, .studio-workspace, .preview-workspace, .preview-scroll, .preview-scale { display: block; width: auto; height: auto; min-height: 0; overflow: visible; padding: 0; margin: 0; background: white; }
   .resume-document { width: 8.5in; min-height: 11in; margin: 0 auto; box-shadow: none; zoom: 1; page: career-letter; }
   .resume-document[data-page-size='a4'] { width: 210mm; min-height: 297mm; page: career-a4; }

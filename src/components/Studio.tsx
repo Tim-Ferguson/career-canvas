@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { AlertTriangle, Check, ChevronDown, Copy, FileCheck2, FileText, FolderOpen, LayoutTemplate, MoreHorizontal, Plus, Printer, Redo2, RotateCcw, ShieldCheck, Sparkles, Trash2, Undo2, X } from 'lucide-react'
+import { AlertTriangle, Check, ChevronDown, Copy, Eye, FileCheck2, FileText, FolderOpen, LayoutTemplate, MoreHorizontal, Plus, Printer, Redo2, RotateCcw, ShieldCheck, Sparkles, Trash2, Undo2, X } from 'lucide-react'
 import { ContentEditor } from './ContentEditor'
 import { DataPanel } from './DataPanel'
 import { DesignPanel } from './DesignPanel'
@@ -38,6 +38,7 @@ export function Studio() {
   const [library, setLibrary] = useState<ResumeLibrary>(() => createDefaultLibrary())
   const [hydrated, setHydrated] = useState(false)
   const [activeTab, setActiveTab] = useState<StudioTab>('content')
+  const [mobileView, setMobileView] = useState<'editor' | 'preview'>('editor')
   const [showNew, setShowNew] = useState(false)
   const [showLibraryManager, setShowLibraryManager] = useState(false)
   const [showLibraryMenu, setShowLibraryMenu] = useState(false)
@@ -463,6 +464,7 @@ export function Studio() {
   }
 
   const editReviewIssue = (issue?: ResumeIssue) => {
+    setMobileView('editor')
     setActiveTab('content')
     const destination = issue ? reviewDestination(issue, activeResume) : { id: 'content-sections', label: 'Resume evidence' }
     setStatus(`Opening ${destination.label.toLocaleLowerCase()} in the editor.`)
@@ -496,6 +498,15 @@ export function Studio() {
     items[next]?.focus()
   }
 
+  const showWorkspace = (view: 'editor' | 'preview', targetId: string) => {
+    setMobileView(view)
+    window.requestAnimationFrame(() => {
+      const target = document.getElementById(targetId)
+      target?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+      target?.focus({ preventScroll: true })
+    })
+  }
+
   useEffect(() => {
     const handleHistoryShortcut = (event: KeyboardEvent) => {
       if (!(event.metaKey || event.ctrlKey) || isNativeEditingTarget(event.target)) return
@@ -518,12 +529,14 @@ export function Studio() {
   const printResume = () => {
     if (advancedDraftDirty && !window.confirm('The PDF will use the last valid resume; unapplied advanced JSON changes are not included. Open the print dialog anyway?')) {
       setStatus('PDF export canceled. Apply or discard the advanced JSON draft first.')
+      setMobileView('editor')
       setActiveTab('data')
       return
     }
     const preflight = buildExportPreflight(activeResume, renderedPages)
     if (preflight.needsConfirmation && !window.confirm(exportConfirmationMessage(preflight, 'PDF'))) {
       setStatus('PDF export canceled. Resolve the sharing checks or verify that the exception is intentional.')
+      setMobileView('editor')
       setActiveTab(preflight.essentialIssues.length ? 'review' : 'design')
       return
     }
@@ -538,8 +551,8 @@ export function Studio() {
   }
   return (
     <div className="studio-shell">
-      <a className="skip-link" href="#studio-editor-content">Skip to resume editor</a>
-      <a className="skip-link" href="#resume-preview">Skip to live preview</a>
+      <a className="skip-link" href="#studio-editor-content" onClick={(event) => { event.preventDefault(); showWorkspace('editor', 'studio-editor-content') }}>Skip to resume editor</a>
+      <a className="skip-link" href="#resume-preview" onClick={(event) => { event.preventDefault(); showWorkspace('preview', 'resume-preview') }}>Skip to live preview</a>
       <header className="app-header no-print">
         <Link className="app-brand" to="/" aria-label="Career Canvas home">
           <span className="brand-mark">C<span>/</span></span>
@@ -566,8 +579,9 @@ export function Studio() {
         </div>
       </header>
 
-      <main className="studio-workspace">
-        <aside className="studio-editor no-print" aria-label="Resume editor">
+      <main className="studio-workspace" data-mobile-view={mobileView}>
+        <div className="mobile-view-switcher no-print" role="group" aria-label="Mobile workspace view"><button type="button" className={mobileView === 'editor' ? 'active' : ''} aria-pressed={mobileView === 'editor'} aria-controls="studio-editor" onClick={() => showWorkspace('editor', 'studio-editor-content')}><FileText size={15} /> Editor</button><button type="button" className={mobileView === 'preview' ? 'active' : ''} aria-pressed={mobileView === 'preview'} aria-controls="resume-preview" onClick={() => showWorkspace('preview', 'resume-preview')}><Eye size={15} /> Preview</button></div>
+        <aside className="studio-editor no-print" id="studio-editor" aria-label="Resume editor">
           <nav className="studio-tabs" role="tablist" aria-label="Resume workspaces">
             {tabs.map((tab) => {
               const Icon = tab.icon
@@ -588,7 +602,7 @@ export function Studio() {
             {deletedRecovery ? <div className="deletion-recovery-alert" role="status"><RotateCcw size={18} /><div><strong>Recently removed: {deletedRecovery.document.title || 'Untitled resume'}</strong><span>{recoveryPersistent ? 'A recovery copy is saved on this device until another resume is removed.' : 'Recovery is available only while this page remains open.'}</span></div><button type="button" onClick={restoreDeleted}>Restore</button><button type="button" aria-label="Permanently discard deleted resume recovery" onClick={discardDeleted}><X size={15} /></button></div> : null}
             {sampleContentPresent ? <div className="sample-content-alert" role="alert"><AlertTriangle size={18} /><div><strong>Fictional starter content is still present</strong><span>Replace every sample identity, organization, and result with your own accurate evidence before exporting.</span></div><button type="button" onClick={() => setActiveTab('review')}>Review it</button></div> : null}
             <div id="studio-panel-content" role="tabpanel" aria-labelledby="studio-tab-content" tabIndex={0} hidden={activeTab !== 'content'}><ContentEditor resume={activeResume} onChange={changeResume} /></div>
-            <div id="studio-panel-design" role="tabpanel" aria-labelledby="studio-tab-design" tabIndex={0} hidden={activeTab !== 'design'}><DesignPanel resume={activeResume} renderedPages={renderedPages} onChange={changeResume} onPrint={printResume} onEditContent={() => { setActiveTab('content'); setStatus('Content workspace opened. Prioritize the evidence that earns space on the page.') }} /></div>
+            <div id="studio-panel-design" role="tabpanel" aria-labelledby="studio-tab-design" tabIndex={0} hidden={activeTab !== 'design'}><DesignPanel resume={activeResume} renderedPages={renderedPages} onChange={changeResume} onPrint={printResume} onEditContent={() => { setMobileView('editor'); setActiveTab('content'); setStatus('Content workspace opened. Prioritize the evidence that earns space on the page.') }} /></div>
             <div id="studio-panel-review" role="tabpanel" aria-labelledby="studio-tab-review" tabIndex={0} hidden={activeTab !== 'review'}><ReviewPanel resume={activeResume} onEdit={editReviewIssue} /></div>
             <div id="studio-panel-data" role="tabpanel" aria-labelledby="studio-tab-data" tabIndex={0} hidden={activeTab !== 'data'}><DataPanel resume={activeResume} library={library} onChange={changeResume} onImport={addResume} onRestoreLibrary={restoreLibrary} onDraftStateChange={setAdvancedDraftDirty} announce={setStatus} /></div>
           </div>
