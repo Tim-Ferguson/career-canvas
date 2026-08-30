@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { createBlankResume, createStarter } from './resume'
-import { createDefaultLibrary, createLibraryBackup, loadLibrary, loadLibraryFromProvider, loadLibraryResult, mergeLibraries, parseLibrary, parseLibraryBackup, removeDocument, saveLibrary, upsertDocument } from './storage'
+import { createDefaultLibrary, createLibraryBackup, loadLibrary, loadLibraryFromProvider, loadLibraryResult, mergeLibraries, parseLibrary, parseLibraryBackup, removeDocument, saveLibrary, summarizeLibraryMerge, upsertDocument } from './storage'
 
 describe('local resume library', () => {
   it('round trips validated documents through a storage boundary', () => {
@@ -70,8 +70,40 @@ describe('local resume library', () => {
     assert.notEqual(merged.documents[0]!.id, merged.documents[1]!.id)
   })
 
+  it('preflights additions, unchanged documents, and changed ID collisions without mutation', () => {
+    const unchanged = createStarter()
+    const collision = createBlankResume()
+    const added = { ...createStarter('healthcare'), id: 'resume-new' }
+    const current = parseLibrary({ activeId: unchanged.id, documents: [unchanged, collision] })
+    const incoming = parseLibrary({ activeId: unchanged.id, documents: [unchanged, { ...collision, title: 'Changed backup version' }, added] })
+    const before = JSON.stringify(current)
+    assert.deepEqual(summarizeLibraryMerge(current, incoming), {
+      incomingDocuments: 3,
+      addedDocuments: 1,
+      collisionCopies: 1,
+      unchangedDocuments: 1,
+      requiredSlots: 2,
+      resultingDocuments: 4,
+      exceedsLimit: false,
+    })
+    assert.equal(JSON.stringify(current), before)
+  })
+
+  it('reports backup capacity before performing a partial merge', () => {
+    const documents = Array.from({ length: 24 }, (_, index) => ({ ...createBlankResume(), id: `resume-${index}` }))
+    const current = parseLibrary({ activeId: documents[0]!.id, documents })
+    const incomingDocument = { ...createBlankResume(), id: 'resume-over-limit' }
+    const incoming = parseLibrary({ activeId: incomingDocument.id, documents: [incomingDocument] })
+    const summary = summarizeLibraryMerge(current, incoming)
+    assert.equal(summary.exceedsLimit, true)
+    assert.equal(summary.resultingDocuments, 25)
+    assert.throws(() => mergeLibraries(current, incoming), /needs 1 open slot/)
+    assert.equal(current.documents.length, 24)
+  })
+
   it('refuses unsupported or structurally invalid library backups', () => {
     assert.throws(() => parseLibraryBackup({ format: 'something-else', schemaVersion: 1 }), /not a supported/)
-    assert.throws(() => parseLibraryBackup({ format: 'career-canvas-library', schemaVersion: 1, exportedAt: 'today', library: { documents: [] } }), /at least one/)
+    assert.throws(() => parseLibraryBackup({ format: 'career-canvas-library', schemaVersion: 1, exportedAt: '2026-08-30T12:00:00.000Z', library: { documents: [] } }), /at least one/)
+    assert.throws(() => parseLibraryBackup({ format: 'career-canvas-library', schemaVersion: 1, exportedAt: 'not-a-date', library: createDefaultLibrary() }), /invalid export date/)
   })
 })

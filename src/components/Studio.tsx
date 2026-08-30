@@ -8,7 +8,7 @@ import { ResumePreview } from './ResumePreview'
 import { ReviewPanel } from './ReviewPanel'
 import { LibraryManager } from './LibraryManager'
 import { MAX_RESUMES, STARTERS, cloneResume, containsStarterSampleContent, createBlankResume, createId, createStarter, renderedPageCount, touchResume, type ResumeDocument, type ResumeIssue, type ResumeLibrary, type StarterId } from '../lib/resume'
-import { createDefaultLibrary, loadLibraryFromProvider, mergeLibraries, removeDocument, saveLibrary, upsertDocument } from '../lib/storage'
+import { createDefaultLibrary, loadLibraryFromProvider, mergeLibraries, removeDocument, saveLibrary, summarizeLibraryMerge, upsertDocument, type LibraryMergeSummary } from '../lib/storage'
 import { createResumeHistory, recordResumeChange, redoResumeChange, undoResumeChange, type ResumeHistory } from '../lib/history'
 import { reviewDestination } from '../lib/reviewNavigation'
 import { commitLatest } from '../lib/latestState'
@@ -350,12 +350,19 @@ export function Studio() {
     setStatus('Resume version opened.')
   }
 
-  const restoreLibrary = (incoming: ResumeLibrary) => {
+  const restoreLibrary = (incoming: ResumeLibrary): LibraryMergeSummary => {
     try {
-      const merged = mergeLibraries(libraryRef.current, incoming)
+      const current = libraryRef.current
+      const summary = summarizeLibraryMerge(current, incoming)
+      if (summary.exceedsLimit) {
+        throw new Error(`Restoring this backup needs ${summary.requiredSlots} open ${summary.requiredSlots === 1 ? 'slot' : 'slots'} and would exceed the ${MAX_RESUMES}-resume device limit.`)
+      }
+      if (!summary.requiredSlots) return summary
+      const merged = mergeLibraries(current, incoming)
       updateLibrary(() => merged)
       historiesRef.current.clear()
       setHistoryRevision((value) => value + 1)
+      return summary
     } catch (caught) {
       setStatus(caught instanceof Error ? caught.message : 'The library backup could not be restored.')
       throw caught

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ArchiveRestore, Check, Clipboard, Download, FileJson, FileText, FolderDown, RefreshCw, Upload } from 'lucide-react'
 import { MAX_DOCUMENT_BYTES, MAX_RESUMES, containsStarterSampleContent, parseJsonText, parseResumeJson, resumeToText, safeFilename, utf8ByteLength, type ResumeDocument, type ResumeLibrary } from '../lib/resume'
-import { createLibraryBackup, parseLibraryBackup } from '../lib/storage'
+import { createLibraryBackup, parseLibraryBackup, summarizeLibraryMerge, type LibraryMergeSummary } from '../lib/storage'
 
 function downloadFile(contents: string, filename: string, type: string) {
   const blob = new Blob([contents], { type })
@@ -15,12 +15,28 @@ function downloadFile(contents: string, filename: string, type: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
+function countLabel(count: number, singular: string, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`
+}
+
+function formatBackupDate(value: string) {
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+}
+
+function describeMerge(summary: LibraryMergeSummary) {
+  return [
+    countLabel(summary.addedDocuments, 'new resume'),
+    countLabel(summary.collisionCopies, 'changed ID collision', 'changed ID collisions') + ' preserved as restored copies',
+    countLabel(summary.unchangedDocuments, 'identical resume') + ' skipped',
+  ].join(', ')
+}
+
 export function DataPanel({ resume, library, onChange, onImport, onRestoreLibrary, announce }: {
   resume: ResumeDocument
   library: ResumeLibrary
   onChange: (resume: ResumeDocument) => void
-  onImport: (resume: ResumeDocument) => void
-  onRestoreLibrary: (library: ResumeLibrary) => void
+  onImport: (resume: ResumeDocument) => boolean
+  onRestoreLibrary: (library: ResumeLibrary) => LibraryMergeSummary
   announce: (message: string) => void
 }) {
   const [draft, setDraft] = useState(() => `${JSON.stringify(resume, null, 2)}\n`)
@@ -64,8 +80,25 @@ export function DataPanel({ resume, library, onChange, onImport, onRestoreLibrar
     try {
       if (file.size > MAX_DOCUMENT_BYTES) throw new Error('File is larger than the 2 MB safety limit.')
       const imported = parseResumeJson(await file.text())
-      onImport({ ...imported, id: imported.id === resume.id ? `${imported.id}-copy` : imported.id, updatedAt: new Date().toISOString() })
-      announce(`Imported ${file.name} as a new resume.`)
+      const sameId = library.documents.find((document) => document.id === imported.id)
+      if (sameId && JSON.stringify(sameId) === JSON.stringify(imported)) {
+        announce(`Import skipped: “${imported.title || 'Untitled resume'}” is already in this library unchanged.`)
+        return
+      }
+      if (library.documents.length >= MAX_RESUMES) throw new Error(`Your device library is full at ${MAX_RESUMES} resumes. Export and remove one before importing.`)
+      const details = [
+        `Import “${imported.title || 'Untitled resume'}” from ${file.name}?`,
+        `Target: ${imported.targetRole || 'not specified'}. Industry: ${imported.industry || 'not specified'}. ${countLabel(imported.sections.length, 'section')}.`,
+        sameId ? 'Its internal ID matches an existing version, so Career Canvas will assign a new ID and “copy” title.' : '',
+        containsStarterSampleContent(imported) ? 'Warning: this file still contains fictional starter content.' : '',
+        'The imported file will become active; every existing version stays unchanged.',
+      ].filter(Boolean).join('\n\n')
+      if (!window.confirm(details)) {
+        announce('Resume import canceled. Your library is unchanged.')
+        return
+      }
+      if (!onImport({ ...imported, updatedAt: new Date().toISOString() })) return
+      announce(`Imported “${imported.title || 'Untitled resume'}” from ${file.name} as the active resume. Existing versions are unchanged.`)
     } catch (caught) {
       announce(caught instanceof Error ? `Import refused: ${caught.message}` : 'Import refused.')
     }
@@ -76,8 +109,23 @@ export function DataPanel({ resume, library, onChange, onImport, onRestoreLibrar
     try {
       if (file.size > MAX_DOCUMENT_BYTES * MAX_RESUMES) throw new Error('Backup is larger than the library safety limit.')
       const backup = parseLibraryBackup(parseJsonText(await file.text()))
-      onRestoreLibrary(backup.library)
-      announce(`Restored ${backup.library.documents.length} ${backup.library.documents.length === 1 ? 'resume' : 'resumes'} without overwriting newer versions.`)
+      const preview = summarizeLibraryMerge(library, backup.library)
+      if (preview.exceedsLimit) throw new Error(`This backup needs ${preview.requiredSlots} open ${preview.requiredSlots === 1 ? 'slot' : 'slots'} and would grow the library to ${preview.resultingDocuments}, above the ${MAX_RESUMES}-resume device limit.`)
+      if (!preview.requiredSlots) {
+        announce(`Backup checked: all ${preview.incomingDocuments} ${preview.incomingDocuments === 1 ? 'resume is' : 'resumes are'} already present and unchanged.`)
+        return
+      }
+      const confirmed = window.confirm([
+        `Restore ${file.name}, exported ${formatBackupDate(backup.exportedAt)}?`,
+        `The backup contains ${countLabel(preview.incomingDocuments, 'resume')}: ${describeMerge(preview)}.`,
+        `The library will grow from ${library.documents.length} to ${preview.resultingDocuments}. Your current active resume stays active, and no existing version is overwritten.`,
+      ].join('\n\n'))
+      if (!confirmed) {
+        announce('Library restore canceled. Your library is unchanged.')
+        return
+      }
+      const restored = onRestoreLibrary(backup.library)
+      announce(`Backup restored: ${describeMerge(restored)}. Your previous active resume is still active.`)
     } catch (caught) {
       announce(caught instanceof Error ? `Backup restore refused: ${caught.message}` : 'Backup restore refused.')
     }

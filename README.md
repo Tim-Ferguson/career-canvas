@@ -23,6 +23,7 @@ The product is deliberately industry-flexible. Its generic entry model supports 
 - Session-only opportunity comparison that surfaces honest vocabulary gaps without exporting pasted job descriptions or claiming an ATS score
 - JSON v2 import/export, automatic migration from the original v1 schema, plain-text export, and browser-native PDF output
 - Validated whole-library backups that restore non-destructively and preserve newer versions as well as historical copies
+- Import and restore preflights that disclose active-version changes, exact additions, ID collisions, identical skips, and capacity before changing the library
 - Live rendered page-count feedback for catching overflow before opening the PDF dialog
 - Print-aware pagination that keeps normal entries together, lets oversized evidence flow safely, and provides a concrete PDF checklist
 - Strict runtime validation, bounded content, portable IDs, duplicate-ID protection, and last-valid-document behavior in the advanced JSON editor

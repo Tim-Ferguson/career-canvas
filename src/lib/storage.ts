@@ -18,6 +18,16 @@ export interface LibraryLoadResult {
   activeIdRecovered: boolean
 }
 
+export interface LibraryMergeSummary {
+  incomingDocuments: number
+  addedDocuments: number
+  collisionCopies: number
+  unchangedDocuments: number
+  requiredSlots: number
+  resultingDocuments: number
+  exceedsLimit: boolean
+}
+
 export function createDefaultLibrary(): ResumeLibrary {
   const document = createStarter('universal')
   return { activeId: document.id, documents: [document] }
@@ -130,18 +140,46 @@ export function parseLibraryBackup(value: unknown): LibraryBackup {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error('Library backup must be an object.')
   const raw = value as Record<string, unknown>
   if (raw.format !== LIBRARY_BACKUP_FORMAT || raw.schemaVersion !== 1) throw new Error('This is not a supported Career Canvas library backup.')
-  if (typeof raw.exportedAt !== 'string' || raw.exportedAt.length > 64) throw new Error('Library backup has an invalid export date.')
+  if (typeof raw.exportedAt !== 'string' || raw.exportedAt.length > 64 || Number.isNaN(Date.parse(raw.exportedAt))) throw new Error('Library backup has an invalid export date.')
   return { format: LIBRARY_BACKUP_FORMAT, schemaVersion: 1, exportedAt: raw.exportedAt, library: parseLibrary(raw.library) }
+}
+
+function summarizeParsedLibraryMerge(base: ResumeLibrary, restored: ResumeLibrary): LibraryMergeSummary {
+  let addedDocuments = 0
+  let collisionCopies = 0
+  let unchangedDocuments = 0
+  for (const candidate of restored.documents) {
+    const existing = base.documents.find((document) => document.id === candidate.id)
+    if (!existing) addedDocuments += 1
+    else if (JSON.stringify(existing) === JSON.stringify(candidate)) unchangedDocuments += 1
+    else collisionCopies += 1
+  }
+  const requiredSlots = addedDocuments + collisionCopies
+  const resultingDocuments = base.documents.length + requiredSlots
+  return {
+    incomingDocuments: restored.documents.length,
+    addedDocuments,
+    collisionCopies,
+    unchangedDocuments,
+    requiredSlots,
+    resultingDocuments,
+    exceedsLimit: resultingDocuments > MAX_RESUMES,
+  }
+}
+
+export function summarizeLibraryMerge(current: ResumeLibrary, incoming: ResumeLibrary): LibraryMergeSummary {
+  return summarizeParsedLibraryMerge(parseLibrary(current), parseLibrary(incoming))
 }
 
 export function mergeLibraries(current: ResumeLibrary, incoming: ResumeLibrary): ResumeLibrary {
   const base = parseLibrary(current)
   const restored = parseLibrary(incoming)
+  const summary = summarizeParsedLibraryMerge(base, restored)
+  if (summary.exceedsLimit) throw new Error(`Restoring this backup needs ${summary.requiredSlots} open ${summary.requiredSlots === 1 ? 'slot' : 'slots'} and would exceed the ${MAX_RESUMES}-resume device limit.`)
   const documents = [...base.documents]
   for (const candidate of restored.documents) {
     const existing = documents.find((document) => document.id === candidate.id)
     if (existing && JSON.stringify(existing) === JSON.stringify(candidate)) continue
-    if (documents.length >= MAX_RESUMES) throw new Error(`Restoring this backup would exceed the ${MAX_RESUMES}-resume device limit.`)
     documents.push(existing ? { ...candidate, id: createId('resume'), title: `${candidate.title || 'Resume'} restored copy` } : candidate)
   }
   return { activeId: base.activeId, documents }
