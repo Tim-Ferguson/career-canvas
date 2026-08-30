@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronUp, Copy, Eye, EyeOff, Plus, Trash2 } from 'lucide-react'
-import { MAX_ENTRIES, MAX_LIST_ITEMS, MAX_PROFILE_LINKS, MAX_SECTIONS, MAX_TEXT, createEntry, createId, createSection, moveInArray, SECTION_CATALOG, type ResumeDocument, type ResumeEntry, type ResumeLink, type ResumeSection, type SectionKind } from '../lib/resume'
+import { ENTRY_DATE_PRESENTATION, MAX_ENTRIES, MAX_LIST_ITEMS, MAX_PROFILE_LINKS, MAX_SECTIONS, MAX_TEXT, createEntry, createId, createSection, moveInArray, SECTION_CATALOG, type ResumeDocument, type ResumeEntry, type ResumeLink, type ResumeSection, type SectionKind } from '../lib/resume'
 
 interface ContentEditorProps {
   resume: ResumeDocument
@@ -56,19 +56,19 @@ function StringListEditor({ idPrefix, label, values, onChange, placeholder, addL
   )
 }
 
-const entryLabels: Record<SectionKind, { title: string; organization: string; summary: string }> = {
-  experience: { title: 'Role or position', organization: 'Organization', summary: 'Role overview (optional)' },
-  education: { title: 'Degree, program, or training', organization: 'School or provider', summary: 'Details (optional)' },
-  skills: { title: 'Skill group', organization: 'Context (optional)', summary: 'Details (optional)' },
-  projects: { title: 'Project or selected work', organization: 'Client, team, or context', summary: 'Project overview' },
-  certifications: { title: 'License or credential', organization: 'Issuing authority', summary: 'Scope or credential details' },
-  volunteering: { title: 'Role or contribution', organization: 'Organization', summary: 'Service overview' },
-  awards: { title: 'Award, grant, or honor', organization: 'Awarding organization', summary: 'Why it was awarded' },
-  publications: { title: 'Title', organization: 'Publication, conference, or venue', summary: 'Citation or context' },
-  languages: { title: 'Language', organization: 'Proficiency', summary: 'Additional context' },
-  affiliations: { title: 'Membership or role', organization: 'Association or board', summary: 'Contribution or context' },
-  interests: { title: 'Interest group', organization: 'Context (optional)', summary: 'Details (optional)' },
-  custom: { title: 'Title', organization: 'Organization or context', summary: 'Details' },
+const entryLabels: Record<SectionKind, { title: string; organization: string; location: string; summary: string }> = {
+  experience: { title: 'Role or position', organization: 'Organization', location: 'Location', summary: 'Role overview (optional)' },
+  education: { title: 'Degree, program, or training', organization: 'School or provider', location: 'Location (optional)', summary: 'Details (optional)' },
+  skills: { title: 'Skill group', organization: 'Context (optional)', location: 'Context location (optional)', summary: 'Details (optional)' },
+  projects: { title: 'Project or selected work', organization: 'Client, team, or context', location: 'Location (optional)', summary: 'Project overview' },
+  certifications: { title: 'License or credential', organization: 'Issuing authority', location: 'Jurisdiction or location (optional)', summary: 'Scope or credential details' },
+  volunteering: { title: 'Role or contribution', organization: 'Organization', location: 'Location (optional)', summary: 'Service overview' },
+  awards: { title: 'Award, grant, or honor', organization: 'Awarding organization', location: 'Location (optional)', summary: 'Why it was awarded' },
+  publications: { title: 'Title', organization: 'Publication, conference, or venue', location: 'Venue location (optional)', summary: 'Citation or context' },
+  languages: { title: 'Language', organization: 'Proficiency', location: 'Region or dialect (optional)', summary: 'Additional context' },
+  affiliations: { title: 'Membership or role', organization: 'Association or board', location: 'Chapter or location (optional)', summary: 'Contribution or context' },
+  interests: { title: 'Interest group', organization: 'Context (optional)', location: 'Location (optional)', summary: 'Details (optional)' },
+  custom: { title: 'Title', organization: 'Organization or context', location: 'Location (optional)', summary: 'Details' },
 }
 
 function EntryEditor({ entry, kind, index, total, canDuplicate, onChange, onMove, onDuplicate, onDelete }: {
@@ -83,10 +83,23 @@ function EntryEditor({ entry, kind, index, total, canDuplicate, onChange, onMove
   onDelete: () => void
 }) {
   const labels = entryLabels[kind]
+  const datePresentation = ENTRY_DATE_PRESENTATION[kind]
+  const [metadataOpen, setMetadataOpen] = useState(() => Boolean(entry.location.trim() || entry.startDate.trim() || entry.endDate.trim() || entry.current))
   const patch = (updates: Partial<ResumeEntry>) => onChange({ ...entry, ...updates })
   const useKeywords = kind === 'skills' || kind === 'interests'
   const supportsHighlights = !['skills', 'languages', 'interests'].includes(kind)
   const showHighlightsByDefault = !['certifications', 'awards', 'publications', 'affiliations'].includes(kind)
+  const metadataFields = (
+    <>
+      <TextField label={labels.location} value={entry.location} onChange={(location) => patch({ location })} {...(kind === 'experience' ? { placeholder: 'City, region or Remote' } : {})} />
+      <TextField id={`entry-start-${entry.id}`} label={datePresentation.startLabel} value={entry.startDate} onChange={(startDate) => patch({ startDate })} placeholder={datePresentation.startPlaceholder} />
+      <TextField label={datePresentation.endLabel} value={entry.current ? datePresentation.currentText : entry.endDate} disabled={entry.current} onChange={(endDate) => patch({ endDate })} placeholder={datePresentation.endPlaceholder} />
+      <label className="check-field field-wide">
+        <input type="checkbox" checked={entry.current} onChange={(event) => patch({ current: event.currentTarget.checked })} />
+        <span>{datePresentation.currentLabel}{entry.current && entry.endDate.trim() ? <small>Your previous end value is preserved and will return if you uncheck this.</small> : null}</span>
+      </label>
+    </>
+  )
   return (
     <div className="entry-editor" id={`entry-editor-${entry.id}`}>
       <div className="entry-editor-toolbar">
@@ -101,17 +114,16 @@ function EntryEditor({ entry, kind, index, total, canDuplicate, onChange, onMove
       <div className="field-grid">
         <TextField id={`entry-title-${entry.id}`} label={labels.title} value={entry.title} onChange={(title) => patch({ title })} />
         <TextField label={labels.organization} value={entry.organization} onChange={(organization) => patch({ organization })} />
-        {kind !== 'skills' && kind !== 'interests' ? <TextField label="Location" value={entry.location} onChange={(location) => patch({ location })} placeholder="City, region or Remote" /> : null}
         <TextField id={`entry-url-${entry.id}`} label="Link (optional)" type="url" value={entry.url} onChange={(url) => patch({ url })} placeholder="portfolio.example.com/work" />
-        {kind !== 'skills' && kind !== 'interests' ? (
-          <>
-            <TextField id={`entry-start-${entry.id}`} label="Start" value={entry.startDate} onChange={(startDate) => patch({ startDate })} placeholder="2022 or Sep 2022" />
-            <TextField label="End" value={entry.current ? 'Present' : entry.endDate} disabled={entry.current} onChange={(endDate) => patch({ endDate })} placeholder="2025" />
-            <label className="check-field field-wide"><input type="checkbox" checked={entry.current} onChange={(event) => patch({ current: event.currentTarget.checked, endDate: event.currentTarget.checked ? '' : entry.endDate })} /> <span>Current or ongoing</span></label>
-          </>
-        ) : null}
-        {kind !== 'skills' && kind !== 'interests' ? <TextAreaField label={labels.summary} value={entry.summary} onChange={(summary) => patch({ summary })} placeholder="One concise line of useful context—not a list of duties." /> : null}
+        {!datePresentation.optional ? metadataFields : null}
+        <TextAreaField label={labels.summary} value={entry.summary} onChange={(summary) => patch({ summary })} placeholder="One concise line of useful context—not a list of duties." />
       </div>
+      {datePresentation.optional ? (
+        <details className="entry-optional-metadata" open={metadataOpen} onToggle={(event) => setMetadataOpen(event.currentTarget.open)}>
+          <summary>Optional location and dates</summary>
+          <div className="field-grid">{metadataFields}</div>
+        </details>
+      ) : null}
       {supportsHighlights && (showHighlightsByDefault || entry.highlights.length) ? <StringListEditor idPrefix={`entry-highlight-${entry.id}`} label="Highlights" values={entry.highlights} onChange={(highlights) => patch({ highlights })} placeholder="Start with your action, then add scope and outcome." addLabel="Add highlight" /> : supportsHighlights ? <button className="text-button compact-button" type="button" onClick={() => patch({ highlights: [''] })}><Plus size={14} /> Add supporting detail</button> : null}
       {useKeywords || entry.keywords.length ? <StringListEditor label={useKeywords ? 'Skills or topics' : 'Keywords'} values={entry.keywords} onChange={(keywords) => patch({ keywords })} placeholder="Add one capability per item" addLabel={useKeywords ? 'Add skill' : 'Add keyword'} /> : <button className="text-button compact-button" type="button" onClick={() => patch({ keywords: [''] })}><Plus size={14} /> Add optional keywords</button>}
     </div>

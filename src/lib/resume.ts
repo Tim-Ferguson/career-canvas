@@ -132,6 +132,16 @@ export interface StarterDefinition {
 
 export type StarterId = 'universal' | 'leadership' | 'healthcare' | 'education' | 'creative' | 'trades' | 'student' | 'academic'
 
+export interface EntryDatePresentation {
+  startLabel: string
+  startPlaceholder: string
+  endLabel: string
+  endPlaceholder: string
+  currentLabel: string
+  currentText: string
+  optional: boolean
+}
+
 export const STARTERS: readonly StarterDefinition[] = [
   { id: 'universal', label: 'Universal', eyebrow: 'Balanced', description: 'A flexible, ATS-friendly starting point for most experienced professionals.' },
   { id: 'leadership', label: 'Leadership', eyebrow: 'Executive', description: 'Prioritizes scope, business outcomes, transformation, and board-ready clarity.' },
@@ -157,6 +167,25 @@ export const SECTION_CATALOG: ReadonlyArray<{ kind: SectionKind; title: string; 
   { kind: 'interests', title: 'Interests', description: 'Optional interests that add useful, relevant context' },
   { kind: 'custom', title: 'Custom section', description: 'Anything your field or story needs' },
 ]
+
+export const ENTRY_DATE_PRESENTATION: Readonly<Record<SectionKind, EntryDatePresentation>> = {
+  experience: { startLabel: 'Start', startPlaceholder: '2022 or Sep 2022', endLabel: 'End', endPlaceholder: '2025', currentLabel: 'Current role or position', currentText: 'Present', optional: false },
+  education: { startLabel: 'Started', startPlaceholder: '2022', endLabel: 'Completed or expected', endPlaceholder: 'May 2026 or Expected 2027', currentLabel: 'Program is in progress', currentText: 'In progress', optional: false },
+  skills: { startLabel: 'First used', startPlaceholder: '2020', endLabel: 'Last used', endPlaceholder: '2025', currentLabel: 'Currently used', currentText: 'Current', optional: true },
+  projects: { startLabel: 'Started', startPlaceholder: '2024', endLabel: 'Completed', endPlaceholder: '2025', currentLabel: 'Project is ongoing', currentText: 'Ongoing', optional: false },
+  certifications: { startLabel: 'Issued', startPlaceholder: 'May 2024', endLabel: 'Expires, renewed, or status', endPlaceholder: 'May 2026 or Active', currentLabel: 'Active with no listed end date', currentText: 'Active', optional: false },
+  volunteering: { startLabel: 'Start', startPlaceholder: '2022', endLabel: 'End', endPlaceholder: '2025', currentLabel: 'Service is ongoing', currentText: 'Present', optional: false },
+  awards: { startLabel: 'Awarded or started', startPlaceholder: '2024', endLabel: 'Ended (for grants)', endPlaceholder: '2025', currentLabel: 'Award or grant is ongoing', currentText: 'Ongoing', optional: false },
+  publications: { startLabel: 'Work began (optional)', startPlaceholder: '2023', endLabel: 'Published or presented', endPlaceholder: '2025', currentLabel: 'Forthcoming or in press', currentText: 'Forthcoming', optional: false },
+  languages: { startLabel: 'First used', startPlaceholder: '2018', endLabel: 'Last used', endPlaceholder: '2025', currentLabel: 'Currently used', currentText: 'Current', optional: true },
+  affiliations: { startLabel: 'Joined', startPlaceholder: '2022', endLabel: 'Ended', endPlaceholder: '2025', currentLabel: 'Membership or service is current', currentText: 'Present', optional: false },
+  interests: { startLabel: 'Started', startPlaceholder: '2020', endLabel: 'Ended', endPlaceholder: '2025', currentLabel: 'Currently active', currentText: 'Current', optional: true },
+  custom: { startLabel: 'Start', startPlaceholder: '2022', endLabel: 'End', endPlaceholder: '2025', currentLabel: 'Current or ongoing', currentText: 'Present', optional: false },
+}
+
+export function formatEntryDateRange(entry: ResumeEntry, kind: SectionKind): string {
+  return [entry.startDate, entry.current ? ENTRY_DATE_PRESENTATION[kind].currentText : entry.endDate].filter((value) => value.trim()).join(' – ')
+}
 
 const actionVerbs = new Set([
   'accelerated', 'achieved', 'built', 'coached', 'created', 'cut', 'delivered', 'designed', 'developed', 'directed',
@@ -589,7 +618,7 @@ export function resumeToText(resume: ResumeDocument): string {
     for (const entryItem of sectionItem.entries) {
       const heading = [entryItem.title, entryItem.organization].filter((item) => item.trim()).join(' — ')
       if (heading) lines.push(heading)
-      const meta = [entryItem.location, [entryItem.startDate, entryItem.current ? 'Present' : entryItem.endDate].filter(Boolean).join(' – ')].filter(Boolean).join(' | ')
+      const meta = [entryItem.location, formatEntryDateRange(entryItem, sectionItem.kind)].filter((item) => item.trim()).join(' | ')
       if (meta) lines.push(meta)
       if (entryItem.summary.trim()) lines.push(entryItem.summary.trim())
       for (const highlight of entryItem.highlights.filter((item) => item.trim())) lines.push(`• ${highlight.trim()}`)

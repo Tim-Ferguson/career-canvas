@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
-import { externalHref, type ResumeDocument, type ResumeEntry, type ResumeSection } from '../lib/resume'
+import { externalHref, formatEntryDateRange, type ResumeDocument, type ResumeEntry, type ResumeSection } from '../lib/resume'
 
 interface ResumePreviewProps {
   resume: ResumeDocument
@@ -14,8 +14,8 @@ export function entryNeedsFlexibleBreak(entry: ResumeEntry): boolean {
   return words > 260 || entry.highlights.filter((item) => item.trim()).length > 8
 }
 
-function DateRange({ entry }: { entry: ResumeEntry }) {
-  const value = [entry.startDate, entry.current ? 'Present' : entry.endDate].filter(Boolean).join(' – ')
+function DateRange({ entry, kind }: { entry: ResumeEntry; kind: ResumeSection['kind'] }) {
+  const value = formatEntryDateRange(entry, kind)
   return value ? <span>{value}</span> : null
 }
 
@@ -36,7 +36,7 @@ function ResumeEntryView({ entry, kind }: { entry: ResumeEntry; kind: ResumeSect
             {entry.organization.trim() ? <p className="document-organization">{entry.organization}</p> : null}
           </div>
           <div className="document-entry-meta">
-            <DateRange entry={entry} />
+            <DateRange entry={entry} kind={kind} />
             {entry.location.trim() ? <span>{entry.location}</span> : null}
           </div>
         </div>

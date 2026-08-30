@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { MAX_DOCUMENT_BYTES, analyzeResume, cloneResume, containsStarterSampleContent, createBlankResume, createSection, createStarter, migrateResume, moveInArray, parseResumeJson, renderedPageCount, resumeToText, utf8ByteLength, validateResume } from './resume'
+import { MAX_DOCUMENT_BYTES, analyzeResume, cloneResume, containsStarterSampleContent, createBlankResume, createSection, createStarter, formatEntryDateRange, migrateResume, moveInArray, parseResumeJson, renderedPageCount, resumeToText, utf8ByteLength, validateResume } from './resume'
 
 describe('resume document model', () => {
   it('validates every industry starter', () => {
@@ -76,6 +76,15 @@ describe('resume document model', () => {
     assert.equal(renderedPageCount(2250, 'a4'), 3)
     assert.equal(renderedPageCount(Number.NaN, 'letter'), 1)
   })
+
+  it('formats one portable current flag with section-aware language', () => {
+    const entry = { ...createSection('custom').entries[0]!, startDate: '2024', endDate: 'Stored end date', current: true }
+    assert.equal(formatEntryDateRange(entry, 'experience'), '2024 – Present')
+    assert.equal(formatEntryDateRange(entry, 'education'), '2024 – In progress')
+    assert.equal(formatEntryDateRange(entry, 'certifications'), '2024 – Active')
+    assert.equal(formatEntryDateRange(entry, 'publications'), '2024 – Forthcoming')
+    assert.equal(entry.endDate, 'Stored end date')
+  })
 })
 
 describe('resume output and review', () => {
@@ -85,6 +94,14 @@ describe('resume output and review', () => {
     assert.ok(text.includes('EXPERIENCE'))
     assert.ok(text.includes('• Led a 14-person'))
     assert.ok(text.indexOf('EXPERIENCE') < text.indexOf('CAPABILITIES'))
+  })
+
+  it('keeps section-aware ongoing language in ATS-friendly plain text', () => {
+    const resume = createBlankResume()
+    const credential = createSection('certifications')
+    credential.entries[0] = { ...credential.entries[0]!, title: 'State license', startDate: '2024', current: true }
+    resume.sections = [credential]
+    assert.match(resumeToText(resume), /2024 – Active/)
   })
 
   it('gives a blank draft specific, prioritized guidance', () => {

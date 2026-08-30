@@ -59,7 +59,7 @@ interface ResumeEntry {
 }
 ```
 
-The UI changes field labels and emphasis by section kind, but the saved data stays predictable. This lets the same model express roles, degrees, licenses, portfolio work, research, languages, equipment, methods, awards, service, and custom professional evidence.
+The UI changes field labels, ongoing-status language, and emphasis by section kind, but the saved data stays predictable. For example, `current: true` renders as “Present” for a role, “In progress” for education, “Active” for a credential, and “Forthcoming” for a publication. A stored end value is preserved when an entry is temporarily marked current. Less-common location and date metadata for skills, languages, and interests remains available in an optional visual-editor group rather than becoming JSON-only data. This lets the same model express roles, degrees, licenses, portfolio work, research, languages, equipment, methods, awards, service, and custom professional evidence.
 
 ## Settings
 

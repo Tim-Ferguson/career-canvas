@@ -52,4 +52,20 @@ describe('semantic resume rendering', () => {
     assert.ok(html.includes('document-entry-flow'))
     assert.ok(html.includes('document-header-flow'))
   })
+
+  it('renders ongoing dates with meaning appropriate to each section', () => {
+    const resume = createStarter()
+    const education = createSection('education')
+    const certification = createSection('certifications')
+    const publication = createSection('publications')
+    education.entries[0] = { ...education.entries[0]!, title: 'Part-time program', startDate: '2025', endDate: 'Previously expected 2027', current: true }
+    certification.entries[0] = { ...certification.entries[0]!, title: 'Professional license', startDate: '2024', current: true }
+    publication.entries[0] = { ...publication.entries[0]!, title: 'Accepted article', current: true }
+    resume.sections = [education, certification, publication]
+    const html = renderToStaticMarkup(<ResumePreview resume={resume} />)
+    assert.ok(html.includes('2025 – In progress'))
+    assert.ok(html.includes('2024 – Active'))
+    assert.ok(html.includes('Forthcoming'))
+    assert.equal(html.includes('Previously expected 2027'), false)
+  })
 })
