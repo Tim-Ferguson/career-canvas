@@ -45,6 +45,18 @@ describe('resume document model', () => {
     assert.throws(() => validateResume(oversized), /2 MB/)
   })
 
+  it('enforces bounded collections used by the visual editor', () => {
+    const tooManySections = createBlankResume()
+    tooManySections.sections = Array.from({ length: 33 }, () => createSection('custom'))
+    assert.throws(() => validateResume(tooManySections), /32/)
+    const tooManyHighlights = createBlankResume()
+    tooManyHighlights.sections[0]!.entries[0]!.highlights = Array.from({ length: 101 }, () => 'Evidence')
+    assert.throws(() => validateResume(tooManyHighlights), /100/)
+    const tooManyLinks = createBlankResume()
+    tooManyLinks.profile.links = Array.from({ length: 25 }, (_, index) => ({ id: `link-${index}`, label: 'Profile', url: 'example.com' }))
+    assert.throws(() => validateResume(tooManyLinks), /24/)
+  })
+
   it('imports valid resume JSON with a Unicode byte-order mark', () => {
     const resume = createStarter()
     assert.deepEqual(parseResumeJson(`\uFEFF${JSON.stringify(resume)}`), resume)

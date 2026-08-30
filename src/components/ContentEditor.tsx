@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronUp, Copy, Eye, EyeOff, Plus, Trash2 } from 'lucide-react'
-import { createEntry, createId, createSection, moveInArray, SECTION_CATALOG, type ResumeDocument, type ResumeEntry, type ResumeLink, type ResumeSection, type SectionKind } from '../lib/resume'
+import { MAX_ENTRIES, MAX_LIST_ITEMS, MAX_PROFILE_LINKS, MAX_SECTIONS, MAX_TEXT, createEntry, createId, createSection, moveInArray, SECTION_CATALOG, type ResumeDocument, type ResumeEntry, type ResumeLink, type ResumeSection, type SectionKind } from '../lib/resume'
 
 interface ContentEditorProps {
   resume: ResumeDocument
@@ -22,7 +22,7 @@ function TextField({ id, label, value, onChange, placeholder, type = 'text', wid
   return (
     <label className={`field ${wide ? 'field-wide' : ''}`}>
       <span>{label}</span>
-      <input id={id} type={type} value={value} placeholder={placeholder} disabled={disabled} onChange={(event) => onChange(event.currentTarget.value)} />
+      <input id={id} type={type} value={value} maxLength={MAX_TEXT} placeholder={placeholder} disabled={disabled} onChange={(event) => onChange(event.currentTarget.value)} />
     </label>
   )
 }
@@ -31,7 +31,7 @@ function TextAreaField({ id, label, value, onChange, placeholder, hint }: { id?:
   return (
     <label className="field field-wide">
       <span>{label}</span>
-      <textarea id={id} value={value} placeholder={placeholder} onChange={(event) => onChange(event.currentTarget.value)} rows={4} />
+      <textarea id={id} value={value} maxLength={MAX_TEXT} placeholder={placeholder} onChange={(event) => onChange(event.currentTarget.value)} rows={4} />
       {hint ? <small>{hint}</small> : null}
     </label>
   )
@@ -47,11 +47,11 @@ function StringListEditor({ idPrefix, label, values, onChange, placeholder, addL
       <legend>{label}</legend>
       {values.map((value, index) => (
         <div className="list-field-row" key={index}>
-          <textarea id={idPrefix ? `${idPrefix}-${index}` : undefined} rows={2} value={value} placeholder={placeholder} onChange={(event) => onChange(values.map((item, itemIndex) => itemIndex === index ? event.currentTarget.value : item))} />
+          <textarea id={idPrefix ? `${idPrefix}-${index}` : undefined} rows={2} value={value} maxLength={MAX_TEXT} placeholder={placeholder} onChange={(event) => onChange(values.map((item, itemIndex) => itemIndex === index ? event.currentTarget.value : item))} />
           <IconButton label={`Remove ${label.toLocaleLowerCase()} ${index + 1}`} danger onClick={() => onChange(values.filter((_, itemIndex) => itemIndex !== index))}><Trash2 size={15} /></IconButton>
         </div>
       ))}
-      <button className="text-button compact-button" type="button" onClick={() => onChange([...values, ''])}><Plus size={14} /> {addLabel}</button>
+      <button className="text-button compact-button" type="button" disabled={values.length >= MAX_LIST_ITEMS} onClick={() => onChange([...values, ''])}><Plus size={14} /> {values.length >= MAX_LIST_ITEMS ? `${label} limit reached` : addLabel}</button>
     </fieldset>
   )
 }
@@ -71,11 +71,12 @@ const entryLabels: Record<SectionKind, { title: string; organization: string; su
   custom: { title: 'Title', organization: 'Organization or context', summary: 'Details' },
 }
 
-function EntryEditor({ entry, kind, index, total, onChange, onMove, onDuplicate, onDelete }: {
+function EntryEditor({ entry, kind, index, total, canDuplicate, onChange, onMove, onDuplicate, onDelete }: {
   entry: ResumeEntry
   kind: SectionKind
   index: number
   total: number
+  canDuplicate: boolean
   onChange: (entry: ResumeEntry) => void
   onMove: (direction: -1 | 1) => void
   onDuplicate: () => void
@@ -84,7 +85,8 @@ function EntryEditor({ entry, kind, index, total, onChange, onMove, onDuplicate,
   const labels = entryLabels[kind]
   const patch = (updates: Partial<ResumeEntry>) => onChange({ ...entry, ...updates })
   const useKeywords = kind === 'skills' || kind === 'interests'
-  const showHighlights = !['skills', 'languages', 'interests', 'certifications', 'awards', 'publications', 'affiliations'].includes(kind)
+  const supportsHighlights = !['skills', 'languages', 'interests'].includes(kind)
+  const showHighlightsByDefault = !['certifications', 'awards', 'publications', 'affiliations'].includes(kind)
   return (
     <div className="entry-editor" id={`entry-editor-${entry.id}`}>
       <div className="entry-editor-toolbar">
@@ -92,7 +94,7 @@ function EntryEditor({ entry, kind, index, total, onChange, onMove, onDuplicate,
         <div>
           <IconButton label="Move entry up" disabled={index === 0} onClick={() => onMove(-1)}><ChevronUp size={15} /></IconButton>
           <IconButton label="Move entry down" disabled={index === total - 1} onClick={() => onMove(1)}><ChevronDown size={15} /></IconButton>
-          <IconButton label="Duplicate entry" onClick={onDuplicate}><Copy size={14} /></IconButton>
+          <IconButton label="Duplicate entry" disabled={!canDuplicate} onClick={onDuplicate}><Copy size={14} /></IconButton>
           <IconButton label="Delete entry" danger onClick={onDelete}><Trash2 size={14} /></IconButton>
         </div>
       </div>
@@ -110,8 +112,8 @@ function EntryEditor({ entry, kind, index, total, onChange, onMove, onDuplicate,
         ) : null}
         {kind !== 'skills' && kind !== 'interests' ? <TextAreaField label={labels.summary} value={entry.summary} onChange={(summary) => patch({ summary })} placeholder="One concise line of useful context—not a list of duties." /> : null}
       </div>
-      {showHighlights ? <StringListEditor idPrefix={`entry-highlight-${entry.id}`} label="Highlights" values={entry.highlights} onChange={(highlights) => patch({ highlights })} placeholder="Start with your action, then add scope and outcome." addLabel="Add highlight" /> : null}
-      {useKeywords || entry.keywords.length ? <StringListEditor label={useKeywords ? 'Skills or topics' : 'Keywords'} values={entry.keywords} onChange={(keywords) => patch({ keywords })} placeholder="Add one capability per item" addLabel={useKeywords ? 'Add skill' : 'Add keyword'} /> : null}
+      {supportsHighlights && (showHighlightsByDefault || entry.highlights.length) ? <StringListEditor idPrefix={`entry-highlight-${entry.id}`} label="Highlights" values={entry.highlights} onChange={(highlights) => patch({ highlights })} placeholder="Start with your action, then add scope and outcome." addLabel="Add highlight" /> : supportsHighlights ? <button className="text-button compact-button" type="button" onClick={() => patch({ highlights: [''] })}><Plus size={14} /> Add supporting detail</button> : null}
+      {useKeywords || entry.keywords.length ? <StringListEditor label={useKeywords ? 'Skills or topics' : 'Keywords'} values={entry.keywords} onChange={(keywords) => patch({ keywords })} placeholder="Add one capability per item" addLabel={useKeywords ? 'Add skill' : 'Add keyword'} /> : <button className="text-button compact-button" type="button" onClick={() => patch({ keywords: [''] })}><Plus size={14} /> Add optional keywords</button>}
     </div>
   )
 }
@@ -154,13 +156,14 @@ function SectionEditor({ section, index, total, onChange, onMove, onDelete }: {
             kind={section.kind}
             index={entryIndex}
             total={section.entries.length}
+            canDuplicate={section.entries.length < MAX_ENTRIES}
             onChange={(value) => updateEntry(entryIndex, value)}
             onMove={(direction) => patch({ entries: moveInArray(section.entries, entryIndex, entryIndex + direction) })}
             onDuplicate={() => patch({ entries: [...section.entries.slice(0, entryIndex + 1), { ...entryItem, id: createId('entry') }, ...section.entries.slice(entryIndex + 1)] })}
             onDelete={() => deleteEntry(entryIndex)}
           />
         ))}
-        <button className="secondary-button full-button" type="button" onClick={() => patch({ entries: [...section.entries, createEntry(section.kind)] })}><Plus size={16} /> Add {section.kind === 'experience' ? 'role' : 'entry'}</button>
+        <button className="secondary-button full-button" type="button" disabled={section.entries.length >= MAX_ENTRIES} onClick={() => patch({ entries: [...section.entries, createEntry(section.kind)] })}><Plus size={16} /> {section.entries.length >= MAX_ENTRIES ? 'Entry limit reached' : `Add ${section.kind === 'experience' ? 'role' : 'entry'}`}</button>
       </div>
     </details>
   )
@@ -211,7 +214,7 @@ export function ContentEditor({ resume, onChange }: ContentEditorProps) {
         </div>
         <div className="subsection-heading"><h3>Profile links</h3><span>LinkedIn, portfolio, GitHub, ORCID, or another relevant profile</span></div>
         {resume.profile.links.map((link, index) => <LinkEditor key={link.id} link={link} onChange={(value) => patchProfile({ links: resume.profile.links.map((item, itemIndex) => itemIndex === index ? value : item) })} onDelete={() => patchProfile({ links: resume.profile.links.filter((_, itemIndex) => itemIndex !== index) })} />)}
-        <button className="text-button compact-button" type="button" onClick={() => patchProfile({ links: [...resume.profile.links, { id: createId('link'), label: '', url: '' }] })}><Plus size={14} /> Add profile link</button>
+        <button className="text-button compact-button" type="button" disabled={resume.profile.links.length >= MAX_PROFILE_LINKS} onClick={() => patchProfile({ links: [...resume.profile.links, { id: createId('link'), label: '', url: '' }] })}><Plus size={14} /> {resume.profile.links.length >= MAX_PROFILE_LINKS ? 'Profile link limit reached' : 'Add profile link'}</button>
       </details>
 
       <section className="content-sections" id="content-sections" aria-labelledby="sections-heading">
@@ -233,11 +236,12 @@ export function ContentEditor({ resume, onChange }: ContentEditorProps) {
         <summary><Plus size={17} /> Add another section</summary>
         <div className="section-catalog">
           {SECTION_CATALOG.map((item) => (
-            <button type="button" key={item.kind} onClick={() => patch({ sections: [...resume.sections, createSection(item.kind)] })}>
+            <button type="button" key={item.kind} disabled={resume.sections.length >= MAX_SECTIONS} onClick={() => patch({ sections: [...resume.sections, createSection(item.kind)] })}>
               <strong>{item.title}</strong><span>{item.description}</span>
             </button>
           ))}
         </div>
+        {resume.sections.length >= MAX_SECTIONS ? <p className="card-note">The {MAX_SECTIONS}-section document limit is reached. Reuse, rename, or remove a section before adding another.</p> : null}
       </details>
     </div>
   )

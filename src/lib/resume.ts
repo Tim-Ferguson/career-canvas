@@ -2,10 +2,11 @@ import { z } from 'zod'
 
 export const MAX_DOCUMENT_BYTES = 2_000_000
 export const MAX_RESUMES = 24
-const MAX_TEXT = 20_000
-const MAX_SECTIONS = 32
-const MAX_ENTRIES = 200
-const MAX_LIST_ITEMS = 100
+export const MAX_TEXT = 20_000
+export const MAX_SECTIONS = 32
+export const MAX_ENTRIES = 200
+export const MAX_LIST_ITEMS = 100
+export const MAX_PROFILE_LINKS = 24
 
 export const sectionKinds = [
   'experience',
@@ -45,7 +46,7 @@ const profileSchema = z.object({
   location: textSchema,
   website: textSchema,
   summary: textSchema,
-  links: z.array(linkSchema).max(24),
+  links: z.array(linkSchema).max(MAX_PROFILE_LINKS),
 }).strict()
 
 const entrySchema = z.object({
