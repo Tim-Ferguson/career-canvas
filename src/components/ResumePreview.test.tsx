@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { ResumePreview, entryNeedsFlexibleBreak } from './ResumePreview'
+import { ResumePreview, entryNeedsFlexibleBreak, keywordListNeedsFlexibleBreak, textBlockNeedsFlexibleBreak } from './ResumePreview'
 import { createSection, createStarter, layouts, pageSizes, sectionKinds } from '../lib/resume'
 
 describe('semantic resume rendering', () => {
@@ -59,10 +59,27 @@ describe('semantic resume rendering', () => {
     const entry = resume.sections[0]!.entries[0]!
     entry.highlights = Array.from({ length: 9 }, (_, index) => `Evidence point ${index + 1}`)
     resume.profile.summary = 'summary '.repeat(181)
+    entry.highlights[0] = 'Long evidence '.repeat(221)
+    entry.keywords = Array.from({ length: 33 }, (_, index) => `Capability ${index + 1}`)
     assert.equal(entryNeedsFlexibleBreak(entry), true)
+    assert.equal(textBlockNeedsFlexibleBreak(entry.highlights[0]!), true)
+    assert.equal(keywordListNeedsFlexibleBreak(entry.keywords), true)
     const html = renderToStaticMarkup(<ResumePreview resume={resume} />)
     assert.ok(html.includes('document-entry-flow'))
     assert.ok(html.includes('document-header-flow'))
+    assert.ok(html.includes('document-highlight-flow'))
+    assert.ok(html.includes('document-keyword-list-flow'))
+  })
+
+  it('adds print escape hatches for extreme identity, contact, and heading blocks', () => {
+    const resume = createStarter()
+    resume.profile.name = 'Candidate '.repeat(130)
+    resume.profile.links = Array.from({ length: 13 }, (_, index) => ({ id: `link-${index}`, label: `Profile ${index}`, url: `profile${index}.example` }))
+    resume.sections[0]!.entries[0]!.title = 'Cross-industry leadership '.repeat(130)
+    const html = renderToStaticMarkup(<ResumePreview resume={resume} />)
+    assert.ok(html.includes('document-identity-flow'))
+    assert.ok(html.includes('document-contact-flow'))
+    assert.ok(html.includes('document-entry-heading-flow'))
   })
 
   it('renders ongoing dates with meaning appropriate to each section', () => {
