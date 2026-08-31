@@ -126,7 +126,7 @@ function EntryEditor({ entry, kind, index, total, canDuplicate, onChange, onMove
         </details>
       ) : null}
       {supportsHighlights && (showHighlightsByDefault || entry.highlights.length) ? <StringListEditor idPrefix={`entry-highlight-${entry.id}`} label="Highlights" values={entry.highlights} onChange={(highlights) => patch({ highlights })} placeholder="Start with your action, then add scope and outcome." addLabel="Add highlight" /> : supportsHighlights ? <button className="text-button compact-button" type="button" onClick={() => patch({ highlights: [''] })}><Plus size={14} /> Add supporting detail</button> : null}
-      {useKeywords || entry.keywords.length ? <StringListEditor label={useKeywords ? 'Skills or topics' : 'Keywords'} values={entry.keywords} onChange={(keywords) => patch({ keywords })} placeholder="Add one capability per item" addLabel={useKeywords ? 'Add skill' : 'Add keyword'} /> : <button className="text-button compact-button" type="button" onClick={() => patch({ keywords: [''] })}><Plus size={14} /> Add optional keywords</button>}
+      {useKeywords || entry.keywords.length ? <StringListEditor idPrefix={`entry-keyword-${entry.id}`} label={useKeywords ? 'Skills or topics' : 'Keywords'} values={entry.keywords} onChange={(keywords) => patch({ keywords })} placeholder="Add one capability per item" addLabel={useKeywords ? 'Add skill' : 'Add keyword'} /> : <button className="text-button compact-button" type="button" onClick={() => patch({ keywords: [''] })}><Plus size={14} /> Add optional keywords</button>}
     </div>
   )
 }

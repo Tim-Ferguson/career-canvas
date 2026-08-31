@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { resumeDateIsDefinitelyFuture, resumeDateRangeIsReversed } from './dateIntegrity'
 import { duplicateExternalLinkIndex, emailHref, externalHref, phoneHref } from './contactLinks'
+import { findDuplicateEntry, findDuplicateKeyword, findDuplicateSectionTitle } from './reviewDuplicates'
 
 export const MAX_DOCUMENT_BYTES = 2_000_000
 export const MAX_RESUMES = 24
@@ -116,6 +117,7 @@ export interface ResumeIssue {
   detail: string
   sectionId?: string
   entryId?: string
+  itemIndex?: number
 }
 
 export interface ResumeAnalysis {
@@ -847,6 +849,12 @@ export function analyzeResume(resume: ResumeDocument): ResumeAnalysis {
   const unlabeledProfile = resume.profile.links.find((link) => externalHref(link.url) && !link.label.trim())
   if (unlabeledProfile) add({ id: 'unlabeled-profile-link', severity: 'tip', title: 'Label a profile link', detail: 'Use a short reader-facing label such as LinkedIn, Portfolio, GitHub, or ORCID instead of printing the full destination.' }, 2)
   if (duplicateExternalLinkIndex(links) >= 0) add({ id: 'duplicate-links', severity: 'tip', title: 'Remove a repeated web link', detail: 'The same normalized destination appears more than once. Keep the clearest placement and use the space for distinct information.' }, 2)
+  const duplicateSectionTitle = findDuplicateSectionTitle(resume)
+  if (duplicateSectionTitle) add({ id: 'duplicate-section-title', sectionId: duplicateSectionTitle.sectionId, severity: 'tip', title: 'Differentiate repeated section headings', detail: 'Two visible sections use the same normalized heading. Rename or combine them so readers can tell why each group exists.' }, 2)
+  const duplicateEntry = findDuplicateEntry(resume)
+  if (duplicateEntry) add({ id: 'duplicate-entry', sectionId: duplicateEntry.sectionId, entryId: duplicateEntry.entryId, severity: 'improvement', title: 'Remove a duplicated entry', detail: 'A whole visible entry repeats the same title, context, dates, summary, links, and evidence. Keep one copy or make their distinct purpose clear.' }, 4)
+  const duplicateKeyword = findDuplicateKeyword(resume)
+  if (duplicateKeyword) add({ id: 'duplicate-keyword', sectionId: duplicateKeyword.sectionId, entryId: duplicateKeyword.entryId, itemIndex: duplicateKeyword.itemIndex, severity: 'tip', title: 'Remove a repeated skill or keyword', detail: 'The same normalized item appears twice in one list. Keep one so the capability is easier to scan.' }, 2)
   const allText = [resume.profile.name, resume.profile.headline, resume.profile.summary, ...visible.flatMap((item) => [item.title, ...item.entries.flatMap((entryItem) => [entryItem.title, entryItem.organization, entryItem.summary, ...entryItem.highlights, ...entryItem.keywords])])].join(' ')
   const words = cleanWords(allText).length
   return { score: Math.max(0, Math.min(100, 100 - penalty)), issues, words, bullets: bullets.length, estimatedPages: Math.max(1, Math.ceil(words / (resume.settings.density === 'tight' ? 720 : resume.settings.density === 'comfortable' ? 480 : 600))) }

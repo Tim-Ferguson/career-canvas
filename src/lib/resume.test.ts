@@ -171,6 +171,20 @@ describe('resume output and review', () => {
     assert.equal(resumeToText(resume).includes(': https://portfolio.example/'), false)
   })
 
+  it('flags only substantive visible duplicate structure and exact repeated keywords', () => {
+    const resume = createStarter()
+    const firstSection = resume.sections[0]!
+    const copiedEntry = { ...structuredClone(firstSection.entries[0]!), id: 'entry-copied' }
+    firstSection.entries.push(copiedEntry)
+    const skills = resume.sections.find((section) => section.kind === 'skills')!
+    skills.title = ` ${firstSection.title.toUpperCase()} `
+    skills.entries[0]!.keywords = ['Program design', 'program   DESIGN']
+    const issues = analyzeResume(resume).issues
+    assert.equal(issues.find((item) => item.id === 'duplicate-entry')?.entryId, copiedEntry.id)
+    assert.equal(issues.find((item) => item.id === 'duplicate-section-title')?.sectionId, skills.id)
+    assert.equal(issues.find((item) => item.id === 'duplicate-keyword')?.itemIndex, 1)
+  })
+
   it('finds incomplete, reversed, and impossible current timelines without rejecting flexible dates', () => {
     const resume = createStarter()
     const currentYear = new Date().getUTCFullYear()

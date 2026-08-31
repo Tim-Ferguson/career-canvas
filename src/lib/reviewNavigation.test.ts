@@ -39,6 +39,19 @@ describe('review-to-editor navigation', () => {
     assert.equal(reviewDestination(issue(resume, 'current-status-mismatch'), resume).id, `entry-current-${entry.id}`)
   })
 
+  it('focuses the second duplicate section, entry, and keyword controls', () => {
+    const resume = createStarter()
+    const firstSection = resume.sections[0]!
+    const copiedEntry = { ...structuredClone(firstSection.entries[0]!), id: 'entry-copied' }
+    firstSection.entries.push(copiedEntry)
+    const skills = resume.sections.find((section) => section.kind === 'skills')!
+    skills.title = ` ${firstSection.title.toUpperCase()} `
+    skills.entries[0]!.keywords = ['Program design', 'program   DESIGN']
+    assert.equal(reviewDestination(issue(resume, 'duplicate-section-title'), resume).id, `section-title-${skills.id}`)
+    assert.equal(reviewDestination(issue(resume, 'duplicate-entry'), resume).id, `entry-title-${copiedEntry.id}`)
+    assert.equal(reviewDestination(issue(resume, 'duplicate-keyword'), resume).id, `entry-keyword-${skills.entries[0]!.id}-1`)
+  })
+
   it('opens the add-section control when substantive evidence is absent', () => {
     const resume = createBlankResume()
     resume.sections = resume.sections.filter((section) => section.kind === 'skills')

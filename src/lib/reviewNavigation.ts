@@ -102,5 +102,8 @@ export function reviewDestination(issue: ResumeIssue, resume: ResumeDocument): R
     const duplicateIndex = duplicateExternalLinkIndex(candidates.map((candidate) => candidate.value))
     if (duplicateIndex >= 0) return destination(candidates[duplicateIndex]!.id)
   }
+  if (issue.id === 'duplicate-section-title') return destination(issue.sectionId ? `section-title-${issue.sectionId}` : 'content-sections')
+  if (issue.id === 'duplicate-entry') return destination(issue.entryId ? `entry-title-${issue.entryId}` : 'content-sections')
+  if (issue.id === 'duplicate-keyword') return destination(issue.entryId !== undefined && issue.itemIndex !== undefined ? `entry-keyword-${issue.entryId}-${issue.itemIndex}` : 'content-sections')
   return destination(section ? `section-editor-${section.id}` : 'content-sections')
 }
