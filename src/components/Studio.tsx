@@ -8,15 +8,16 @@ import { ResumePreview } from './ResumePreview'
 import { ReviewPanel } from './ReviewPanel'
 import { LibraryManager } from './LibraryManager'
 import { MAX_RESUMES, STARTERS, cloneResume, containsStarterSampleContent, createBlankResume, createId, createStarter, renderedPageCount, touchResume, type ResumeDocument, type ResumeIssue, type ResumeLibrary, type StarterId } from '../lib/resume'
-import { createDefaultLibrary, loadLibraryFromProvider, removeDocument, saveLibrary, upsertDocument } from '../lib/storage'
+import { createDefaultLibrary, loadLibraryFromProvider, removeDocument, upsertDocument } from '../lib/storage'
 import { createResumeHistory, recordResumeChange, redoResumeChange, undoResumeChange, type ResumeHistory } from '../lib/history'
 import { reviewDestination } from '../lib/reviewNavigation'
 import { commitLatest } from '../lib/latestState'
 import { buildExportPreflight, exportConfirmationMessage } from '../lib/exportReadiness'
-import { createDeletedResumeRecovery, loadDeletedResumeRecoveryFromProvider, recoveryAlreadyPresent, restoreDeletedResume, saveDeletedResumeRecovery, type DeletedResumeRecovery } from '../lib/deletionRecovery'
+import { createDeletedResumeRecovery, loadDeletedResumeRecoveryFromProvider, recoveryAlreadyPresent, restoreDeletedResume, type DeletedResumeRecovery } from '../lib/deletionRecovery'
 import { buildPreviewPageGuides, MAX_PREVIEW_PAGE_GUIDES } from '../lib/pageGuides'
 import { runDeviceStorageOperation, type DeviceStorageFailure } from '../lib/deviceStorage'
 import { restoreLibraryBackup, type LibraryBackupRestoreSummary, type ParsedLibraryBackup } from '../lib/libraryBackup'
+import { saveWorkspace } from '../lib/workspacePersistence'
 
 type StudioTab = 'content' | 'design' | 'review' | 'data'
 
@@ -62,10 +63,17 @@ export function Studio() {
   const libraryMenuRef = useRef<HTMLDivElement>(null)
   const historiesRef = useRef(new Map<string, ResumeHistory>())
   const storageLimitedRef = useRef(false)
+  const pendingDeviceChangesRef = useRef(false)
   const libraryRef = useRef(library)
+  const deletedRecoveryRef = useRef(deletedRecovery)
   libraryRef.current = library
+  deletedRecoveryRef.current = deletedRecovery
   const activeResume = useMemo(() => library.documents.find((document) => document.id === library.activeId) ?? library.documents[0]!, [library])
-  const updateLibrary = (update: (current: ResumeLibrary) => ResumeLibrary) => commitLatest(libraryRef, setLibrary, update)
+  const updateLibrary = (update: (current: ResumeLibrary) => ResumeLibrary) => {
+    pendingDeviceChangesRef.current = true
+    setSaveState(storageLimitedRef.current ? 'limited' : 'saving')
+    return commitLatest(libraryRef, setLibrary, update)
+  }
 
   useEffect(() => {
     const loaded = loadLibraryFromProvider(() => window.localStorage)
@@ -76,7 +84,7 @@ export function Studio() {
       setDeletedRecovery(recovery)
       setRecoveryPersistent(true)
     } else if (recovery) {
-      const cleaned = runDeviceStorageOperation(() => window.localStorage, (storage) => saveDeletedResumeRecovery(storage, null))
+      const cleaned = runDeviceStorageOperation(() => window.localStorage, (storage) => saveWorkspace(storage, loaded.library, null))
       if (!cleaned.ok) {
         storageLimitedRef.current = true
         setStorageFailure(cleaned.reason)
@@ -106,8 +114,9 @@ export function Studio() {
     }
     setSaveState('saving')
     const timer = window.setTimeout(() => {
-      const saved = runDeviceStorageOperation(() => window.localStorage, (storage) => saveLibrary(storage, library))
+      const saved = runDeviceStorageOperation(() => window.localStorage, (storage) => saveWorkspace(storage, libraryRef.current, deletedRecoveryRef.current))
       if (saved.ok) {
+        pendingDeviceChangesRef.current = false
         setSaveState('saved')
       } else {
         storageLimitedRef.current = true
@@ -117,45 +126,50 @@ export function Studio() {
       }
     }, 350)
     return () => window.clearTimeout(timer)
-  }, [hydrated, library])
+  }, [hydrated, library, deletedRecovery])
 
   useEffect(() => {
     if (!hydrated) return
-    const flushLatestLibrary = () => {
-      runDeviceStorageOperation(() => window.localStorage, (storage) => saveLibrary(storage, libraryRef.current))
+    const flushLatestWorkspace = () => {
+      if (!pendingDeviceChangesRef.current) return
+      const saved = runDeviceStorageOperation(() => window.localStorage, (storage) => saveWorkspace(storage, libraryRef.current, deletedRecoveryRef.current))
+      if (saved.ok) pendingDeviceChangesRef.current = false
     }
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') flushLatestLibrary()
+      if (document.visibilityState === 'hidden') flushLatestWorkspace()
     }
-    window.addEventListener('pagehide', flushLatestLibrary)
+    window.addEventListener('pagehide', flushLatestWorkspace)
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => {
-      window.removeEventListener('pagehide', flushLatestLibrary)
+      window.removeEventListener('pagehide', flushLatestWorkspace)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [hydrated])
 
   useEffect(() => {
-    if (!advancedDraftDirty) return
-    const protectAdvancedDraft = (event: BeforeUnloadEvent) => {
+    if (!hydrated) return
+    const protectUnsavedWorkspace = (event: BeforeUnloadEvent) => {
+      let needsWarning = advancedDraftDirty
+      if (pendingDeviceChangesRef.current) {
+        const saved = runDeviceStorageOperation(() => window.localStorage, (storage) => saveWorkspace(storage, libraryRef.current, deletedRecoveryRef.current))
+        if (saved.ok) pendingDeviceChangesRef.current = false
+        else needsWarning = true
+      }
+      if (!needsWarning) return
       event.preventDefault()
       event.returnValue = ''
     }
-    window.addEventListener('beforeunload', protectAdvancedDraft)
-    return () => window.removeEventListener('beforeunload', protectAdvancedDraft)
-  }, [advancedDraftDirty])
+    window.addEventListener('beforeunload', protectUnsavedWorkspace)
+    return () => window.removeEventListener('beforeunload', protectUnsavedWorkspace)
+  }, [advancedDraftDirty, hydrated])
 
   const retrySave = () => {
     setSaveState('saving')
-    const saved = runDeviceStorageOperation(() => window.localStorage, (storage) => {
-      saveLibrary(storage, libraryRef.current)
-      if (deletedRecovery) {
-        saveDeletedResumeRecovery(storage, deletedRecovery)
-      }
-    })
+    const saved = runDeviceStorageOperation(() => window.localStorage, (storage) => saveWorkspace(storage, libraryRef.current, deletedRecovery))
     if (saved.ok) {
       if (deletedRecovery) setRecoveryPersistent(true)
       storageLimitedRef.current = false
+      pendingDeviceChangesRef.current = false
       setStorageFailure(null)
       setSaveState('saved')
       setRecoveryNotice('')
@@ -385,11 +399,11 @@ export function Studio() {
     const recovery = createDeletedResumeRecovery(currentResume)
     let recoverySaved = false
     const persistence = runDeviceStorageOperation(() => window.localStorage, (storage) => {
-      saveLibrary(storage, nextLibrary)
-      saveDeletedResumeRecovery(storage, recovery)
+      saveWorkspace(storage, nextLibrary, recovery)
       recoverySaved = true
     })
     updateLibrary(() => nextLibrary)
+    if (persistence.ok) pendingDeviceChangesRef.current = false
     setDeletedRecovery(recovery)
     setRecoveryPersistent(recoverySaved)
     if (!persistence.ok) {
@@ -411,9 +425,9 @@ export function Studio() {
       historiesRef.current.delete(result.library.activeId)
       setHistoryRevision((value) => value + 1)
       const persisted = runDeviceStorageOperation(() => window.localStorage, (storage) => {
-        saveLibrary(storage, result.library)
-        saveDeletedResumeRecovery(storage, null)
+        saveWorkspace(storage, result.library, null)
       })
+      if (persisted.ok) pendingDeviceChangesRef.current = false
       if (!persisted.ok) {
         storageLimitedRef.current = true
         setStorageFailure(persisted.reason)
@@ -430,7 +444,7 @@ export function Studio() {
 
   const discardDeleted = () => {
     if (!deletedRecovery || !window.confirm(`Permanently discard the recovery copy of “${deletedRecovery.document.title || 'Untitled resume'}”? This cannot be undone.`)) return
-    const discarded = runDeviceStorageOperation(() => window.localStorage, (storage) => saveDeletedResumeRecovery(storage, null))
+    const discarded = runDeviceStorageOperation(() => window.localStorage, (storage) => saveWorkspace(storage, libraryRef.current, null))
     if (!discarded.ok && recoveryPersistent) {
       storageLimitedRef.current = true
       setStorageFailure(discarded.reason)
