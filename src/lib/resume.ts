@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { resumeDateIsDefinitelyFuture, resumeDateRangeIsReversed } from './dateIntegrity'
+import { emailHref, externalHref, phoneHref } from './contactLinks'
 
 export const MAX_DOCUMENT_BYTES = 2_000_000
 export const MAX_RESUMES = 24
@@ -799,8 +800,8 @@ export function analyzeResume(resume: ResumeDocument): ResumeAnalysis {
   if (containsStarterSampleContent(resume)) add({ id: 'sample-content', severity: 'essential', title: 'Replace the fictional starter content', detail: 'A sample identity or result is still present. Replace every name, contact detail, organization, and claim with accurate information before exporting.' }, 25)
   if (!resume.profile.name.trim()) add({ id: 'name', severity: 'essential', title: 'Add your name', detail: 'Every exported resume needs a clear candidate name.' }, 20)
   if (!resume.profile.email.trim() && !resume.profile.phone.trim()) add({ id: 'contact', severity: 'essential', title: 'Add a direct contact method', detail: 'Include an email address or phone number recruiters can use.' }, 15)
-  if (resume.profile.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resume.profile.email.trim())) add({ id: 'email-format', severity: 'essential', title: 'Check the email address', detail: 'It does not look complete. Verify it before anyone receives this resume.' }, 8)
-  if (resume.profile.phone.trim() && resume.profile.phone.replace(/\D/g, '').length < 7) add({ id: 'phone-format', severity: 'improvement', title: 'Check the phone number', detail: 'Include enough digits and any country or area code your reader will need.' }, 4)
+  if (resume.profile.email.trim() && !emailHref(resume.profile.email)) add({ id: 'email-format', severity: 'essential', title: 'Check the email address', detail: 'It does not look like one complete standalone address. Verify it before anyone receives this resume.' }, 8)
+  if (resume.profile.phone.trim() && !phoneHref(resume.profile.phone)) add({ id: 'phone-format', severity: 'improvement', title: 'Check the phone number', detail: 'Use 7–15 digits, an optional leading country code, and a clear extension if needed.' }, 4)
   if (!resume.targetRole.trim()) add({ id: 'target', severity: 'improvement', title: 'Name the target role', detail: 'A target helps you decide which evidence deserves space.' }, 7)
   const summaryWords = cleanWords(resume.profile.summary).length
   if (summaryWords < 25) add({ id: 'summary-short', severity: 'improvement', title: 'Strengthen the opening summary', detail: 'Aim for 35–70 words covering scope, strengths, and the value you create.' }, 8)
@@ -839,14 +840,7 @@ export function analyzeResume(resume: ResumeDocument): ResumeAnalysis {
     if (weakStarts.length / bullets.length > 0.65) add({ id: 'verbs', severity: 'tip', title: 'Lead more bullets with decisive verbs', detail: 'Starting with your action makes ownership and contribution easier to understand.' }, 3)
   }
   const links = [resume.profile.website, ...resume.profile.links.map((link) => link.url), ...visible.flatMap((sectionItem) => sectionItem.entries.map((entryItem) => entryItem.url))].filter((value) => value.trim())
-  if (links.some((value) => {
-    try {
-      const parsed = new URL(externalHref(value))
-      return !['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname.includes('.')
-    } catch {
-      return true
-    }
-  })) add({ id: 'links', severity: 'improvement', title: 'Check every web link', detail: 'At least one website or profile link looks incomplete. Open each link before sending.' }, 4)
+  if (links.some((value) => !externalHref(value))) add({ id: 'links', severity: 'improvement', title: 'Check every web link', detail: 'At least one website or profile link is incomplete, unsafe, or includes sign-in credentials. Open each link before sending.' }, 4)
   const allText = [resume.profile.name, resume.profile.headline, resume.profile.summary, ...visible.flatMap((item) => [item.title, ...item.entries.flatMap((entryItem) => [entryItem.title, entryItem.organization, entryItem.summary, ...entryItem.highlights, ...entryItem.keywords])])].join(' ')
   const words = cleanWords(allText).length
   return { score: Math.max(0, Math.min(100, 100 - penalty)), issues, words, bullets: bullets.length, estimatedPages: Math.max(1, Math.ceil(words / (resume.settings.density === 'tight' ? 720 : resume.settings.density === 'comfortable' ? 480 : 600))) }
@@ -875,11 +869,4 @@ export function resumeToText(resume: ResumeDocument): string {
 
 export function safeFilename(value: string): string {
   return value.toLocaleLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80) || 'resume'
-}
-
-export function externalHref(value: string): string {
-  const trimmed = value.trim()
-  if (!trimmed) return ''
-  if (/^(https?:|mailto:|tel:)/i.test(trimmed)) return trimmed
-  return `https://${trimmed}`
 }

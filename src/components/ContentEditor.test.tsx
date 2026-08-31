@@ -8,6 +8,9 @@ describe('bounded cross-industry content editor', () => {
   it('bounds text inputs and exposes optional details and keywords', () => {
     const html = renderToStaticMarkup(<ContentEditor resume={createStarter('healthcare')} onChange={() => undefined} />)
     assert.ok(html.includes('maxLength="20000"'))
+    assert.ok(html.includes('type="email" autoComplete="email"'))
+    assert.ok(html.includes('type="tel" autoComplete="tel"'))
+    assert.equal((html.match(/type="url"/g) ?? []).length >= 3, true)
     assert.ok(html.includes('Add supporting detail'))
     assert.ok(html.includes('Add optional keywords'))
   })

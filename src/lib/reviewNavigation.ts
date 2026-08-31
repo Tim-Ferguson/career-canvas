@@ -1,4 +1,5 @@
-import { externalHref, type ResumeDocument, type ResumeIssue } from './resume'
+import { externalHref } from './contactLinks'
+import type { ResumeDocument, ResumeIssue } from './resume'
 
 export interface ReviewDestination {
   id: string
@@ -10,13 +11,7 @@ function words(value: string): number {
 }
 
 function invalidLink(value: string): boolean {
-  if (!value.trim()) return false
-  try {
-    const parsed = new URL(externalHref(value))
-    return !['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname.includes('.')
-  } catch {
-    return true
-  }
+  return Boolean(value.trim()) && !externalHref(value)
 }
 
 export function reviewDestination(issue: ResumeIssue, resume: ResumeDocument): ReviewDestination {

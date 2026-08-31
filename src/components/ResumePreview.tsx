@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react'
-import { entryHasRenderableContent, externalHref, formatEntryDateRange, sectionHasRenderableContent, type ResumeDocument, type ResumeEntry, type ResumeSection } from '../lib/resume'
+import { entryHasRenderableContent, formatEntryDateRange, sectionHasRenderableContent, type ResumeDocument, type ResumeEntry, type ResumeSection } from '../lib/resume'
+import { emailHref, externalHref, phoneHref } from '../lib/contactLinks'
 
 interface ResumePreviewProps {
   resume: ResumeDocument
@@ -21,7 +22,11 @@ function DateRange({ entry, kind }: { entry: ResumeEntry; kind: ResumeSection['k
 
 function OptionalLink({ value, children }: { value: string; children: ReactNode }) {
   const href = externalHref(value)
-  return href ? <a href={href} target={href.startsWith('http') ? '_blank' : undefined} rel={href.startsWith('http') ? 'noreferrer' : undefined}>{children}</a> : null
+  return href ? <a href={href} target="_blank" rel="noreferrer">{children}</a> : <>{children}</>
+}
+
+function ContactLink({ href, children }: { href: string; children: ReactNode }) {
+  return href ? <a href={href}>{children}</a> : <>{children}</>
 }
 
 function ResumeEntryView({ entry, kind }: { entry: ResumeEntry; kind: ResumeSection['kind'] }) {
@@ -33,7 +38,7 @@ function ResumeEntryView({ entry, kind }: { entry: ResumeEntry; kind: ResumeSect
       {hasHeading ? (
         <div className="document-entry-heading">
           <div>
-            {entry.title.trim() ? <h3><OptionalLink value={entry.url}>{entry.title}</OptionalLink>{!entry.url ? entry.title : null}</h3> : null}
+            {entry.title.trim() ? <h3><OptionalLink value={entry.url}>{entry.title}</OptionalLink></h3> : null}
             {entry.organization.trim() ? <p className="document-organization">{entry.organization}</p> : null}
           </div>
           <div className="document-entry-meta">
@@ -70,8 +75,8 @@ function ResumeSectionView({ section }: { section: ResumeSection }) {
 
 export function ResumePreview({ resume }: ResumePreviewProps) {
   const contacts = [
-    resume.profile.email.trim() ? <a key="email" href={`mailto:${resume.profile.email.trim()}`}>{resume.profile.email}</a> : null,
-    resume.profile.phone.trim() ? <a key="phone" href={`tel:${resume.profile.phone.replace(/[^+\d]/g, '')}`}>{resume.profile.phone}</a> : null,
+    resume.profile.email.trim() ? <ContactLink key="email" href={emailHref(resume.profile.email)}>{resume.profile.email}</ContactLink> : null,
+    resume.profile.phone.trim() ? <ContactLink key="phone" href={phoneHref(resume.profile.phone)}>{resume.profile.phone}</ContactLink> : null,
     resume.profile.location.trim() ? <span key="location">{resume.profile.location}</span> : null,
     resume.profile.website.trim() ? <OptionalLink key="website" value={resume.profile.website}>{resume.profile.website}</OptionalLink> : null,
     ...resume.profile.links.filter((link) => link.url.trim()).map((link) => <OptionalLink key={link.id} value={link.url}>{link.label || link.url}</OptionalLink>),

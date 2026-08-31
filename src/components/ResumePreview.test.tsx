@@ -36,14 +36,22 @@ describe('semantic resume rendering', () => {
     assert.deepEqual(positions, [...positions].sort((a, b) => a - b))
   })
 
-  it('omits hidden sections and never emits executable user-supplied URL schemes', () => {
+  it('omits hidden sections and keeps unsafe links visible but never executable', () => {
     const resume = createStarter()
     resume.sections[0]!.visible = false
     resume.profile.website = 'javascript:alert(1)'
+    resume.profile.email = 'person@example.com?subject=surprise'
+    resume.profile.phone = '++1 555 555 0199'
+    resume.sections[1]!.entries[0]!.title = 'Visible evidence title'
+    resume.sections[1]!.entries[0]!.url = 'data:text/html,hello'
     const html = renderToStaticMarkup(<ResumePreview resume={resume} />)
     assert.equal(html.includes('document-section-experience'), false)
     assert.equal(html.includes('href="javascript:'), false)
-    assert.ok(html.includes('href="https://javascript:alert(1)"'))
+    assert.equal(html.includes('href="data:'), false)
+    assert.equal(html.includes('href="mailto:'), false)
+    assert.equal(html.includes('href="tel:'), false)
+    assert.ok(html.includes('javascript:alert(1)'))
+    assert.ok(html.includes('Visible evidence title'))
   })
 
   it('allows unusually long entries and summaries to flow across print pages safely', () => {

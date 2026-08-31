@@ -14,15 +14,16 @@ interface TextFieldProps {
   onChange: (value: string) => void
   placeholder?: string
   type?: 'text' | 'email' | 'tel' | 'url'
+  autoComplete?: string
   wide?: boolean
   disabled?: boolean
 }
 
-function TextField({ id, label, value, onChange, placeholder, type = 'text', wide, disabled }: TextFieldProps) {
+function TextField({ id, label, value, onChange, placeholder, type = 'text', autoComplete, wide, disabled }: TextFieldProps) {
   return (
     <label className={`field ${wide ? 'field-wide' : ''}`}>
       <span>{label}</span>
-      <input id={id} type={type} value={value} maxLength={MAX_TEXT} placeholder={placeholder} disabled={disabled} onChange={(event) => onChange(event.currentTarget.value)} />
+      <input id={id} type={type} autoComplete={autoComplete} value={value} maxLength={MAX_TEXT} placeholder={placeholder} disabled={disabled} onChange={(event) => onChange(event.currentTarget.value)} />
     </label>
   )
 }
@@ -185,7 +186,7 @@ function LinkEditor({ link, onChange, onDelete }: { link: ResumeLink; onChange: 
   return (
     <div className="link-row">
       <TextField label="Label" value={link.label} onChange={(label) => onChange({ ...link, label })} placeholder="LinkedIn" />
-      <TextField id={`profile-link-url-${link.id}`} label="URL" value={link.url} onChange={(url) => onChange({ ...link, url })} placeholder="linkedin.com/in/you" />
+      <TextField id={`profile-link-url-${link.id}`} label="URL" type="url" value={link.url} onChange={(url) => onChange({ ...link, url })} placeholder="linkedin.com/in/you" />
       <IconButton label="Remove profile link" danger onClick={onDelete}><Trash2 size={15} /></IconButton>
     </div>
   )
@@ -229,12 +230,12 @@ export function ContentEditor({ resume, onChange }: ContentEditorProps) {
       <details className="editor-card profile-card" id="profile-editor" open>
         <summary><div><span className="eyebrow">First impression</span><h2>Profile</h2></div></summary>
         <div className="field-grid card-fields">
-          <TextField id="profile-name" label="Full name" value={resume.profile.name} onChange={(name) => patchProfile({ name })} placeholder="Your name" />
+          <TextField id="profile-name" label="Full name" autoComplete="name" value={resume.profile.name} onChange={(name) => patchProfile({ name })} placeholder="Your name" />
           <TextField label="Professional headline" value={resume.profile.headline} onChange={(headline) => patchProfile({ headline })} placeholder="What you do and the value you create" />
-          <TextField id="profile-email" label="Email" type="email" value={resume.profile.email} onChange={(email) => patchProfile({ email })} placeholder="you@example.com" />
-          <TextField id="profile-phone" label="Phone" type="tel" value={resume.profile.phone} onChange={(phone) => patchProfile({ phone })} placeholder="+1 555 555 5555" />
-          <TextField label="Location" value={resume.profile.location} onChange={(location) => patchProfile({ location })} placeholder="City, state or Remote" />
-          <TextField id="profile-website" label="Website" type="url" value={resume.profile.website} onChange={(website) => patchProfile({ website })} placeholder="yourname.com" />
+          <TextField id="profile-email" label="Email" type="email" autoComplete="email" value={resume.profile.email} onChange={(email) => patchProfile({ email })} placeholder="you@example.com" />
+          <TextField id="profile-phone" label="Phone" type="tel" autoComplete="tel" value={resume.profile.phone} onChange={(phone) => patchProfile({ phone })} placeholder="+1 555 555 5555" />
+          <TextField label="Location" autoComplete="address-level2" value={resume.profile.location} onChange={(location) => patchProfile({ location })} placeholder="City, state or Remote" />
+          <TextField id="profile-website" label="Website" type="url" autoComplete="url" value={resume.profile.website} onChange={(website) => patchProfile({ website })} placeholder="yourname.com" />
           <TextAreaField id="profile-summary" label="Summary" value={resume.profile.summary} onChange={(summary) => patchProfile({ summary })} placeholder="Summarize your scope, strongest capabilities, and the outcomes you create." hint={`${resume.profile.summary.trim().split(/\s+/).filter(Boolean).length} words · aim for 35–70`} />
         </div>
         <div className="subsection-heading"><h3>Profile links</h3><span>LinkedIn, portfolio, GitHub, ORCID, or another relevant profile</span></div>

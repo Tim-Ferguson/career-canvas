@@ -56,4 +56,27 @@ describe('JSON Resume export', () => {
     assert.equal(restored.endDate, 'Active')
     assert.equal(restored.current, false)
   })
+
+  it('normalizes valid links and omits invalid contact targets with warnings', () => {
+    const resume = createStarter()
+    resume.profile.website = 'portfolio.example/work'
+    resume.profile.email = 'person@example.com?subject=unexpected'
+    resume.profile.phone = '++1 555 555 0199'
+    resume.profile.links = [
+      { id: 'safe', label: 'ORCID', url: 'orcid.org/0000' },
+      { id: 'unsafe', label: 'Bad', url: 'javascript:alert(1)' },
+    ]
+    resume.sections[0]!.entries[0]!.url = 'data:text/html,hello'
+    const exported = buildJsonResumeExport(resume)
+    const basics = exported.document.basics as Record<string, unknown>
+    assert.equal(basics.url, 'https://portfolio.example/work')
+    assert.equal(basics.email, '')
+    assert.equal(basics.phone, '')
+    assert.deepEqual(basics.profiles, [{ network: 'ORCID', username: '', url: 'https://orcid.org/0000' }])
+    const work = exported.document.work as Array<Record<string, unknown>>
+    assert.equal(work[0]?.url, '')
+    assert.ok(exported.warnings.some((warning) => /2 invalid or unsafe web links were omitted/.test(warning)))
+    assert.ok(exported.warnings.some((warning) => /invalid email/.test(warning)))
+    assert.ok(exported.warnings.some((warning) => /invalid phone/.test(warning)))
+  })
 })
