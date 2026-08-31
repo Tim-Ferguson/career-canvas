@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { ArchiveRestore, Check, Clipboard, Download, FileJson, FileText, FolderDown, RefreshCw, Upload } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { ArchiveRestore, Check, Clipboard, Download, FileJson, FileText, FolderDown, HardDrive, RefreshCw, Upload } from 'lucide-react'
 import { MAX_DOCUMENT_BYTES, MAX_RESUMES, containsStarterSampleContent, parseJsonText, parseResumeImportJson, parseResumeJson, resumeToText, utf8ByteLength, type ResumeDocument, type ResumeLibrary } from '../lib/resume'
 import { buildExportPreflight, exportConfirmationMessage } from '../lib/exportReadiness'
 import { advancedDraftIsStale, createAdvancedDraftAnchor } from '../lib/draftSafety'
@@ -8,6 +8,7 @@ import { MAX_LIBRARY_BACKUP_BYTES, createLibraryBackup, parseLibraryBackup, summ
 import type { DeletedResumeRecovery } from '../lib/deletionRecovery'
 import type { LibraryMergeSummary } from '../lib/storage'
 import { ExportReadinessSummary } from './ExportReadinessSummary'
+import { buildWorkspaceFootprint, formatWorkspaceBytes } from '../lib/workspaceFootprint'
 
 function downloadFile(contents: string, filename: string, type: string) {
   const blob = new Blob([contents], { type })
@@ -168,6 +169,7 @@ export function DataPanel({ resume, library, deletedRecovery, onChange, onImport
   }
 
   const exportPreflight = buildExportPreflight(resume)
+  const footprint = useMemo(() => buildWorkspaceFootprint(library, deletedRecovery), [library, deletedRecovery])
   const baseName = exportPreflight.filenameBase
   const downloadLibraryBackup = () => {
     downloadFile(`${JSON.stringify(createLibraryBackup(library, deletedRecovery), null, 2)}\n`, `career-canvas-backup-${new Date().toISOString().slice(0, 10)}.json`, 'application/json')
@@ -199,6 +201,7 @@ export function DataPanel({ resume, library, deletedRecovery, onChange, onImport
       <section className="editor-card">
         <div className="card-heading"><div><span className="eyebrow">Portable by design</span><h2>Import & export</h2></div><FileJson size={19} aria-hidden="true" /></div>
         <p className="card-intro">Your v2 JSON keeps content, layout, and ordering together. Career Canvas v1 files migrate automatically, and standard JSON Resume files convert into editable v2 documents.</p>
+        <div className={`data-footprint ${footprint.pressure}`}><HardDrive size={16} aria-hidden="true" /><span><strong>{formatWorkspaceBytes(footprint.totalBytes)} serialized workspace</strong> Browser storage capacity varies; a downloaded backup is the portable safety copy.</span></div>
         <ExportReadinessSummary preflight={exportPreflight} />
         {dirty ? <div className="draft-export-warning" role="status"><RefreshCw size={16} aria-hidden="true" /><span><strong>Unapplied JSON is session-only</strong> Exports and library backups use the last valid resume. Apply or discard the draft before switching versions or leaving this page.</span></div> : null}
         <div className="export-grid">
@@ -207,7 +210,7 @@ export function DataPanel({ resume, library, deletedRecovery, onChange, onImport
           <button type="button" className="export-action" disabled={dirty} title={dirty ? 'Apply or discard the advanced JSON draft first' : undefined} onClick={downloadJsonResume}><FileJson size={18} /><span><strong>JSON Resume</strong><small>{dirty ? 'Apply or discard draft first' : 'Visible standard sharing copy'}</small></span></button>
           <button type="button" className="export-action" onClick={downloadPlainText}><FileText size={18} /><span><strong>Plain text</strong><small>Quick ATS sanity check</small></span></button>
           <label className="export-action file-action"><Upload size={18} /><span><strong>Import resume</strong><small>Add JSON as a new version</small></span><input type="file" accept="application/json,.json" onChange={(event) => { void importFile(event.currentTarget.files?.[0]); event.currentTarget.value = '' }} /></label>
-          <button type="button" className="export-action" onClick={downloadLibraryBackup}><FolderDown size={18} /><span><strong>Back up library</strong><small>Save all {library.documents.length} versions{deletedRecovery ? ' + recovery' : ''}</small></span></button>
+          <button type="button" className="export-action" onClick={downloadLibraryBackup}><FolderDown size={18} /><span><strong>Back up library</strong><small>Save all {library.documents.length} versions{deletedRecovery ? ' + recovery' : ''} · {formatWorkspaceBytes(footprint.totalBytes)}</small></span></button>
           <label className="export-action file-action"><ArchiveRestore size={18} /><span><strong>Restore backup</strong><small>Merge without overwriting</small></span><input type="file" accept="application/json,.json" onChange={(event) => { void restoreLibrary(event.currentTarget.files?.[0]); event.currentTarget.value = '' }} /></label>
         </div>
       </section>

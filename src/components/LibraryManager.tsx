@@ -1,8 +1,9 @@
 import { useMemo, useState, type RefObject } from 'react'
-import { ArrowRight, Clock3, Copy, FileCheck2, FilePlus2, RotateCcw, Search, ShieldCheck, Trash2, X } from 'lucide-react'
+import { ArrowRight, Clock3, Copy, FileCheck2, FilePlus2, HardDrive, RotateCcw, Search, ShieldCheck, Trash2, X } from 'lucide-react'
 import { containsStarterSampleContent, MAX_RESUMES, type ResumeLibrary } from '../lib/resume'
 import { buildLibraryInsights, sortLibraryInsights, type LibrarySort } from '../lib/libraryInsights'
 import type { DeletedResumeRecovery } from '../lib/deletionRecovery'
+import { buildWorkspaceFootprint, formatWorkspaceBytes } from '../lib/workspaceFootprint'
 
 interface LibraryManagerProps {
   library: ResumeLibrary
@@ -37,6 +38,12 @@ export function LibraryManager({ library, dialogRef, onActivate, onDuplicate, on
   const essentialVersions = insights.filter((item) => item.essentialIssues).length
   const sampleVersions = insights.filter((item) => containsStarterSampleContent(item.resume)).length
   const staleVersions = insights.filter((item) => item.stale).length
+  const footprint = useMemo(() => buildWorkspaceFootprint(library, deletedRecovery), [library, deletedRecovery])
+  const footprintDetail = footprint.pressure === 'high'
+    ? 'Back up now, then remove unused or unusually large versions before relying on more local edits.'
+    : footprint.pressure === 'watch'
+      ? 'Back up before adding more large versions. Browser storage capacity varies by device and mode.'
+      : `Largest version: ${formatWorkspaceBytes(footprint.largestDocumentBytes)}. Browser storage capacity varies by device and mode.`
   return (
     <section ref={dialogRef} className="library-dialog" role="dialog" aria-modal="true" aria-labelledby="library-title" aria-describedby="library-description">
       <button className="dialog-close" type="button" aria-label="Close resume library" onClick={onClose}><X size={19} /></button>
@@ -57,6 +64,11 @@ export function LibraryManager({ library, dialogRef, onActivate, onDuplicate, on
         <span><strong>{sampleVersions}</strong> contain sample content</span>
         <span><strong>{staleVersions}</strong> not updated in 6+ months</span>
       </div>
+      <section className={`library-footprint ${footprint.pressure}`} aria-label={`Career Canvas serialized workspace: ${formatWorkspaceBytes(footprint.totalBytes)}`}>
+        <HardDrive size={18} aria-hidden="true" />
+        <div><strong>{formatWorkspaceBytes(footprint.totalBytes)} serialized workspace</strong><span>{footprintDetail}</span></div>
+        {footprint.pressure === 'normal' ? <span className="footprint-state">Modest</span> : <button className="secondary-button" type="button" onClick={onBackup}>Open backup tools</button>}
+      </section>
       {deletedRecovery ? <section className="library-recovery" aria-label="Recently removed resume"><RotateCcw size={18} aria-hidden="true" /><div><strong>Recently removed: {deletedRecovery.document.title || 'Untitled resume'}</strong><span>{recoveryPersistent ? 'Saved as one recovery copy on this device until another version is removed.' : 'Recovery is available only while this page remains open because device storage is unavailable.'}</span></div><button className="secondary-button" type="button" onClick={onRestoreDeleted}>Restore</button><button className="text-button danger" type="button" onClick={onDiscardDeleted}>Discard permanently</button></section> : null}
       <div className="library-list" aria-live="polite">
         {filtered.length ? filtered.map(({ resume, analysis, essentialIssues, sameContent, stale }) => {

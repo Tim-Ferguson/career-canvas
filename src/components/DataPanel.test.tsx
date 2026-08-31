@@ -22,8 +22,9 @@ describe('portable data workspace', () => {
     />)
     assert.ok(html.includes('Back up library'))
     assert.ok(html.includes('Save all 1 versions + recovery'))
+    assert.ok(html.includes('serialized workspace'))
+    assert.ok(html.includes('Browser storage capacity varies'))
     assert.ok(html.includes('Restore backup'))
     assert.ok(html.includes('Merge without overwriting'))
   })
 })
-
