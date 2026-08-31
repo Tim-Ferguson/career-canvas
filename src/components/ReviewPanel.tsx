@@ -3,11 +3,17 @@ import { AlertCircle, ArrowRight, CheckCircle2, Lightbulb, SearchCheck, Target, 
 import { Link } from '@tanstack/react-router'
 import { analyzeResume, sectionHasRenderableContent, type ResumeDocument, type ResumeIssue } from '../lib/resume'
 import { MAX_TARGET_TEXT, compareResumeToTarget } from '../lib/tailoring'
+import type { TargetTerm } from '../lib/tailoring'
 
 function IssueIcon({ severity }: Pick<ResumeIssue, 'severity'>) {
   if (severity === 'essential') return <AlertCircle size={17} />
   if (severity === 'improvement') return <Target size={17} />
   return <Lightbulb size={17} />
+}
+
+function TargetTermChip({ item, matched }: { item: TargetTerm; matched: boolean }) {
+  const occurrenceLabel = `${item.occurrences} ${item.occurrences === 1 ? 'mention' : 'mentions'} in the target`
+  return <span className={`term ${matched ? 'term-match' : 'term-missing'}`} aria-label={`${item.term}, ${occurrenceLabel}`} title={occurrenceLabel}><span>{item.term}</span>{item.occurrences > 1 ? <small aria-hidden="true">{item.occurrences}×</small> : null}</span>
 }
 
 export function ReviewPanel({ resume, onEdit }: { resume: ResumeDocument; onEdit: (issue?: ResumeIssue) => void }) {
@@ -44,7 +50,7 @@ export function ReviewPanel({ resume, onEdit }: { resume: ResumeDocument; onEdit
       </section>
       <section className="editor-card targeting-card">
         <div className="card-heading"><div><span className="eyebrow">Opportunity comparison</span><h2>Use the reader’s vocabulary</h2></div><SearchCheck size={19} aria-hidden="true" /></div>
-        <p className="targeting-intro">Paste a job description, project brief, program call, or role posting. Career Canvas compares its recurring language with the words visible on this resume—it does not predict screening results.</p>
+        <p className="targeting-intro">Paste a job description, project brief, program call, or role posting. Career Canvas compares its recurring and distinctive language with the words visible on this resume—it does not predict screening results.</p>
         <label className="targeting-field" htmlFor="target-description">
           <span>Target description</span>
           <textarea id="target-description" rows={7} maxLength={MAX_TARGET_TEXT} value={targetText} placeholder="Paste the opportunity text here…" aria-describedby="target-privacy" onChange={(event) => setTargetTexts((current) => ({ ...current, [resume.id]: event.currentTarget.value }))} />
@@ -55,9 +61,9 @@ export function ReviewPanel({ resume, onEdit }: { resume: ResumeDocument; onEdit
         </div>
         {comparison.terms.length ? (
           <div className="targeting-results" aria-live="polite">
-            <div className="targeting-summary"><strong>{comparison.matched.length} of {comparison.terms.length}</strong><span>high-signal terms already appear in the visible resume</span></div>
-            <div className="targeting-group"><h3>Already reflected</h3><div className="term-list">{comparison.matched.length ? comparison.matched.map((item) => <span className="term term-match" key={`match-${item.term}`}>{item.term}</span>) : <small>No high-signal overlap yet.</small>}</div></div>
-            <div className="targeting-group"><h3>Verify before adding</h3><div className="term-list">{comparison.missing.length ? comparison.missing.map((item) => <span className="term term-missing" key={`missing-${item.term}`}>{item.term}</span>) : <small>Every surfaced term appears somewhere in the visible resume.</small>}</div></div>
+            <div className="targeting-summary"><strong>{comparison.matched.length} of {comparison.terms.length}</strong><span>prominent terms already appear in the visible resume</span></div>
+            <div className="targeting-group"><h3>Already reflected</h3><div className="term-list">{comparison.matched.length ? comparison.matched.map((item) => <TargetTermChip item={item} matched key={`match-${item.term}`} />) : <small>No prominent overlap yet.</small>}</div></div>
+            <div className="targeting-group"><h3>Verify before adding</h3><div className="term-list">{comparison.missing.length ? comparison.missing.map((item) => <TargetTermChip item={item} matched={false} key={`missing-${item.term}`} />) : <small>Every surfaced term appears somewhere in the visible resume.</small>}</div></div>
             <p className="targeting-caution">Only add a missing term when it truthfully describes your work, credential, method, or outcome. Show evidence in context; do not paste a keyword list.</p>
             <button className="text-button targeting-edit" type="button" onClick={() => onEdit()}>Edit resume evidence <ArrowRight size={14} /></button>
           </div>

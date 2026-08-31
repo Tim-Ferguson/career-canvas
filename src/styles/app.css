@@ -292,7 +292,8 @@ details > summary::-webkit-details-marker { display: none; }
 .targeting-group h3 { margin: 0 0 6px; color: var(--muted); font-size: .58rem; text-transform: uppercase; letter-spacing: .06em; }
 .term-list { display: flex; flex-wrap: wrap; gap: 5px; }
 .term-list small { color: var(--faint); font-size: .6rem; }
-.term { padding: 5px 7px; border: 1px solid; border-radius: 99px; font-size: .58rem; line-height: 1; }
+.term { display: inline-flex; align-items: center; gap: 4px; padding: 5px 7px; border: 1px solid; border-radius: 99px; font-size: .58rem; line-height: 1; }
+.term small { color: inherit; font-size: .48rem; font-weight: 800; opacity: .72; }
 .term-match { border-color: #c1d8cd; color: #275d48; background: #eef7f2; }
 .term-missing { border-color: #ded4bd; color: #765b25; background: #faf6eb; }
 .targeting-caution, .targeting-empty { margin: 0; padding: 10px; border-radius: 7px; color: #626963; background: #f1f2ee; font-size: .61rem; line-height: 1.5; }

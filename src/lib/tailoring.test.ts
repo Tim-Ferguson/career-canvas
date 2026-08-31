@@ -24,10 +24,37 @@ describe('honest opportunity comparison', () => {
 
   it('normalizes simple plurals without claiming an ATS score', () => {
     const resume = createBlankResume()
-    resume.profile.summary = 'Leads programs for a regional nonprofit.'
-    const result = compareResumeToTarget(resume, 'Program leadership across several programs')
+    resume.profile.summary = 'Leads programs and improves one process for a regional nonprofit.'
+    const result = compareResumeToTarget(resume, 'Program leadership across several programs and repeatable processes processes')
     assert.ok(result.matched.some((item) => item.term.toLocaleLowerCase() === 'programs'))
+    assert.ok(result.matched.some((item) => item.term.toLocaleLowerCase() === 'processes'))
     assert.equal('score' in result, false)
+  })
+
+  it('keeps short uppercase acronyms and matches hyphenated or slash-separated phrases', () => {
+    const resume = createBlankResume()
+    resume.profile.summary = 'RN leader using AI for quality assurance, IT operations, supply chain planning, and CI CD delivery practices.'
+    const result = compareResumeToTarget(resume, 'RN license. AI fluency and AI governance. IT operations; It is preferred. IT governance. Supply-chain planning and supply-chain resilience. CI/CD delivery and CI/CD automation.')
+    for (const term of ['rn', 'ai', 'it', 'supply chain', 'ci cd']) {
+      assert.ok(result.matched.some((item) => item.term.toLocaleLowerCase() === term), `${term} should match`)
+    }
+    assert.equal(result.terms.find((item) => item.term.toLocaleLowerCase() === 'it')?.term, 'IT')
+  })
+
+  it('does not repeat both words when a repeated phrase already represents them', () => {
+    const resume = createBlankResume()
+    const result = compareResumeToTarget(resume, 'Patient care improves outcomes. Patient care requires judgment.')
+    assert.ok(result.terms.some((item) => item.term.toLocaleLowerCase() === 'patient care'))
+    assert.equal(result.terms.some((item) => item.term.toLocaleLowerCase() === 'patient'), false)
+    assert.equal(result.terms.some((item) => item.term.toLocaleLowerCase() === 'care'), false)
+  })
+
+  it('normalizes decomposed accents and retains combining marks in non-Latin scripts', () => {
+    const resume = createBlankResume()
+    resume.profile.summary = 'Gestión de proyectos y परियोजना प्रबंधन.'
+    const result = compareResumeToTarget(resume, 'GESTIO\u0301N gestión. परियोजना प्रबंधन; परियोजना प्रबंधन.')
+    assert.ok(result.matched.some((item) => item.term.toLocaleLowerCase() === 'gestión'))
+    assert.ok(result.matched.some((item) => item.term === 'परियोजना प्रबंधन'))
   })
 
   it('bounds unusually large pasted descriptions', () => {

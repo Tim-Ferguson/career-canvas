@@ -35,23 +35,35 @@ const ignoredTerms = new Set(`
   knowledge minimum plus related relevant strong successful years
 `.trim().split(/\s+/))
 
+const ignoredAcronymExceptions = new Set(['it'])
+
+function isShortAcronym(value: string): boolean {
+  return value.length >= 2 && value.length <= 8 && /\p{Lu}/u.test(value) && /^[\p{Lu}\p{N}]+$/u.test(value)
+}
+
 function comparableToken(value: string): string {
   if (/[+#]/.test(value)) return value
+  if (value === 'analyses') return 'analysis'
+  if (value === 'crises') return 'crisis'
+  if (value === 'diagnoses') return 'diagnosis'
   if (value.length > 5 && value.endsWith('ies')) return `${value.slice(0, -3)}y`
+  if (value.length > 5 && /(sses|shes|ches|xes|zes)$/.test(value)) return value.slice(0, -2)
   if (value.length > 4 && value.endsWith('s') && !/(ss|ics|is|us)$/.test(value)) return value.slice(0, -1)
   return value
 }
 
 function tokenize(value: string, includeIgnored = false): SignalToken[] {
   const tokens: SignalToken[] = []
-  const pattern = /[\p{L}\p{N}][\p{L}\p{N}+#./-]*/gu
+  const pattern = /[\p{L}\p{N}][\p{L}\p{N}\p{M}+#.&]*/gu
   let wordIndex = 0
   for (const match of value.normalize('NFKC').matchAll(pattern)) {
-    const display = match[0].replace(/^[./-]+|[./-]+$/g, '')
+    const display = match[0].replace(/^\.+|\.+$/g, '')
     const normalized = display.toLocaleLowerCase()
     const currentWordIndex = wordIndex++
     if (!display || /^\d+$/.test(normalized)) continue
-    if (!includeIgnored && (ignoredTerms.has(normalized) || (normalized.length < 3 && !/[+#]/.test(normalized)))) continue
+    const acronym = isShortAcronym(display)
+    const allowedIgnoredAcronym = acronym && ignoredAcronymExceptions.has(normalized)
+    if (!includeIgnored && ((ignoredTerms.has(normalized) && !allowedIgnoredAcronym) || (normalized.length < 3 && !/[+#&]/.test(normalized) && !acronym))) continue
     tokens.push({ display, normalized, comparable: comparableToken(normalized), wordIndex: currentWordIndex })
   }
   return tokens
@@ -101,11 +113,14 @@ export function compareResumeToTarget(resume: ResumeDocument, targetText: string
   }
   ranked.sort((left, right) => right.score - left.score || left.firstIndex - right.firstIndex || left.display.localeCompare(right.display))
 
-  const terms = ranked.slice(0, MAX_TARGET_TERMS).map<TargetTerm>((candidate) => ({
-    term: candidate.display,
-    occurrences: candidate.occurrences,
-    present: phraseIsPresent(candidate.comparable, resumeTokens),
-  }))
+  const selected: typeof ranked = []
+  for (const candidate of ranked) {
+    const repeatedInsideSelectedPhrase = candidate.comparable.length === 1 && selected.some((selectedCandidate) => selectedCandidate.comparable.length > 1 && selectedCandidate.occurrences >= candidate.occurrences && selectedCandidate.comparable.includes(candidate.comparable[0]!))
+    if (repeatedInsideSelectedPhrase) continue
+    selected.push(candidate)
+    if (selected.length >= MAX_TARGET_TERMS) break
+  }
+  const terms = selected.map<TargetTerm>((candidate) => ({ term: candidate.display, occurrences: candidate.occurrences, present: phraseIsPresent(candidate.comparable, resumeTokens) }))
   return {
     targetWordCount: rawTargetTokens.length,
     terms,
