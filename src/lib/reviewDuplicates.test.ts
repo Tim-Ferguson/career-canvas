@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { createSection, createStarter } from './resume'
-import { findDuplicateEntry, findDuplicateKeyword, findDuplicateSectionTitle, normalizeReviewDuplicate } from './reviewDuplicates'
+import { findDuplicateEntry, findDuplicateHighlight, findDuplicateKeyword, findDuplicateSectionTitle, normalizeReviewDuplicate } from './reviewDuplicates'
 
 describe('exact normalized resume duplication', () => {
   it('normalizes Unicode, case, and pasted whitespace without fuzzy matching', () => {
@@ -36,5 +36,25 @@ describe('exact normalized resume duplication', () => {
 
     skills.entries[0]!.keywords.push(' data   ANALYSIS ')
     assert.deepEqual(findDuplicateKeyword(resume), { sectionId: skills.id, entryId: skills.entries[0]!.id, itemIndex: 2 })
+  })
+
+  it('finds the second exact Unicode-normalized highlight without conflating distinct international text', () => {
+    const resume = createStarter()
+    const entries = resume.sections[0]!.entries
+    entries[0]!.highlights = ['Coordinated café services for 120 residents.']
+    entries[1]!.highlights = ['  coordinated CAFE\u0301   services for 120 residents.  ']
+    assert.deepEqual(findDuplicateHighlight(resume), { sectionId: resume.sections[0]!.id, entryId: entries[1]!.id, itemIndex: 0 })
+
+    entries[0]!.highlights = ['परियोजना समय पर पूरी की।']
+    entries[1]!.highlights = ['गुणवत्ता समीक्षा पूरी की।']
+    assert.equal(findDuplicateHighlight(resume), null)
+    entries[1]!.highlights = ['परियोजना समय पर पूरी की!']
+    assert.equal(findDuplicateHighlight(resume), null)
+
+    const hidden = createSection('custom')
+    hidden.visible = false
+    hidden.entries[0]!.highlights = ['परियोजना समय पर पूरी की।']
+    resume.sections.push(hidden)
+    assert.equal(findDuplicateHighlight(resume), null)
   })
 })

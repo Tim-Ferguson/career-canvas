@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { resumeDateIsDefinitelyFuture, resumeDateRangeIsReversed } from './dateIntegrity'
 import { duplicateExternalLinkIndex, emailHref, externalHref, phoneHref } from './contactLinks'
-import { findDuplicateEntry, findDuplicateKeyword, findDuplicateSectionTitle } from './reviewDuplicates'
+import { findDuplicateEntry, findDuplicateHighlight, findDuplicateKeyword, findDuplicateSectionTitle } from './reviewDuplicates'
 
 export const MAX_DOCUMENT_BYTES = 2_000_000
 export const MAX_RESUMES = 24
@@ -830,11 +830,12 @@ export function analyzeResume(resume: ResumeDocument): ResumeAnalysis {
   const mismatchedCurrentStatus = visible.flatMap((sectionItem) => sectionItem.entries.map((entryItem) => ({ sectionItem, entryItem }))).find(({ sectionItem, entryItem }) => ongoingStatusKinds.has(sectionItem.kind) && !entryItem.current && /^(present|current|ongoing|in progress|active)$/i.test(entryItem.endDate.trim()))
   if (mismatchedCurrentStatus) add({ id: 'current-status-mismatch', sectionId: mismatchedCurrentStatus.sectionItem.id, entryId: mismatchedCurrentStatus.entryItem.id, severity: 'improvement', title: 'Resolve an ongoing-status mismatch', detail: `“${mismatchedCurrentStatus.entryItem.title || mismatchedCurrentStatus.sectionItem.title || 'This entry'}” uses “${mismatchedCurrentStatus.entryItem.endDate.trim()}” as its end value while its ongoing setting is off. Turn it on or enter an actual end date.` }, 4)
   const bullets = visible.flatMap((item) => item.entries.flatMap((entryItem) => entryItem.highlights)).filter((item) => item.trim())
+  const duplicateEntry = findDuplicateEntry(resume)
+  const duplicateHighlight = findDuplicateHighlight(resume)
   if (experience.length && bullets.length < 2) add({ id: 'few-bullets', severity: 'improvement', title: 'Show more evidence', detail: 'Use concise bullets to show actions, scope, and outcomes—not only responsibilities.' }, 7)
   if (bullets.length && !bullets.some((bullet) => /\d|%|\$/.test(bullet))) add({ id: 'outcomes', severity: 'improvement', title: 'Add scale or outcomes', detail: 'Numbers are useful when honest, but scope, speed, quality, safety, and stakeholder impact also count.' }, 6)
   if (bullets.some((bullet) => cleanWords(bullet).length > 35)) add({ id: 'long-bullets', severity: 'tip', title: 'Shorten long bullets', detail: 'Keep most bullets under 25–30 words so the outcome is visible at a glance.' }, 3)
-  const normalizedBullets = bullets.map((bullet) => bullet.toLocaleLowerCase().replace(/[^a-z0-9]+/g, ' ').trim())
-  if (new Set(normalizedBullets).size !== normalizedBullets.length) add({ id: 'duplicate-bullets', severity: 'improvement', title: 'Remove repeated bullets', detail: 'Use the space for a different contribution, capability, or outcome.' }, 4)
+  if (duplicateHighlight && duplicateHighlight.entryId !== duplicateEntry?.entryId) add({ id: 'duplicate-bullets', sectionId: duplicateHighlight.sectionId, entryId: duplicateHighlight.entryId, itemIndex: duplicateHighlight.itemIndex, severity: 'improvement', title: 'Remove a repeated evidence bullet', detail: 'The same normalized bullet appears twice. Keep one, or rewrite the second with the distinct action, scope, or outcome it represents.' }, 4)
   if (bullets.some((bullet) => /^(responsible for|duties included|helped (with|to)|worked on)\b/i.test(bullet.trim()))) add({ id: 'weak-bullets', severity: 'tip', title: 'Clarify ownership in a few bullets', detail: 'Replace responsibility phrases with the action you took and why it mattered.' }, 3)
   if (bullets.some((bullet) => /\b(i|me|my|we|our)\b/i.test(bullet))) add({ id: 'first-person-bullets', severity: 'tip', title: 'Remove first-person pronouns from bullets', detail: 'Resume bullets conventionally begin with the action; “I” and “we” are usually unnecessary.' }, 2)
   if (bullets.length >= 3) {
@@ -851,7 +852,6 @@ export function analyzeResume(resume: ResumeDocument): ResumeAnalysis {
   if (duplicateExternalLinkIndex(links) >= 0) add({ id: 'duplicate-links', severity: 'tip', title: 'Remove a repeated web link', detail: 'The same normalized destination appears more than once. Keep the clearest placement and use the space for distinct information.' }, 2)
   const duplicateSectionTitle = findDuplicateSectionTitle(resume)
   if (duplicateSectionTitle) add({ id: 'duplicate-section-title', sectionId: duplicateSectionTitle.sectionId, severity: 'tip', title: 'Differentiate repeated section headings', detail: 'Two visible sections use the same normalized heading. Rename or combine them so readers can tell why each group exists.' }, 2)
-  const duplicateEntry = findDuplicateEntry(resume)
   if (duplicateEntry) add({ id: 'duplicate-entry', sectionId: duplicateEntry.sectionId, entryId: duplicateEntry.entryId, severity: 'improvement', title: 'Remove a duplicated entry', detail: 'A whole visible entry repeats the same title, context, dates, summary, links, and evidence. Keep one copy or make their distinct purpose clear.' }, 4)
   const duplicateKeyword = findDuplicateKeyword(resume)
   if (duplicateKeyword) add({ id: 'duplicate-keyword', sectionId: duplicateKeyword.sectionId, entryId: duplicateKeyword.entryId, itemIndex: duplicateKeyword.itemIndex, severity: 'tip', title: 'Remove a repeated skill or keyword', detail: 'The same normalized item appears twice in one list. Keep one so the capability is easier to scan.' }, 2)

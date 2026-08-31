@@ -147,10 +147,12 @@ describe('resume output and review', () => {
     resume.profile.email = 'not-an-email'
     resume.profile.website = 'not a website'
     resume.sections[0]!.entries[0]!.highlights = ['Responsible for weekly reports', 'Responsible for weekly reports']
-    const ids = analyzeResume(resume).issues.map((issue) => issue.id)
+    const analysis = analyzeResume(resume)
+    const ids = analysis.issues.map((issue) => issue.id)
     assert.ok(ids.includes('email-format'))
     assert.ok(ids.includes('links'))
     assert.ok(ids.includes('duplicate-bullets'))
+    assert.equal(analysis.issues.find((issue) => issue.id === 'duplicate-bullets')?.itemIndex, 1)
     assert.ok(ids.includes('weak-bullets'))
   })
 
@@ -181,6 +183,7 @@ describe('resume output and review', () => {
     skills.entries[0]!.keywords = ['Program design', 'program   DESIGN']
     const issues = analyzeResume(resume).issues
     assert.equal(issues.find((item) => item.id === 'duplicate-entry')?.entryId, copiedEntry.id)
+    assert.equal(issues.some((item) => item.id === 'duplicate-bullets'), false)
     assert.equal(issues.find((item) => item.id === 'duplicate-section-title')?.sectionId, skills.id)
     assert.equal(issues.find((item) => item.id === 'duplicate-keyword')?.itemIndex, 1)
   })

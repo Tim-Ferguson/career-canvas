@@ -68,3 +68,17 @@ export function findDuplicateKeyword(resume: ResumeDocument): DuplicateReviewLoc
   return null
 }
 
+export function findDuplicateHighlight(resume: ResumeDocument): DuplicateReviewLocation | null {
+  const seen = new Set<string>()
+  for (const section of resume.sections.filter((item) => item.visible)) {
+    for (const entry of section.entries) {
+      for (let itemIndex = 0; itemIndex < entry.highlights.length; itemIndex += 1) {
+        const normalized = normalizeReviewDuplicate(entry.highlights[itemIndex] ?? '')
+        if (!normalized) continue
+        if (seen.has(normalized)) return { sectionId: section.id, entryId: entry.id, itemIndex }
+        seen.add(normalized)
+      }
+    }
+  }
+  return null
+}

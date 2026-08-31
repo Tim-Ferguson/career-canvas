@@ -1,4 +1,5 @@
 import { duplicateExternalLinkIndex, externalHref } from './contactLinks'
+import { findDuplicateHighlight } from './reviewDuplicates'
 import type { ResumeDocument, ResumeIssue } from './resume'
 
 export interface ReviewDestination {
@@ -61,14 +62,8 @@ export function reviewDestination(issue: ResumeIssue, resume: ResumeDocument): R
     return destination(item ? `entry-highlight-${item.entry.id}-${item.index}` : 'content-sections')
   }
   if (issue.id === 'duplicate-bullets') {
-    const seen = new Set<string>()
-    const item = highlights.find((candidate) => {
-      const normalized = candidate.highlight.toLocaleLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
-      if (seen.has(normalized)) return true
-      seen.add(normalized)
-      return false
-    })
-    return destination(item ? `entry-highlight-${item.entry.id}-${item.index}` : 'content-sections')
+    const duplicate = issue.entryId !== undefined && issue.itemIndex !== undefined ? issue : findDuplicateHighlight(resume)
+    return destination(duplicate?.entryId !== undefined && duplicate.itemIndex !== undefined ? `entry-highlight-${duplicate.entryId}-${duplicate.itemIndex}` : 'content-sections')
   }
   if (issue.id === 'weak-bullets') {
     const item = highlights.find((candidate) => /^(responsible for|duties included|helped (with|to)|worked on)\b/i.test(candidate.highlight.trim()))
