@@ -43,14 +43,22 @@ function IconButton({ label, children, onClick, disabled, danger }: { label: str
   return <button className={`icon-button ${danger ? 'danger' : ''}`} type="button" aria-label={label} title={label} onClick={onClick} disabled={disabled}>{children}</button>
 }
 
-function StringListEditor({ idPrefix, label, values, onChange, placeholder, addLabel }: { idPrefix?: string; label: string; values: string[]; onChange: (values: string[]) => void; placeholder: string; addLabel: string }) {
+function StringListEditor({ idPrefix, label, values, onChange, placeholder, addLabel }: { idPrefix: string; label: string; values: string[]; onChange: (values: string[]) => void; placeholder: string; addLabel: string }) {
+  const moveItem = (from: number, to: number) => {
+    onChange(moveInArray(values, from, to))
+    window.requestAnimationFrame(() => document.getElementById(`${idPrefix}-${to}`)?.focus())
+  }
   return (
     <fieldset className="list-field">
       <legend>{label}</legend>
       {values.map((value, index) => (
         <div className="list-field-row" key={index}>
-          <textarea id={idPrefix ? `${idPrefix}-${index}` : undefined} rows={2} value={value} maxLength={MAX_TEXT} placeholder={placeholder} onChange={(event) => onChange(values.map((item, itemIndex) => itemIndex === index ? event.currentTarget.value : item))} />
-          <IconButton label={`Remove ${label.toLocaleLowerCase()} ${index + 1}`} danger onClick={() => onChange(values.filter((_, itemIndex) => itemIndex !== index))}><Trash2 size={15} /></IconButton>
+          <textarea id={`${idPrefix}-${index}`} aria-label={`${label} ${index + 1}`} rows={2} value={value} maxLength={MAX_TEXT} placeholder={placeholder} onChange={(event) => onChange(values.map((item, itemIndex) => itemIndex === index ? event.currentTarget.value : item))} />
+          <div className="list-field-actions">
+            {values.length > 1 ? <IconButton label={`Move ${label.toLocaleLowerCase()} ${index + 1} up`} disabled={index === 0} onClick={() => moveItem(index, index - 1)}><ChevronUp size={15} /></IconButton> : null}
+            {values.length > 1 ? <IconButton label={`Move ${label.toLocaleLowerCase()} ${index + 1} down`} disabled={index === values.length - 1} onClick={() => moveItem(index, index + 1)}><ChevronDown size={15} /></IconButton> : null}
+            <IconButton label={`Remove ${label.toLocaleLowerCase()} ${index + 1}`} danger onClick={() => onChange(values.filter((_, itemIndex) => itemIndex !== index))}><Trash2 size={15} /></IconButton>
+          </div>
         </div>
       ))}
       <button className="text-button compact-button" type="button" disabled={values.length >= MAX_LIST_ITEMS} onClick={() => onChange([...values, ''])}><Plus size={14} /> {values.length >= MAX_LIST_ITEMS ? `${label} limit reached` : addLabel}</button>

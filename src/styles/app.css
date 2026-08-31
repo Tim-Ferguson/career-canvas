@@ -190,6 +190,8 @@ details > summary::-webkit-details-marker { display: none; }
 .list-field legend { margin-bottom: 6px; }
 .list-field-row { display: grid; grid-template-columns: 1fr auto; align-items: start; gap: 6px; margin-bottom: 6px; }
 .list-field-row textarea { min-height: 56px; width: 100%; padding: 9px; border: 1px solid var(--line); border-radius: 7px; background: #fbfbf9; font-size: .71rem; line-height: 1.4; resize: vertical; }
+.list-field-actions { display: flex; align-items: center; }
+.list-field-actions .danger { margin-left: 2px; }
 .secondary-button { min-height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; color: #4f5652; background: white; font-size: .7rem; font-weight: 700; }
 .secondary-button:hover { color: var(--ink); background: #f4f3ef; }
 .full-button { width: 100%; margin-top: 12px; }

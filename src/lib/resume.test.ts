@@ -81,6 +81,8 @@ describe('resume document model', () => {
     const source = ['a', 'b', 'c']
     assert.deepEqual(moveInArray(source, 2, -10), ['c', 'a', 'b'])
     assert.deepEqual(moveInArray(source, 0, 99), ['b', 'c', 'a'])
+    assert.deepEqual(moveInArray(source, 0, -1), source)
+    assert.deepEqual(moveInArray(source, 2, 3), source)
     assert.deepEqual(source, ['a', 'b', 'c'])
   })
 
