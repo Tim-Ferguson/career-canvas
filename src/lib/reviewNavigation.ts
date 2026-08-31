@@ -51,6 +51,7 @@ export function reviewDestination(issue: ResumeIssue, resume: ResumeDocument): R
     return destination(experience ? `section-editor-${experience.id}` : 'content-sections')
   }
   if (issue.id === 'outcomes') {
+    if (issue.entryId !== undefined && issue.itemIndex !== undefined) return destination(`entry-highlight-${issue.entryId}-${issue.itemIndex}`)
     const item = highlights[0]
     return destination(item ? `entry-highlight-${item.entry.id}-${item.index}` : 'content-sections')
   }

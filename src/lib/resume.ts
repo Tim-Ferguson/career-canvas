@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { resumeDateIsDefinitelyFuture, resumeDateRangeIsReversed } from './dateIntegrity'
 import { duplicateExternalLinkIndex, emailHref, externalHref, phoneHref } from './contactLinks'
 import { findDuplicateEntry, findDuplicateHighlight, findDuplicateKeyword, findDuplicateSectionTitle } from './reviewDuplicates'
-import { reviewEnglishBulletStarts, textWordCount } from './textMetrics'
+import { reviewBulletOutcomes, reviewEnglishBulletStarts, textWordCount } from './textMetrics'
 
 export const MAX_DOCUMENT_BYTES = 2_000_000
 export const MAX_RESUMES = 24
@@ -801,6 +801,7 @@ export function analyzeResume(resume: ResumeDocument): ResumeAnalysis {
   if (summaryWords > 100) add({ id: 'summary-long', severity: 'tip', title: 'Tighten the opening summary', detail: 'A concise summary is easier to scan; keep the strongest 2–4 lines.' }, 3)
   const visible = resume.sections.filter((item) => item.visible)
   const evidenceKinds = new Set<SectionKind>(['experience', 'education', 'projects', 'certifications', 'volunteering', 'awards', 'publications', 'custom'])
+  const outcomeEvidenceKinds = new Set<SectionKind>(['experience', 'education', 'projects', 'volunteering', 'awards', 'publications', 'custom'])
   const hasSubstantiveEvidence = visible.some((sectionItem) => evidenceKinds.has(sectionItem.kind) && sectionItem.entries.some((entryItem) => entryItem.title.trim() && (entryItem.organization.trim() || entryItem.summary.trim() || entryItem.highlights.some((item) => item.trim()))))
   if (!hasSubstantiveEvidence) add({ id: 'evidence', severity: 'improvement', title: 'Add proof of your capabilities', detail: 'Use relevant work, projects, education, clinicals, research, service, credentials, or leadership—paid employment is not required.' }, 10)
   for (const sectionItem of visible) {
@@ -820,11 +821,17 @@ export function analyzeResume(resume: ResumeDocument): ResumeAnalysis {
   const ongoingStatusKinds = new Set<SectionKind>(['experience', 'education', 'skills', 'projects', 'volunteering', 'languages', 'affiliations', 'interests', 'custom'])
   const mismatchedCurrentStatus = visible.flatMap((sectionItem) => sectionItem.entries.map((entryItem) => ({ sectionItem, entryItem }))).find(({ sectionItem, entryItem }) => ongoingStatusKinds.has(sectionItem.kind) && !entryItem.current && /^(present|current|ongoing|in progress|active)$/i.test(entryItem.endDate.trim()))
   if (mismatchedCurrentStatus) add({ id: 'current-status-mismatch', sectionId: mismatchedCurrentStatus.sectionItem.id, entryId: mismatchedCurrentStatus.entryItem.id, severity: 'improvement', title: 'Resolve an ongoing-status mismatch', detail: `“${mismatchedCurrentStatus.entryItem.title || mismatchedCurrentStatus.sectionItem.title || 'This entry'}” uses “${mismatchedCurrentStatus.entryItem.endDate.trim()}” as its end value while its ongoing setting is off. Turn it on or enter an actual end date.` }, 4)
-  const bullets = visible.flatMap((item) => item.entries.flatMap((entryItem) => entryItem.highlights)).filter((item) => item.trim())
+  const bulletItems = visible.flatMap((sectionItem) => sectionItem.entries.flatMap((entryItem) => entryItem.highlights.map((highlight, itemIndex) => ({ sectionItem, entryItem, highlight, itemIndex })))).filter((item) => item.highlight.trim())
+  const bullets = bulletItems.map((item) => item.highlight)
   const duplicateEntry = findDuplicateEntry(resume)
   const duplicateHighlight = findDuplicateHighlight(resume)
   if (experience.length && bullets.length < 2) add({ id: 'few-bullets', severity: 'improvement', title: 'Show more evidence', detail: 'Use concise bullets to show actions, scope, and outcomes—not only responsibilities.' }, 7)
-  if (bullets.length && !bullets.some((bullet) => /\d|%|\$/.test(bullet))) add({ id: 'outcomes', severity: 'improvement', title: 'Add scale or outcomes', detail: 'Numbers are useful when honest, but scope, speed, quality, safety, and stakeholder impact also count.' }, 6)
+  const outcomeBulletItems = bulletItems.filter((item) => outcomeEvidenceKinds.has(item.sectionItem.kind))
+  const outcomeReview = reviewBulletOutcomes(outcomeBulletItems.map((item) => item.highlight))
+  if (outcomeReview.shouldFlag) {
+    const target = outcomeReview.firstReviewableIndex === undefined ? undefined : outcomeBulletItems[outcomeReview.firstReviewableIndex]
+    add({ id: 'outcomes', ...(target ? { sectionId: target.sectionItem.id, entryId: target.entryItem.id, itemIndex: target.itemIndex } : {}), severity: 'improvement', title: 'Add visible scope or outcomes', detail: 'Show what changed or the scale involved—volume, speed, quality, safety, access, reliability, trust, risk, or an honest number.' }, 6)
+  }
   if (bullets.some((bullet) => textWordCount(bullet) > 35)) add({ id: 'long-bullets', severity: 'tip', title: 'Shorten long bullets', detail: 'Keep most bullets under 25–30 words so the outcome is visible at a glance.' }, 3)
   if (duplicateHighlight && duplicateHighlight.entryId !== duplicateEntry?.entryId) add({ id: 'duplicate-bullets', sectionId: duplicateHighlight.sectionId, entryId: duplicateHighlight.entryId, itemIndex: duplicateHighlight.itemIndex, severity: 'improvement', title: 'Remove a repeated evidence bullet', detail: 'The same normalized bullet appears twice. Keep one, or rewrite the second with the distinct action, scope, or outcome it represents.' }, 4)
   if (bullets.some((bullet) => /^(responsible for|duties included|helped (with|to)|worked on)\b/i.test(bullet.trim()))) add({ id: 'weak-bullets', severity: 'tip', title: 'Clarify ownership in a few bullets', detail: 'Replace responsibility phrases with the action you took and why it mattered.' }, 3)

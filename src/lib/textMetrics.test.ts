@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { reviewEnglishBulletStarts, textWordCount, textWordSegments } from './textMetrics'
+import { reviewBulletOutcomes, reviewEnglishBulletStarts, textWordCount, textWordSegments } from './textMetrics'
 
 describe('international resume text metrics', () => {
   it('segments English, decomposed accents, and unspaced scripts without throwing', () => {
@@ -32,5 +32,50 @@ describe('international resume text metrics', () => {
       'Piloté des projets avec des équipes régionales.',
     ])
     assert.deepEqual(nonEnglish, { evaluated: 0, weakStarts: 0, shouldFlag: false })
+  })
+
+  it('recognizes international measurements and credible qualitative outcomes', () => {
+    const measurements = reviewBulletOutcomes([
+      'خفض وقت الانتظار ٣٠٪.',
+      'Delivered €500K in funded services.',
+      'Coordinated １２ regional launches.',
+      'Service level ٪ above baseline.',
+    ])
+    assert.equal(measurements.measurableSignals, 4)
+    assert.equal(measurements.hasOutcomeEvidence, true)
+    assert.equal(measurements.shouldFlag, false)
+
+    const qualitative = reviewBulletOutcomes([
+      'Improved patient safety and reduced medication errors.',
+      'Expanded service access and strengthened public trust.',
+      'Improved service reliability and reduced downtime.',
+    ])
+    assert.equal(qualitative.qualitativeSignals, 3)
+    assert.equal(qualitative.shouldFlag, false)
+  })
+
+  it('flags reviewable English duties while leaving unmeasured non-English evidence alone', () => {
+    const duties = reviewBulletOutcomes([
+      'Managed routine assignments.',
+      'Weekly reports using the team dashboard.',
+    ])
+    assert.equal(duties.firstReviewableIndex, 0)
+    assert.equal(duties.shouldFlag, true)
+
+    const multilingual = reviewBulletOutcomes([
+      'Lideré proyectos con equipos regionales.',
+      'Coordonné les services pour les partenaires publics.',
+      'Managed routine assignments.',
+    ])
+    assert.equal(multilingual.firstReviewableIndex, 2)
+    assert.equal(multilingual.evaluatedEnglish, 1)
+    assert.equal(multilingual.shouldFlag, true)
+
+    const nonEnglish = reviewBulletOutcomes([
+      'Lideré proyectos con equipos regionales.',
+      'Coordonné les services pour les partenaires publics.',
+    ])
+    assert.equal(nonEnglish.evaluatedEnglish, 0)
+    assert.equal(nonEnglish.shouldFlag, false)
   })
 })

@@ -259,4 +259,26 @@ describe('resume output and review', () => {
     resume.sections[0]!.entries[0]!.highlights = ['Weekly reports using the team dashboard.', 'Customer updates with partners.', 'Project materials across launch teams.']
     assert.equal(analyzeResume(resume).issues.some((issue) => issue.id === 'verbs'), true)
   })
+
+  it('reviews outcome evidence across industries, scripts, and languages', () => {
+    const resume = createBlankResume()
+    const entry = resume.sections[0]!.entries[0]!
+
+    entry.highlights = ['Managed routine assignments.']
+    assert.equal(analyzeResume(resume).issues.some((issue) => issue.id === 'outcomes'), true)
+
+    const certification = createSection('certifications')
+    certification.entries[0]!.highlights = ['Renewed through 2028.']
+    resume.sections.push(certification)
+    assert.equal(analyzeResume(resume).issues.some((issue) => issue.id === 'outcomes'), true)
+
+    entry.highlights = ['Improved patient safety and reduced medication errors.']
+    assert.equal(analyzeResume(resume).issues.some((issue) => issue.id === 'outcomes'), false)
+
+    entry.highlights = ['خفض وقت الانتظار ٣٠٪.']
+    assert.equal(analyzeResume(resume).issues.some((issue) => issue.id === 'outcomes'), false)
+
+    entry.highlights = ['Lideré proyectos con equipos regionales.']
+    assert.equal(analyzeResume(resume).issues.some((issue) => issue.id === 'outcomes'), false)
+  })
 })

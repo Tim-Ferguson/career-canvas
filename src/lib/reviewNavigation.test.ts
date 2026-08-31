@@ -65,6 +65,13 @@ describe('review-to-editor navigation', () => {
     assert.equal(reviewDestination(issue(resume, 'long-bullets'), resume).id, `entry-highlight-${entry.id}-0`)
   })
 
+  it('focuses the first English bullet that needs stronger outcome evidence', () => {
+    const resume = createBlankResume()
+    const entry = resume.sections[0]!.entries[0]!
+    entry.highlights = ['Lideré proyectos con equipos regionales.', 'Managed routine assignments.']
+    assert.equal(reviewDestination(issue(resume, 'outcomes'), resume).id, `entry-highlight-${entry.id}-1`)
+  })
+
   it('focuses the exact incomplete or contradictory date field', () => {
     const resume = createStarter()
     const nextYear = new Date().getUTCFullYear() + 1
