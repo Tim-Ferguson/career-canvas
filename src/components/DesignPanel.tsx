@@ -23,6 +23,17 @@ const layoutDetails: Record<Layout, { name: string; note: string; traits: string
 
 const colors = ['#315f58', '#263a51', '#17656b', '#6a4938', '#9c3f52', '#9a541c', '#415ca4', '#3e4d75', '#242424']
 
+function LayoutThumbnail({ layout, accent }: { layout: Layout; accent: string }) {
+  return (
+    <span className={`layout-thumbnail layout-thumbnail-${layout}`} data-layout-preview={layout} style={{ '--thumbnail-accent': accent } as React.CSSProperties} aria-hidden="true">
+      <span className="thumbnail-header"><i className="thumbnail-name" /><i className="thumbnail-headline" /><i className="thumbnail-contact" /></span>
+      <span className="thumbnail-summary"><i /><i /></span>
+      <span className="thumbnail-section"><i className="thumbnail-section-label" /><span className="thumbnail-lines"><i /><i /><i /></span></span>
+      <span className="thumbnail-section thumbnail-section-short"><i className="thumbnail-section-label" /><span className="thumbnail-lines"><i /><i /></span></span>
+    </span>
+  )
+}
+
 export function DesignPanel({ resume, renderedPages, onChange, onPrint, onEditContent }: DesignPanelProps) {
   const patch = (updates: Partial<ResumeDocument['settings']>) => onChange({ ...resume, settings: { ...resume.settings, ...updates } })
   const exportPreflight = buildExportPreflight(resume, renderedPages)
@@ -36,13 +47,13 @@ export function DesignPanel({ resume, renderedPages, onChange, onPrint, onEditCo
         </div>
       </section>
       <section className="editor-card">
-        <div className="card-heading"><div><span className="eyebrow">Structure</span><h2>Layout</h2></div><p>Every option keeps a single semantic reading order for screening systems.</p></div>
+        <div className="card-heading"><div><span className="eyebrow">Structure</span><h2>Layout</h2></div><p>Miniatures compare hierarchy, not text wrapping. Every option keeps one semantic reading order.</p></div>
         <div className="layout-grid">
           {layouts.map((layout) => (
             <button key={layout} type="button" className={`layout-choice ${resume.settings.layout === layout ? 'selected' : ''}`} onClick={() => patch({ layout })} aria-pressed={resume.settings.layout === layout}>
-              <span className={`layout-thumbnail layout-thumbnail-${layout}`}><i /><i /><i /><i /></span>
+              <LayoutThumbnail layout={layout} accent={resume.settings.accent} />
               <span><strong>{layoutDetails[layout].name}</strong><small>{layoutDetails[layout].note}</small><em>{layoutDetails[layout].traits.map((trait) => <i key={trait}>{trait}</i>)}</em></span>
-              {resume.settings.layout === layout ? <Check className="choice-check" size={16} /> : null}
+              {resume.settings.layout === layout ? <Check className="choice-check" size={16} aria-hidden="true" /> : null}
             </button>
           ))}
         </div>
