@@ -154,6 +154,23 @@ describe('resume output and review', () => {
     assert.ok(ids.includes('weak-bullets'))
   })
 
+  it('finds normalized duplicate links, missing labels, and real ongoing-status mismatches', () => {
+    const resume = createStarter('healthcare')
+    resume.profile.website = 'portfolio.example'
+    resume.profile.links.push({ id: 'link-unlabeled', label: '', url: 'https://portfolio.example/' })
+    const experience = resume.sections.find((section) => section.kind === 'experience')!.entries[0]!
+    experience.current = false
+    experience.endDate = 'Present'
+    const analysis = analyzeResume(resume)
+    assert.ok(analysis.issues.some((item) => item.id === 'unlabeled-profile-link'))
+    assert.ok(analysis.issues.some((item) => item.id === 'duplicate-links'))
+    assert.equal(analysis.issues.find((item) => item.id === 'current-status-mismatch')?.entryId, experience.id)
+    const certification = resume.sections.find((section) => section.kind === 'certifications')!.entries[0]!
+    assert.equal(certification.endDate, 'Active')
+    assert.notEqual(analysis.issues.find((item) => item.id === 'current-status-mismatch')?.entryId, certification.id)
+    assert.equal(resumeToText(resume).includes(': https://portfolio.example/'), false)
+  })
+
   it('finds incomplete, reversed, and impossible current timelines without rejecting flexible dates', () => {
     const resume = createStarter()
     const currentYear = new Date().getUTCFullYear()

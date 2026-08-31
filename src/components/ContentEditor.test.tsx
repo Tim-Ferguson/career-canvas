@@ -11,6 +11,7 @@ describe('bounded cross-industry content editor', () => {
     assert.ok(html.includes('type="email" autoComplete="email"'))
     assert.ok(html.includes('type="tel" autoComplete="tel"'))
     assert.equal((html.match(/type="url"/g) ?? []).length >= 3, true)
+    assert.ok(html.includes('id="profile-link-label-link-linkedin"'))
     assert.ok(html.includes('Add supporting detail'))
     assert.ok(html.includes('Add optional keywords'))
   })

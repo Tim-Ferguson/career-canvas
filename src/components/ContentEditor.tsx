@@ -185,7 +185,7 @@ function SectionEditor({ section, index, total, onChange, onMove, onDelete }: {
 function LinkEditor({ link, onChange, onDelete }: { link: ResumeLink; onChange: (link: ResumeLink) => void; onDelete: () => void }) {
   return (
     <div className="link-row">
-      <TextField label="Label" value={link.label} onChange={(label) => onChange({ ...link, label })} placeholder="LinkedIn" />
+      <TextField id={`profile-link-label-${link.id}`} label="Label" value={link.label} onChange={(label) => onChange({ ...link, label })} placeholder="LinkedIn" />
       <TextField id={`profile-link-url-${link.id}`} label="URL" type="url" value={link.url} onChange={(url) => onChange({ ...link, url })} placeholder="linkedin.com/in/you" />
       <IconButton label="Remove profile link" danger onClick={onDelete}><Trash2 size={15} /></IconButton>
     </div>

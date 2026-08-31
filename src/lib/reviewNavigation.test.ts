@@ -27,6 +27,18 @@ describe('review-to-editor navigation', () => {
     assert.equal(reviewDestination(issue(resume, 'links'), resume).id, `entry-url-${entry.id}`)
   })
 
+  it('focuses the second duplicate destination, its missing label, and the ongoing toggle', () => {
+    const resume = createStarter()
+    resume.profile.website = 'portfolio.example'
+    resume.profile.links.push({ id: 'link-unlabeled', label: '', url: 'https://portfolio.example/' })
+    const entry = resume.sections[0]!.entries[0]!
+    entry.current = false
+    entry.endDate = 'Present'
+    assert.equal(reviewDestination(issue(resume, 'duplicate-links'), resume).id, 'profile-link-url-link-unlabeled')
+    assert.equal(reviewDestination(issue(resume, 'unlabeled-profile-link'), resume).id, 'profile-link-label-link-unlabeled')
+    assert.equal(reviewDestination(issue(resume, 'current-status-mismatch'), resume).id, `entry-current-${entry.id}`)
+  })
+
   it('opens the add-section control when substantive evidence is absent', () => {
     const resume = createBlankResume()
     resume.sections = resume.sections.filter((section) => section.kind === 'skills')

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { emailHref, externalHref, phoneHref } from './contactLinks'
+import { duplicateExternalLinkIndex, emailHref, externalHref, phoneHref } from './contactLinks'
 
 describe('safe portable contact links', () => {
   it('normalizes public web destinations and rejects unsafe or deceptive targets', () => {
@@ -12,6 +12,11 @@ describe('safe portable contact links', () => {
     for (const value of ['javascript:alert(1)', 'data:text/html,hello', 'mailto:person@example.com', 'https://user:secret@example.com', 'https://example..com', 'https://-example.com', 'https://example.com\\@evil.com', 'not a website', 'localhost/path']) {
       assert.equal(externalHref(value), '', value)
     }
+  })
+
+  it('finds the second normalized duplicate while ignoring invalid values', () => {
+    assert.equal(duplicateExternalLinkIndex(['not a website', 'example.com', 'https://example.com/']), 2)
+    assert.equal(duplicateExternalLinkIndex(['example.com/one', 'example.com/two']), -1)
   })
 
   it('creates mail links only for complete standalone addresses', () => {

@@ -23,6 +23,17 @@ export function externalHref(value: string): string {
   }
 }
 
+export function duplicateExternalLinkIndex(values: string[]): number {
+  const seen = new Set<string>()
+  for (let index = 0; index < values.length; index += 1) {
+    const href = externalHref(values[index] ?? '')
+    if (!href) continue
+    if (seen.has(href)) return index
+    seen.add(href)
+  }
+  return -1
+}
+
 export function emailHref(value: string): string {
   const trimmed = value.trim()
   if (!trimmed || trimmed.length > 254 || /[\u0000-\u0020\u007f?#\\\u200e\u200f\u202a-\u202e\u2066-\u2069]/i.test(trimmed)) return ''

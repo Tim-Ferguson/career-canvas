@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { resumeDateIsDefinitelyFuture, resumeDateRangeIsReversed } from './dateIntegrity'
-import { emailHref, externalHref, phoneHref } from './contactLinks'
+import { duplicateExternalLinkIndex, emailHref, externalHref, phoneHref } from './contactLinks'
 
 export const MAX_DOCUMENT_BYTES = 2_000_000
 export const MAX_RESUMES = 24
@@ -824,6 +824,9 @@ export function analyzeResume(resume: ResumeDocument): ResumeAnalysis {
   if (reversedRange) add({ id: 'reversed-date-range', sectionId: reversedRange.sectionItem.id, entryId: reversedRange.entryItem.id, severity: 'essential', title: 'Fix a reversed date range', detail: `“${reversedRange.entryItem.title || reversedRange.sectionItem.title || 'This entry'}” appears to end before it starts. Verify both date fields.` }, 8)
   const futureCurrent = visible.flatMap((sectionItem) => sectionItem.entries.map((entryItem) => ({ sectionItem, entryItem }))).find(({ entryItem }) => entryItem.current && resumeDateIsDefinitelyFuture(entryItem.startDate))
   if (futureCurrent) add({ id: 'future-current-entry', sectionId: futureCurrent.sectionItem.id, entryId: futureCurrent.entryItem.id, severity: 'essential', title: 'Verify a future-dated current item', detail: `“${futureCurrent.entryItem.title || futureCurrent.sectionItem.title || 'This entry'}” is marked current but has a start date that is definitely in the future.` }, 8)
+  const ongoingStatusKinds = new Set<SectionKind>(['experience', 'education', 'skills', 'projects', 'volunteering', 'languages', 'affiliations', 'interests', 'custom'])
+  const mismatchedCurrentStatus = visible.flatMap((sectionItem) => sectionItem.entries.map((entryItem) => ({ sectionItem, entryItem }))).find(({ sectionItem, entryItem }) => ongoingStatusKinds.has(sectionItem.kind) && !entryItem.current && /^(present|current|ongoing|in progress|active)$/i.test(entryItem.endDate.trim()))
+  if (mismatchedCurrentStatus) add({ id: 'current-status-mismatch', sectionId: mismatchedCurrentStatus.sectionItem.id, entryId: mismatchedCurrentStatus.entryItem.id, severity: 'improvement', title: 'Resolve an ongoing-status mismatch', detail: `“${mismatchedCurrentStatus.entryItem.title || mismatchedCurrentStatus.sectionItem.title || 'This entry'}” uses “${mismatchedCurrentStatus.entryItem.endDate.trim()}” as its end value while its ongoing setting is off. Turn it on or enter an actual end date.` }, 4)
   const bullets = visible.flatMap((item) => item.entries.flatMap((entryItem) => entryItem.highlights)).filter((item) => item.trim())
   if (experience.length && bullets.length < 2) add({ id: 'few-bullets', severity: 'improvement', title: 'Show more evidence', detail: 'Use concise bullets to show actions, scope, and outcomes—not only responsibilities.' }, 7)
   if (bullets.length && !bullets.some((bullet) => /\d|%|\$/.test(bullet))) add({ id: 'outcomes', severity: 'improvement', title: 'Add scale or outcomes', detail: 'Numbers are useful when honest, but scope, speed, quality, safety, and stakeholder impact also count.' }, 6)
@@ -841,6 +844,9 @@ export function analyzeResume(resume: ResumeDocument): ResumeAnalysis {
   }
   const links = [resume.profile.website, ...resume.profile.links.map((link) => link.url), ...visible.flatMap((sectionItem) => sectionItem.entries.map((entryItem) => entryItem.url))].filter((value) => value.trim())
   if (links.some((value) => !externalHref(value))) add({ id: 'links', severity: 'improvement', title: 'Check every web link', detail: 'At least one website or profile link is incomplete, unsafe, or includes sign-in credentials. Open each link before sending.' }, 4)
+  const unlabeledProfile = resume.profile.links.find((link) => externalHref(link.url) && !link.label.trim())
+  if (unlabeledProfile) add({ id: 'unlabeled-profile-link', severity: 'tip', title: 'Label a profile link', detail: 'Use a short reader-facing label such as LinkedIn, Portfolio, GitHub, or ORCID instead of printing the full destination.' }, 2)
+  if (duplicateExternalLinkIndex(links) >= 0) add({ id: 'duplicate-links', severity: 'tip', title: 'Remove a repeated web link', detail: 'The same normalized destination appears more than once. Keep the clearest placement and use the space for distinct information.' }, 2)
   const allText = [resume.profile.name, resume.profile.headline, resume.profile.summary, ...visible.flatMap((item) => [item.title, ...item.entries.flatMap((entryItem) => [entryItem.title, entryItem.organization, entryItem.summary, ...entryItem.highlights, ...entryItem.keywords])])].join(' ')
   const words = cleanWords(allText).length
   return { score: Math.max(0, Math.min(100, 100 - penalty)), issues, words, bullets: bullets.length, estimatedPages: Math.max(1, Math.ceil(words / (resume.settings.density === 'tight' ? 720 : resume.settings.density === 'comfortable' ? 480 : 600))) }
@@ -848,7 +854,7 @@ export function analyzeResume(resume: ResumeDocument): ResumeAnalysis {
 
 export function resumeToText(resume: ResumeDocument): string {
   const lines: string[] = [resume.profile.name, resume.profile.headline]
-  const contact = [resume.profile.email, resume.profile.phone, resume.profile.location, resume.profile.website, ...resume.profile.links.map((link) => `${link.label}: ${link.url}`)].filter((item) => item.trim())
+  const contact = [resume.profile.email, resume.profile.phone, resume.profile.location, resume.profile.website, ...resume.profile.links.map((link) => link.label.trim() ? `${link.label.trim()}: ${link.url}` : link.url)].filter((item) => item.trim())
   if (contact.length) lines.push(contact.join(' | '))
   if (resume.profile.summary.trim()) lines.push('', 'SUMMARY', resume.profile.summary.trim())
   for (const sectionItem of resume.sections.filter((item) => item.visible && sectionHasRenderableContent(item))) {

@@ -1,4 +1,4 @@
-import { externalHref } from './contactLinks'
+import { duplicateExternalLinkIndex, externalHref } from './contactLinks'
 import type { ResumeDocument, ResumeIssue } from './resume'
 
 export interface ReviewDestination {
@@ -47,6 +47,7 @@ export function reviewDestination(issue: ResumeIssue, resume: ResumeDocument): R
   }
   if (issue.id === 'reversed-date-range') return destination(issue.entryId ? `entry-end-${issue.entryId}` : 'content-sections')
   if (issue.id === 'future-current-entry') return destination(issue.entryId ? `entry-start-${issue.entryId}` : 'content-sections')
+  if (issue.id === 'current-status-mismatch') return destination(issue.entryId ? `entry-current-${issue.entryId}` : 'content-sections')
   if (issue.id === 'few-bullets') {
     const experience = visibleSections.find((item) => item.kind === 'experience')
     return destination(experience ? `section-editor-${experience.id}` : 'content-sections')
@@ -87,6 +88,19 @@ export function reviewDestination(issue: ResumeIssue, resume: ResumeDocument): R
     if (profileLink) return destination(`profile-link-url-${profileLink.id}`)
     const entry = visibleEntries.find((item) => invalidLink(item.url))
     if (entry) return destination(`entry-url-${entry.id}`)
+  }
+  if (issue.id === 'unlabeled-profile-link') {
+    const profileLink = resume.profile.links.find((link) => externalHref(link.url) && !link.label.trim())
+    if (profileLink) return destination(`profile-link-label-${profileLink.id}`)
+  }
+  if (issue.id === 'duplicate-links') {
+    const candidates = [
+      { value: resume.profile.website, id: 'profile-website' },
+      ...resume.profile.links.map((link) => ({ value: link.url, id: `profile-link-url-${link.id}` })),
+      ...visibleEntries.map((entry) => ({ value: entry.url, id: `entry-url-${entry.id}` })),
+    ].filter((candidate) => candidate.value.trim())
+    const duplicateIndex = duplicateExternalLinkIndex(candidates.map((candidate) => candidate.value))
+    if (duplicateIndex >= 0) return destination(candidates[duplicateIndex]!.id)
   }
   return destination(section ? `section-editor-${section.id}` : 'content-sections')
 }
