@@ -40,7 +40,7 @@ function entryFingerprint(entry: ResumeEntry): string {
   })
 }
 
-export function findDuplicateEntry(resume: ResumeDocument): DuplicateReviewLocation | null {
+export function findDuplicateEntry(resume: ResumeDocument): (DuplicateReviewLocation & { entryId: string }) | null {
   const seen = new Set<string>()
   for (const section of resume.sections.filter((item) => item.visible)) {
     for (const entry of section.entries) {
@@ -53,7 +53,7 @@ export function findDuplicateEntry(resume: ResumeDocument): DuplicateReviewLocat
   return null
 }
 
-export function findDuplicateKeyword(resume: ResumeDocument): DuplicateReviewLocation | null {
+export function findDuplicateKeyword(resume: ResumeDocument): (DuplicateReviewLocation & { entryId: string; itemIndex: number }) | null {
   for (const section of resume.sections.filter((item) => item.visible)) {
     for (const entry of section.entries) {
       const seen = new Set<string>()
@@ -68,7 +68,7 @@ export function findDuplicateKeyword(resume: ResumeDocument): DuplicateReviewLoc
   return null
 }
 
-export function findDuplicateHighlight(resume: ResumeDocument): DuplicateReviewLocation | null {
+export function findDuplicateHighlight(resume: ResumeDocument): (DuplicateReviewLocation & { entryId: string; itemIndex: number }) | null {
   const seen = new Set<string>()
   for (const section of resume.sections.filter((item) => item.visible)) {
     for (const entry of section.entries) {

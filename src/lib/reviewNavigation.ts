@@ -1,14 +1,11 @@
 import { duplicateExternalLinkIndex, externalHref } from './contactLinks'
 import { findDuplicateHighlight } from './reviewDuplicates'
+import { textWordCount } from './textMetrics'
 import type { ResumeDocument, ResumeIssue } from './resume'
 
 export interface ReviewDestination {
   id: string
   label: string
-}
-
-function words(value: string): number {
-  return value.trim().split(/\s+/).filter(Boolean).length
 }
 
 function invalidLink(value: string): boolean {
@@ -58,7 +55,7 @@ export function reviewDestination(issue: ResumeIssue, resume: ResumeDocument): R
     return destination(item ? `entry-highlight-${item.entry.id}-${item.index}` : 'content-sections')
   }
   if (issue.id === 'long-bullets') {
-    const item = highlights.find((candidate) => words(candidate.highlight) > 35)
+    const item = highlights.find((candidate) => textWordCount(candidate.highlight) > 35)
     return destination(item ? `entry-highlight-${item.entry.id}-${item.index}` : 'content-sections')
   }
   if (issue.id === 'duplicate-bullets') {

@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { resumeDateIsDefinitelyFuture, resumeDateRangeIsReversed } from './dateIntegrity'
 import { duplicateExternalLinkIndex, emailHref, externalHref, phoneHref } from './contactLinks'
 import { findDuplicateEntry, findDuplicateHighlight, findDuplicateKeyword, findDuplicateSectionTitle } from './reviewDuplicates'
+import { reviewEnglishBulletStarts, textWordCount } from './textMetrics'
 
 export const MAX_DOCUMENT_BYTES = 2_000_000
 export const MAX_RESUMES = 24
@@ -201,12 +202,6 @@ export function entryHasRenderableContent(entry: ResumeEntry): boolean {
 export function sectionHasRenderableContent(section: ResumeSection): boolean {
   return section.entries.some(entryHasRenderableContent)
 }
-
-const actionVerbs = new Set([
-  'accelerated', 'achieved', 'built', 'coached', 'created', 'cut', 'delivered', 'designed', 'developed', 'directed',
-  'drove', 'established', 'expanded', 'grew', 'implemented', 'improved', 'increased', 'launched', 'led', 'managed',
-  'negotiated', 'operated', 'optimized', 'produced', 'reduced', 'resolved', 'scaled', 'secured', 'streamlined', 'trained',
-])
 
 function now(): string {
   return new Date().toISOString()
@@ -765,10 +760,6 @@ export function renderedPageCount(contentHeightCssPixels: number, pageSize: Page
   return Math.max(1, Math.ceil(contentHeightCssPixels / pageHeight))
 }
 
-function cleanWords(value: string): string[] {
-  return value.trim().split(/\s+/).filter(Boolean)
-}
-
 const starterEvidenceMarkers = [
   'Reduced customer onboarding time 34%',
   'Expanded operating margin 6 points',
@@ -805,7 +796,7 @@ export function analyzeResume(resume: ResumeDocument): ResumeAnalysis {
   if (resume.profile.email.trim() && !emailHref(resume.profile.email)) add({ id: 'email-format', severity: 'essential', title: 'Check the email address', detail: 'It does not look like one complete standalone address. Verify it before anyone receives this resume.' }, 8)
   if (resume.profile.phone.trim() && !phoneHref(resume.profile.phone)) add({ id: 'phone-format', severity: 'improvement', title: 'Check the phone number', detail: 'Use 7–15 digits, an optional leading country code, and a clear extension if needed.' }, 4)
   if (!resume.targetRole.trim()) add({ id: 'target', severity: 'improvement', title: 'Name the target role', detail: 'A target helps you decide which evidence deserves space.' }, 7)
-  const summaryWords = cleanWords(resume.profile.summary).length
+  const summaryWords = textWordCount(resume.profile.summary)
   if (summaryWords < 25) add({ id: 'summary-short', severity: 'improvement', title: 'Strengthen the opening summary', detail: 'Aim for 35–70 words covering scope, strengths, and the value you create.' }, 8)
   if (summaryWords > 100) add({ id: 'summary-long', severity: 'tip', title: 'Tighten the opening summary', detail: 'A concise summary is easier to scan; keep the strongest 2–4 lines.' }, 3)
   const visible = resume.sections.filter((item) => item.visible)
@@ -834,17 +825,11 @@ export function analyzeResume(resume: ResumeDocument): ResumeAnalysis {
   const duplicateHighlight = findDuplicateHighlight(resume)
   if (experience.length && bullets.length < 2) add({ id: 'few-bullets', severity: 'improvement', title: 'Show more evidence', detail: 'Use concise bullets to show actions, scope, and outcomes—not only responsibilities.' }, 7)
   if (bullets.length && !bullets.some((bullet) => /\d|%|\$/.test(bullet))) add({ id: 'outcomes', severity: 'improvement', title: 'Add scale or outcomes', detail: 'Numbers are useful when honest, but scope, speed, quality, safety, and stakeholder impact also count.' }, 6)
-  if (bullets.some((bullet) => cleanWords(bullet).length > 35)) add({ id: 'long-bullets', severity: 'tip', title: 'Shorten long bullets', detail: 'Keep most bullets under 25–30 words so the outcome is visible at a glance.' }, 3)
+  if (bullets.some((bullet) => textWordCount(bullet) > 35)) add({ id: 'long-bullets', severity: 'tip', title: 'Shorten long bullets', detail: 'Keep most bullets under 25–30 words so the outcome is visible at a glance.' }, 3)
   if (duplicateHighlight && duplicateHighlight.entryId !== duplicateEntry?.entryId) add({ id: 'duplicate-bullets', sectionId: duplicateHighlight.sectionId, entryId: duplicateHighlight.entryId, itemIndex: duplicateHighlight.itemIndex, severity: 'improvement', title: 'Remove a repeated evidence bullet', detail: 'The same normalized bullet appears twice. Keep one, or rewrite the second with the distinct action, scope, or outcome it represents.' }, 4)
   if (bullets.some((bullet) => /^(responsible for|duties included|helped (with|to)|worked on)\b/i.test(bullet.trim()))) add({ id: 'weak-bullets', severity: 'tip', title: 'Clarify ownership in a few bullets', detail: 'Replace responsibility phrases with the action you took and why it mattered.' }, 3)
   if (bullets.some((bullet) => /\b(i|me|my|we|our)\b/i.test(bullet))) add({ id: 'first-person-bullets', severity: 'tip', title: 'Remove first-person pronouns from bullets', detail: 'Resume bullets conventionally begin with the action; “I” and “we” are usually unnecessary.' }, 2)
-  if (bullets.length >= 3) {
-    const weakStarts = bullets.filter((bullet) => {
-      const first = bullet.trim().toLowerCase().replace(/[^a-z].*$/, '')
-      return first && !actionVerbs.has(first)
-    })
-    if (weakStarts.length / bullets.length > 0.65) add({ id: 'verbs', severity: 'tip', title: 'Lead more bullets with decisive verbs', detail: 'Starting with your action makes ownership and contribution easier to understand.' }, 3)
-  }
+  if (reviewEnglishBulletStarts(bullets).shouldFlag) add({ id: 'verbs', severity: 'tip', title: 'Lead more bullets with decisive verbs', detail: 'In English-language bullets, starting with your action makes ownership and contribution easier to understand.' }, 3)
   const links = [resume.profile.website, ...resume.profile.links.map((link) => link.url), ...visible.flatMap((sectionItem) => sectionItem.entries.map((entryItem) => entryItem.url))].filter((value) => value.trim())
   if (links.some((value) => !externalHref(value))) add({ id: 'links', severity: 'improvement', title: 'Check every web link', detail: 'At least one website or profile link is incomplete, unsafe, or includes sign-in credentials. Open each link before sending.' }, 4)
   const unlabeledProfile = resume.profile.links.find((link) => externalHref(link.url) && !link.label.trim())
@@ -856,7 +841,7 @@ export function analyzeResume(resume: ResumeDocument): ResumeAnalysis {
   const duplicateKeyword = findDuplicateKeyword(resume)
   if (duplicateKeyword) add({ id: 'duplicate-keyword', sectionId: duplicateKeyword.sectionId, entryId: duplicateKeyword.entryId, itemIndex: duplicateKeyword.itemIndex, severity: 'tip', title: 'Remove a repeated skill or keyword', detail: 'The same normalized item appears twice in one list. Keep one so the capability is easier to scan.' }, 2)
   const allText = [resume.profile.name, resume.profile.headline, resume.profile.summary, ...visible.flatMap((item) => [item.title, ...item.entries.flatMap((entryItem) => [entryItem.title, entryItem.organization, entryItem.summary, ...entryItem.highlights, ...entryItem.keywords])])].join(' ')
-  const words = cleanWords(allText).length
+  const words = textWordCount(allText)
   return { score: Math.max(0, Math.min(100, 100 - penalty)), issues, words, bullets: bullets.length, estimatedPages: Math.max(1, Math.ceil(words / (resume.settings.density === 'tight' ? 720 : resume.settings.density === 'comfortable' ? 480 : 600))) }
 }
 

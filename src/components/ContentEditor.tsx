@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronUp, Copy, Eye, EyeOff, Plus, Trash2 } from 'lucide-react'
 import { ENTRY_DATE_PRESENTATION, MAX_ENTRIES, MAX_LIST_ITEMS, MAX_PROFILE_LINKS, MAX_SECTIONS, MAX_TEXT, createEntry, createId, createSection, moveInArray, SECTION_CATALOG, type ResumeDocument, type ResumeEntry, type ResumeLink, type ResumeSection, type SectionKind } from '../lib/resume'
+import { textWordCount } from '../lib/textMetrics'
 
 interface ContentEditorProps {
   resume: ResumeDocument
@@ -236,7 +237,7 @@ export function ContentEditor({ resume, onChange }: ContentEditorProps) {
           <TextField id="profile-phone" label="Phone" type="tel" autoComplete="tel" value={resume.profile.phone} onChange={(phone) => patchProfile({ phone })} placeholder="+1 555 555 5555" />
           <TextField label="Location" autoComplete="address-level2" value={resume.profile.location} onChange={(location) => patchProfile({ location })} placeholder="City, state or Remote" />
           <TextField id="profile-website" label="Website" type="url" autoComplete="url" value={resume.profile.website} onChange={(website) => patchProfile({ website })} placeholder="yourname.com" />
-          <TextAreaField id="profile-summary" label="Summary" value={resume.profile.summary} onChange={(summary) => patchProfile({ summary })} placeholder="Summarize your scope, strongest capabilities, and the outcomes you create." hint={`${resume.profile.summary.trim().split(/\s+/).filter(Boolean).length} words · aim for 35–70`} />
+          <TextAreaField id="profile-summary" label="Summary" value={resume.profile.summary} onChange={(summary) => patchProfile({ summary })} placeholder="Summarize your scope, strongest capabilities, and the outcomes you create." hint={`${textWordCount(resume.profile.summary)} words · aim for 35–70`} />
         </div>
         <div className="subsection-heading"><h3>Profile links</h3><span>LinkedIn, portfolio, GitHub, ORCID, or another relevant profile</span></div>
         {resume.profile.links.map((link, index) => <LinkEditor key={link.id} link={link} onChange={(value) => patchProfile({ links: resume.profile.links.map((item, itemIndex) => itemIndex === index ? value : item) })} onDelete={() => patchProfile({ links: resume.profile.links.filter((_, itemIndex) => itemIndex !== index) })} />)}

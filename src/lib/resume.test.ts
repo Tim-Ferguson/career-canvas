@@ -240,4 +240,21 @@ describe('resume output and review', () => {
     resume.sections[0]!.entries[0] = { ...resume.sections[0]!.entries[0]!, title: 'Community research project', organization: 'Neighborhood coalition', highlights: ['Interviewed 24 residents and presented three service recommendations.'] }
     assert.equal(analyzeResume(resume).issues.some((issue) => issue.id === 'evidence'), false)
   })
+
+  it('uses international word boundaries and does not grade Spanish bullets as weak English', () => {
+    const resume = createBlankResume()
+    resume.profile.summary = Array.from({ length: 30 }, () => '项目管理').join('，')
+    resume.sections[0]!.entries[0]!.highlights = [
+      'Lideré proyectos con equipos regionales.',
+      'Coordiné entregas para clientes públicos.',
+      'Dirigí mejoras de calidad y servicio.',
+    ]
+    const analysis = analyzeResume(resume)
+    assert.ok(analysis.words > 30)
+    assert.equal(analysis.issues.some((issue) => issue.id === 'summary-short'), false)
+    assert.equal(analysis.issues.some((issue) => issue.id === 'verbs'), false)
+
+    resume.sections[0]!.entries[0]!.highlights = ['Weekly reports using the team dashboard.', 'Customer updates with partners.', 'Project materials across launch teams.']
+    assert.equal(analyzeResume(resume).issues.some((issue) => issue.id === 'verbs'), true)
+  })
 })

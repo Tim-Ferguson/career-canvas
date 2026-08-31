@@ -58,6 +58,13 @@ describe('review-to-editor navigation', () => {
     assert.equal(reviewDestination(issue(resume, 'evidence'), resume).id, 'add-section-control')
   })
 
+  it('focuses a long unspaced-script evidence bullet using shared word segmentation', () => {
+    const resume = createStarter()
+    const entry = resume.sections[0]!.entries[0]!
+    entry.highlights = [Array.from({ length: 40 }, () => '改善').join('，')]
+    assert.equal(reviewDestination(issue(resume, 'long-bullets'), resume).id, `entry-highlight-${entry.id}-0`)
+  })
+
   it('focuses the exact incomplete or contradictory date field', () => {
     const resume = createStarter()
     const nextYear = new Date().getUTCFullYear() + 1
