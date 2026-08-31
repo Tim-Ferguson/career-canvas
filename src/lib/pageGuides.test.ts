@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { buildPreviewPageGuides, MAX_PREVIEW_PAGE_GUIDES, pageHeightCssPixels } from './pageGuides'
+import { buildPreviewPageGuides, MAX_PREVIEW_PAGE_GUIDES, pageHeightCssPixels, pageWidthCssPixels } from './pageGuides'
 
 describe('preview page boundaries', () => {
-  it('uses physical Letter and A4 page heights at CSS print resolution', () => {
+  it('uses physical Letter and A4 dimensions at CSS print resolution', () => {
+    assert.equal(pageWidthCssPixels('letter'), 816)
+    assert.ok(Math.abs(pageWidthCssPixels('a4') - 793.700787) < 0.001)
     assert.equal(pageHeightCssPixels('letter'), 1056)
     assert.ok(Math.abs(pageHeightCssPixels('a4') - 1122.519685) < 0.001)
   })

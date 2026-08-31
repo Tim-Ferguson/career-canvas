@@ -7,6 +7,10 @@ export interface PreviewPageGuide {
   offsetPixels: number
 }
 
+export function pageWidthCssPixels(pageSize: PageSize): number {
+  return pageSize === 'a4' ? (210 / 25.4) * 96 : 8.5 * 96
+}
+
 export function pageHeightCssPixels(pageSize: PageSize): number {
   return pageSize === 'a4' ? (297 / 25.4) * 96 : 11 * 96
 }

@@ -15,6 +15,7 @@ import { commitLatest } from '../lib/latestState'
 import { buildExportPreflight, exportConfirmationMessage } from '../lib/exportReadiness'
 import { createDeletedResumeRecovery, loadDeletedResumeRecoveryFromProvider, recoveryAlreadyPresent, restoreDeletedResume, type DeletedResumeRecovery } from '../lib/deletionRecovery'
 import { buildPreviewPageGuides, MAX_PREVIEW_PAGE_GUIDES } from '../lib/pageGuides'
+import { DEFAULT_PREVIEW_ZOOM, MAX_PREVIEW_ZOOM, MIN_PREVIEW_ZOOM, clampPreviewZoom, fitPreviewZoom } from '../lib/previewZoom'
 import { runDeviceStorageOperation, type DeviceStorageFailure } from '../lib/deviceStorage'
 import { restoreLibraryBackup, type LibraryBackupRestoreSummary, type ParsedLibraryBackup } from '../lib/libraryBackup'
 import { saveWorkspace } from '../lib/workspacePersistence'
@@ -49,7 +50,8 @@ export function Studio() {
   const [status, setStatus] = useState('Your resume stays on this device.')
   const [recoveryNotice, setRecoveryNotice] = useState('')
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'limited'>('saved')
-  const [zoom, setZoom] = useState(0.82)
+  const [zoom, setZoom] = useState(DEFAULT_PREVIEW_ZOOM)
+  const [zoomMode, setZoomMode] = useState<'fit' | 'manual'>('fit')
   const [renderedPages, setRenderedPages] = useState(1)
   const [advancedDraftDirty, setAdvancedDraftDirty] = useState(false)
   const [deletedRecovery, setDeletedRecovery] = useState<DeletedResumeRecovery | null>(null)
@@ -61,6 +63,7 @@ export function Studio() {
   const libraryDialogRef = useRef<HTMLElement>(null)
   const libraryMenuButtonRef = useRef<HTMLButtonElement>(null)
   const libraryMenuRef = useRef<HTMLDivElement>(null)
+  const previewScrollRef = useRef<HTMLDivElement>(null)
   const historiesRef = useRef(new Map<string, ResumeHistory>())
   const storageLimitedRef = useRef(false)
   const pendingDeviceChangesRef = useRef(false)
@@ -293,6 +296,24 @@ export function Studio() {
       window.removeEventListener('resize', measure)
     }
   }, [activeResume.id, activeResume.settings.pageSize])
+
+  useEffect(() => {
+    if (zoomMode !== 'fit') return
+    const viewport = previewScrollRef.current
+    if (!viewport) return
+    const fit = () => {
+      const nextZoom = fitPreviewZoom(viewport.clientWidth, activeResume.settings.pageSize)
+      if (nextZoom !== null) setZoom((current) => Math.abs(current - nextZoom) < 0.001 ? current : nextZoom)
+    }
+    fit()
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(fit)
+    observer?.observe(viewport)
+    window.addEventListener('resize', fit)
+    return () => {
+      observer?.disconnect()
+      window.removeEventListener('resize', fit)
+    }
+  }, [activeResume.settings.pageSize, mobileView, zoomMode])
 
   const changeResume = (document: ResumeDocument) => {
     const currentResume = libraryRef.current.documents.find((item) => item.id === document.id)
@@ -561,6 +582,16 @@ export function Studio() {
   const activeHistory = historiesRef.current.get(activeResume.id) ?? createResumeHistory()
   const sampleContentPresent = containsStarterSampleContent(activeResume)
   const previewPageGuides = buildPreviewPageGuides(activeResume.settings.pageSize, renderedPages, zoom)
+  const adjustPreviewZoom = (amount: number) => {
+    setZoomMode('manual')
+    setZoom((current) => clampPreviewZoom(current + amount))
+  }
+  const fitPreview = () => {
+    const nextZoom = fitPreviewZoom(previewScrollRef.current?.clientWidth ?? 0, activeResume.settings.pageSize)
+    if (nextZoom !== null) setZoom(nextZoom)
+    setZoomMode('fit')
+    setStatus('Preview fitted to the available width and will follow window resizing.')
+  }
   const printResume = () => {
     if (advancedDraftDirty && !window.confirm('The PDF will use the last valid resume; unapplied advanced JSON changes are not included. Open the print dialog anyway?')) {
       setStatus('PDF export canceled. Apply or discard the advanced JSON draft first.')
@@ -647,9 +678,9 @@ export function Studio() {
         <section className="preview-workspace" id="resume-preview" tabIndex={-1} aria-label="Live resume preview">
           <div className="preview-toolbar no-print">
             <div><span className="preview-live-dot" /> Live preview <small>{activeResume.settings.pageSize === 'a4' ? 'A4' : 'US Letter'} · {activeResume.settings.layout} · <span className={renderedPages > 1 ? 'page-warning' : ''}>{renderedPages} {renderedPages === 1 ? 'page' : 'pages'}</span></small></div>
-            <div className="zoom-control" aria-label="Preview zoom"><button type="button" onClick={() => setZoom((value) => Math.max(0.55, value - 0.08))} aria-label="Zoom out">−</button><span>{Math.round(zoom * 100)}%</span><button type="button" onClick={() => setZoom((value) => Math.min(1.15, value + 0.08))} aria-label="Zoom in">+</button></div>
+            <div className="zoom-control" aria-label={`Preview zoom, ${zoomMode === 'fit' ? 'fitted to width' : 'manual'}`}><button type="button" onClick={() => adjustPreviewZoom(-0.08)} disabled={zoom <= MIN_PREVIEW_ZOOM} aria-label="Zoom out">−</button><span aria-live="polite">{Math.round(zoom * 100)}%</span><button type="button" onClick={() => adjustPreviewZoom(0.08)} disabled={zoom >= MAX_PREVIEW_ZOOM} aria-label="Zoom in">+</button><button className="fit-zoom-button" type="button" aria-pressed={zoomMode === 'fit'} title="Fit page to available width" onClick={fitPreview}>Fit</button></div>
           </div>
-          <div className="preview-scroll">
+          <div className="preview-scroll" ref={previewScrollRef}>
             <div className="preview-scale" style={{ '--preview-zoom': zoom, '--paper-width': activeResume.settings.pageSize === 'a4' ? '210mm' : '8.5in', '--paper-height': activeResume.settings.pageSize === 'a4' ? '297mm' : '11in' } as React.CSSProperties}>
               <ResumePreview resume={activeResume} />
               {previewPageGuides.length ? (

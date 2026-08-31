@@ -336,8 +336,11 @@ details > summary::-webkit-details-marker { display: none; }
 .zoom-control { display: flex; align-items: center; overflow: hidden; border: 1px solid #c5c5be; border-radius: 7px; background: rgba(255,255,255,.45); }
 .zoom-control button { width: 29px; height: 26px; border: 0; color: #5d625e; background: transparent; font-size: 1rem; }
 .zoom-control button:hover { background: white; }
+.zoom-control button:disabled { cursor: not-allowed; color: #a2a6a2; }
+.zoom-control .fit-zoom-button { width: auto; min-width: 35px; padding: 0 8px; border-left: 1px solid #c5c5be; font-size: .53rem; font-weight: 800; letter-spacing: .02em; }
+.zoom-control .fit-zoom-button[aria-pressed='true'] { color: var(--brand-dark); background: white; }
 .zoom-control span { min-width: 43px; text-align: center; font-size: .58rem; font-weight: 600; }
-.preview-scroll { overflow: auto; padding: 38px max(30px, calc((100% - var(--preview-paper-width, 8.5in) * var(--preview-zoom, .82)) / 2)) 80px; scrollbar-gutter: stable; }
+.preview-scroll { overflow: auto; padding: 38px 24px 80px; scrollbar-gutter: stable; }
 .preview-scale { --preview-zoom: .82; --paper-width: 8.5in; --paper-height: 11in; position: relative; width: calc(var(--paper-width) * var(--preview-zoom)); min-height: calc(var(--paper-height) * var(--preview-zoom)); margin: 0 auto; }
 .page-break-guides { position: absolute; z-index: 4; inset: 0; pointer-events: none; }
 .page-break-guide { position: absolute; left: 0; width: 100%; border-top: 2px dashed rgba(116,83,42,.62); filter: drop-shadow(0 1px 0 rgba(255,255,255,.9)); }
@@ -572,6 +575,7 @@ details > summary::-webkit-details-marker { display: none; }
   .app-header { grid-template-columns: minmax(0, 1fr) auto; }
   .app-header > .app-brand { display: none; }
   .print-button { font-size: 0; }
+  .preview-toolbar small { display: none; }
   .studio-tabs button { flex-direction: column; font-size: .57rem; }
   .field-grid, .setting-row, .section-catalog, .export-grid { grid-template-columns: 1fr; }
   .resume-outline-list { grid-template-columns: 1fr; }
