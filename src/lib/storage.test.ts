@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { createBlankResume, createStarter } from './resume'
-import { createDefaultLibrary, loadLibrary, loadLibraryFromProvider, loadLibraryResult, mergeLibraries, parseLibrary, removeDocument, saveLibrary, summarizeLibraryMerge, upsertDocument } from './storage'
+import { createDefaultLibrary, loadLibrary, loadLibraryFromProvider, loadLibraryResult, mergeLibraries, parseLibrary, removeDocument, saveLibrary, seedPrimaryResumes, summarizeLibraryMerge, upsertDocument } from './storage'
 
 describe('local resume library', () => {
   it('round trips validated documents through a storage boundary', () => {
@@ -101,4 +101,17 @@ describe('local resume library', () => {
     assert.equal(current.documents.length, 24)
   })
 
+
+  it('seeds owner resumes first, activates the first added, and never duplicates them', () => {
+    const first = { ...createBlankResume(), id: 'resume-owner-a', title: 'Owner A' }
+    const second = { ...createBlankResume(), id: 'resume-owner-b', title: 'Owner B' }
+    const empty = loadLibraryResult({ getItem: () => null })
+    assert.deepEqual(seedPrimaryResumes(empty, [first, second]).library, { activeId: 'resume-owner-a', documents: [first, second] })
+    const existing = { ...empty, status: 'loaded' as const, library: { activeId: second.id, documents: [second, ...empty.library.documents] } }
+    const seeded = seedPrimaryResumes(existing, [first, second])
+    assert.equal(seeded.library.activeId, 'resume-owner-a')
+    assert.deepEqual(seeded.library.documents.map((document) => document.id), ['resume-owner-a', ...existing.library.documents.map((document) => document.id)])
+    assert.equal(seedPrimaryResumes(seeded, [first, second]), seeded)
+    assert.equal(seedPrimaryResumes(existing, []), existing)
+  })
 })

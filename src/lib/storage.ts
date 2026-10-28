@@ -27,6 +27,15 @@ export function createDefaultLibrary(): ResumeLibrary {
   return { activeId: document.id, documents: [document] }
 }
 
+// Adds the owner's resumes ahead of the library and activates the first one it adds. A fresh
+// device opens with only those resumes instead of the fictional starter.
+export function seedPrimaryResumes(loaded: LibraryLoadResult, primaries: readonly ResumeDocument[]): LibraryLoadResult {
+  const base = loaded.status === 'empty' ? [] : loaded.library.documents
+  const missing = primaries.filter((primary) => !base.some((document) => document.id === primary.id)).slice(0, Math.max(0, MAX_RESUMES - base.length))
+  if (!missing.length) return loaded
+  return { ...loaded, library: { activeId: missing[0]!.id, documents: [...missing, ...base] } }
+}
+
 export function parseLibrary(value: unknown): ResumeLibrary {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error('Resume library must be an object.')
   const raw = value as Record<string, unknown>

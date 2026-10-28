@@ -8,7 +8,8 @@ import { ResumePreview } from './ResumePreview'
 import { ReviewPanel } from './ReviewPanel'
 import { LibraryManager } from './LibraryManager'
 import { MAX_RESUMES, STARTERS, cloneResume, containsStarterSampleContent, createBlankResume, createId, createStarter, renderedPageCount, touchResume, type ResumeDocument, type ResumeIssue, type ResumeLibrary, type StarterId } from '../lib/resume'
-import { createDefaultLibrary, loadLibraryFromProvider, removeDocument, upsertDocument } from '../lib/storage'
+import { createDefaultLibrary, loadLibraryFromProvider, removeDocument, seedPrimaryResumes, upsertDocument } from '../lib/storage'
+import { loadPersonalResumes } from '../lib/personalResume'
 import { createResumeHistory, recordResumeChange, redoResumeChange, undoResumeChange, type ResumeHistory } from '../lib/history'
 import { reviewDestination } from '../lib/reviewNavigation'
 import { commitLatest } from '../lib/latestState'
@@ -79,7 +80,7 @@ export function Studio() {
   }
 
   useEffect(() => {
-    const loaded = loadLibraryFromProvider(() => window.localStorage)
+    const loaded = seedPrimaryResumes(loadLibraryFromProvider(() => window.localStorage), loadPersonalResumes())
     libraryRef.current = loaded.library
     setLibrary(loaded.library)
     const recovery = loadDeletedResumeRecoveryFromProvider(() => window.localStorage)
