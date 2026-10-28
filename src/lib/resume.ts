@@ -81,6 +81,8 @@ const settingsSchema = z.object({
   fontPair: z.enum(fontPairs),
   density: z.enum(densities),
   accent: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'must be a six-digit hex color'),
+  // Optional so documents saved before this setting still validate; absent means labels only.
+  showLinkUrls: z.boolean().optional(),
 }).strict()
 
 export const resumeSchema = z.object({

@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react'
 import { entryHasRenderableContent, formatEntryDateRange, sectionHasRenderableContent, type ResumeDocument, type ResumeEntry, type ResumeSection } from '../lib/resume'
-import { emailHref, externalHref, phoneHref } from '../lib/contactLinks'
+import { displayUrl, emailHref, externalHref, phoneHref } from '../lib/contactLinks'
 
 interface ResumePreviewProps {
   resume: ResumeDocument
@@ -41,7 +41,7 @@ function ContactLink({ href, children }: { href: string; children: ReactNode }) 
   return href ? <a href={href}>{children}</a> : <>{children}</>
 }
 
-function ResumeEntryView({ entry, kind }: { entry: ResumeEntry; kind: ResumeSection['kind'] }) {
+function ResumeEntryView({ entry, kind, showUrls }: { entry: ResumeEntry; kind: ResumeSection['kind']; showUrls: boolean }) {
   const hasHeading = entry.title.trim() || entry.organization.trim()
   const hasMeta = entry.location.trim() || formatEntryDateRange(entry, kind)
   const isKeywordSection = kind === 'skills' || kind === 'interests'
@@ -52,7 +52,7 @@ function ResumeEntryView({ entry, kind }: { entry: ResumeEntry; kind: ResumeSect
       {hasHeading ? (
         <div className={`document-entry-heading${headingFlows ? ' document-entry-heading-flow' : ''}`}>
           <div>
-            {entry.title.trim() ? <h3><OptionalLink value={entry.url}>{entry.title}</OptionalLink></h3> : null}
+            {entry.title.trim() ? <h3><OptionalLink value={entry.url}>{entry.title}</OptionalLink>{showUrls && externalHref(entry.url) ? <span className="document-entry-url"> · <OptionalLink value={entry.url}>{displayUrl(entry.url)}</OptionalLink></span> : null}</h3> : null}
             {entry.organization.trim() ? <p className="document-organization">{entry.organization}</p> : null}
           </div>
           <div className="document-entry-meta">
@@ -75,13 +75,13 @@ function ResumeEntryView({ entry, kind }: { entry: ResumeEntry; kind: ResumeSect
   )
 }
 
-function ResumeSectionView({ section }: { section: ResumeSection }) {
+function ResumeSectionView({ section, showUrls }: { section: ResumeSection; showUrls: boolean }) {
   const entries = section.entries.filter(entryHasRenderableContent)
   return (
     <section className={`document-section document-section-${section.kind}`} aria-labelledby={`preview-${section.id}`}>
       <h2 id={`preview-${section.id}`}>{section.title || 'Untitled section'}</h2>
       <div className="document-section-content">
-        {entries.map((entry) => <ResumeEntryView entry={entry} kind={section.kind} key={entry.id} />)}
+        {entries.map((entry) => <ResumeEntryView entry={entry} kind={section.kind} showUrls={showUrls} key={entry.id} />)}
       </div>
     </section>
   )
@@ -96,8 +96,8 @@ export function ResumePreview({ resume }: ResumePreviewProps) {
     resume.profile.email.trim() ? <ContactLink key="email" href={emailHref(resume.profile.email)}>{resume.profile.email}</ContactLink> : null,
     resume.profile.phone.trim() ? <ContactLink key="phone" href={phoneHref(resume.profile.phone)}>{resume.profile.phone}</ContactLink> : null,
     resume.profile.location.trim() ? <span key="location">{resume.profile.location}</span> : null,
-    resume.profile.website.trim() ? <OptionalLink key="website" value={resume.profile.website}>{resume.profile.website}</OptionalLink> : null,
-    ...resume.profile.links.filter((link) => link.url.trim()).map((link) => <OptionalLink key={link.id} value={link.url}>{link.label || link.url}</OptionalLink>),
+    resume.profile.website.trim() ? <OptionalLink key="website" value={resume.profile.website}>{displayUrl(resume.profile.website)}</OptionalLink> : null,
+    ...resume.profile.links.filter((link) => link.url.trim()).map((link) => <OptionalLink key={link.id} value={link.url}>{resume.settings.showLinkUrls ? displayUrl(link.url) : link.label || link.url}</OptionalLink>),
   ].filter(Boolean)
   const hasIdentity = Boolean(resume.profile.name.trim() || resume.profile.headline.trim())
   const hasHeader = Boolean(hasIdentity || contacts.length || resume.profile.summary.trim())
@@ -121,7 +121,7 @@ export function ResumePreview({ resume }: ResumePreviewProps) {
         </header>
       ) : null}
       <div className="document-body">
-        {resume.sections.filter((section) => section.visible && sectionHasRenderableContent(section)).map((section) => <ResumeSectionView section={section} key={section.id} />)}
+        {resume.sections.filter((section) => section.visible && sectionHasRenderableContent(section)).map((section) => <ResumeSectionView section={section} showUrls={Boolean(resume.settings.showLinkUrls)} key={section.id} />)}
       </div>
     </article>
   )

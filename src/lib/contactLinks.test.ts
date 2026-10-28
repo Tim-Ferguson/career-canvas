@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { duplicateExternalLinkIndex, emailHref, externalHref, phoneHref } from './contactLinks'
+import { displayUrl, duplicateExternalLinkIndex, emailHref, externalHref, phoneHref } from './contactLinks'
 
 describe('safe portable contact links', () => {
   it('normalizes public web destinations and rejects unsafe or deceptive targets', () => {
@@ -32,5 +32,13 @@ describe('safe portable contact links', () => {
     assert.equal(phoneHref('+44 (0)20 7946 0958'), 'tel:+442079460958')
     assert.equal(phoneHref('(602) 555-0199 ext. 42'), 'tel:6025550199;ext=42')
     for (const value of ['911', '++1 602 555 0199', '1-800-FLOWERS', '+1234567890123456']) assert.equal(phoneHref(value), '', value)
+  })
+
+  it('shows printable link addresses without the scheme, www, or trailing slash', () => {
+    assert.equal(displayUrl('https://github.com/Tim-Ferguson'), 'github.com/Tim-Ferguson')
+    assert.equal(displayUrl('https://www.example.com/'), 'example.com')
+    assert.equal(displayUrl('benefitly.fyi'), 'benefitly.fyi')
+    assert.equal(displayUrl('http://example.com/a/?q=1'), 'example.com/a?q=1')
+    assert.equal(displayUrl(' not a link '), 'not a link')
   })
 })

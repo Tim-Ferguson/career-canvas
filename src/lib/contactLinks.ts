@@ -23,6 +23,14 @@ export function externalHref(value: string): string {
   }
 }
 
+// A printable form of a link: host and path without the scheme, "www." or a trailing slash.
+export function displayUrl(value: string): string {
+  const href = externalHref(value)
+  if (!href) return value.trim()
+  const url = new URL(href)
+  return `${url.hostname.replace(/^www\./i, '')}${url.pathname === '/' ? '' : url.pathname.replace(/\/$/, '')}${url.search}`
+}
+
 export function duplicateExternalLinkIndex(values: string[]): number {
   const seen = new Set<string>()
   for (let index = 0; index < values.length; index += 1) {

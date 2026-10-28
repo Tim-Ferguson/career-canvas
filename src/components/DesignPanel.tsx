@@ -80,6 +80,10 @@ export function DesignPanel({ resume, renderedPages, onChange, onPrint, onEditCo
           <label><span>Page size</span><select value={resume.settings.pageSize} onChange={(event) => patch({ pageSize: event.currentTarget.value as PageSize })}>{pageSizes.map((size) => <option value={size} key={size}>{size === 'a4' ? 'A4' : 'US Letter'}</option>)}</select></label>
           <label><span>Spacing</span><select value={resume.settings.density} onChange={(event) => patch({ density: event.currentTarget.value as Density })}>{densities.map((density) => <option value={density} key={density}>{density[0]!.toUpperCase() + density.slice(1)}</option>)}</select></label>
         </div>
+        <label className="check-field">
+          <input type="checkbox" checked={Boolean(resume.settings.showLinkUrls)} onChange={(event) => patch({ showLinkUrls: event.currentTarget.checked })} />
+          <span>Show link addresses<small>Prints github.com/you instead of just “GitHub”, so links still work on paper.</small></span>
+        </label>
         <p className="card-note">Choose tight spacing only after editing for relevance. Smaller type is never used to hide an overlong document.</p>
       </section>
 
