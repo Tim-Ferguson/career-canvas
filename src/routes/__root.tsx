@@ -10,6 +10,9 @@ const getSiteOrigin = createServerFn({ method: 'GET' }).handler(() => {
   return { origin: requestUrl.origin, canonicalUrl: `${requestUrl.origin}${requestUrl.pathname}` }
 })
 
+const ANALYTICS_ORIGIN = 'https://resumaker.timo.gg'
+const ANALYTICS_TOKEN = '7ef41741907a44269889d8e98adbcb33'
+
 export const Route = createRootRoute({
   loader: () => getSiteOrigin(),
   head: ({ loaderData }) => {
@@ -38,6 +41,8 @@ export const Route = createRootRoute({
       { name: 'twitter:image', content: socialImage },
       ],
       links: [{ rel: 'stylesheet', href: appCss }, { rel: 'canonical', href: canonicalUrl }, { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' }],
+      // Cloudflare Web Analytics (cookieless). Only on the production host so local visits are not counted.
+      scripts: loaderData?.origin === ANALYTICS_ORIGIN ? [{ src: 'https://static.cloudflareinsights.com/beacon.min.js', defer: true, 'data-cf-beacon': JSON.stringify({ token: ANALYTICS_TOKEN }) }] : [],
     }
   },
   shellComponent: RootDocument,
