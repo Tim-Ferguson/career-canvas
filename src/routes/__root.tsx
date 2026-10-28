@@ -15,7 +15,7 @@ export const Route = createRootRoute({
   head: ({ loaderData }) => {
     const title = 'Timo’s Resume Maker — Private, flexible resume studio'
     const description = 'Build, tailor, review, and export polished resumes across industries with a private local-first TanStack studio.'
-    const socialImage = `${loaderData?.origin ?? 'http://localhost:3000'}/og.png`
+    const socialImage = `${loaderData?.origin ?? 'http://localhost:3000'}/og.png?v=2`
     const canonicalUrl = loaderData?.canonicalUrl ?? 'http://localhost:3000/'
     return {
       meta: [
