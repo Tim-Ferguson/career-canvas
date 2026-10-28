@@ -63,7 +63,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .print-button, .primary-button { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 14px; border: 1px solid var(--brand-dark); border-radius: 9px; color: white; background: var(--brand); font-size: .75rem; font-weight: 700; text-decoration: none; box-shadow: 0 2px 0 rgba(17, 48, 42, .13); }
 .print-button:hover, .primary-button:hover { background: var(--brand-dark); }
 
-.studio-workspace { height: calc(100dvh - 68px); display: grid; grid-template-columns: minmax(520px, 43vw) minmax(0, 1fr); }
+.studio-workspace { height: calc(100dvh - 68px); display: grid; grid-template-columns: minmax(520px, 43vw) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
 .mobile-view-switcher { display: none; }
 .studio-editor { min-width: 0; display: grid; grid-template-columns: 77px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 37px; border-right: 1px solid var(--line); background: var(--surface); }
 .studio-tabs { grid-row: 1 / 3; display: flex; flex-direction: column; gap: 5px; padding: 16px 9px; border-right: 1px solid var(--line); background: #efeee8; }
