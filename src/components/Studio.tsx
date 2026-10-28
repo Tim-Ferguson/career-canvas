@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { AlertTriangle, Check, ChevronDown, Copy, Eye, FileCheck2, FileText, FolderOpen, LayoutTemplate, MoreHorizontal, Plus, Printer, Redo2, RotateCcw, ShieldCheck, Sparkles, Trash2, Undo2, X } from 'lucide-react'
+import { AlertTriangle, Check, ChevronDown, Copy, Eye, FileCheck2, FileText, FolderOpen, Github, LayoutTemplate, MoreHorizontal, Plus, Printer, Redo2, RotateCcw, ShieldCheck, Sparkles, Trash2, Undo2, X } from 'lucide-react'
 import { ContentEditor } from './ContentEditor'
 import { DataPanel } from './DataPanel'
 import { DesignPanel } from './DesignPanel'
@@ -645,6 +645,7 @@ export function Studio() {
         <div className="header-right">
           <div className={`save-indicator ${saveState}`}><Check size={13} /><span>{saveLabel}</span></div>
           <Link className="guide-link" to="/guide" onClick={(event) => { if (!confirmDiscardAdvancedDraft()) event.preventDefault() }}>Resume guide</Link>
+          <a className="guide-link github-link" href="https://github.com/Tim-Ferguson/career-canvas" target="_blank" rel="noreferrer"><Github size={14} aria-hidden="true" /> GitHub</a>
           <button className="print-button" type="button" onClick={printResume}><Printer size={16} /> Save PDF</button>
         </div>
       </header>

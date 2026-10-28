@@ -53,13 +53,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .library-menu button { width: 100%; display: flex; align-items: center; gap: 9px; padding: 10px; border: 0; border-radius: 7px; background: transparent; text-align: left; font-size: .75rem; }
 .library-menu button:hover { background: #f3f2ee; }
 .library-menu button.danger { color: var(--danger); }
-.header-right { justify-self: end; display: flex; align-items: center; gap: 13px; }
+.header-right { justify-self: end; display: flex; align-items: center; gap: 13px; white-space: nowrap; }
 .save-indicator { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: .67rem; white-space: nowrap; }
 .save-indicator.saving svg { animation: soft-pulse 1s ease-in-out infinite; }
 .save-indicator.limited { color: var(--danger); }
 @keyframes soft-pulse { 50% { opacity: .3; } }
 .guide-link { padding: 8px 0; color: var(--muted); font-size: .72rem; font-weight: 600; text-decoration: none; }
 .guide-link:hover { color: var(--ink); }
+.github-link { display: inline-flex; align-items: center; gap: 5px; }
 .print-button, .primary-button { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 14px; border: 1px solid var(--brand-dark); border-radius: 9px; color: white; background: var(--brand); font-size: .75rem; font-weight: 700; text-decoration: none; box-shadow: 0 2px 0 rgba(17, 48, 42, .13); }
 .print-button:hover, .primary-button:hover { background: var(--brand-dark); }
 
