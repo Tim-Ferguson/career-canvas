@@ -189,6 +189,21 @@ details > summary::-webkit-details-marker { display: none; }
 .list-field { margin: 13px 0 0; padding: 0; border: 0; }
 .list-field legend { margin-bottom: 6px; }
 .list-field-row { display: grid; grid-template-columns: 1fr auto; align-items: start; gap: 6px; margin-bottom: 6px; }
+.tag-box { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 42px; padding: 6px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-raised); cursor: text; }
+.tag-box:focus-within { border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 12%, transparent); }
+.tag-list { display: contents; margin: 0; padding: 0; list-style: none; }
+.tag-chip { display: inline-flex; align-items: center; gap: 3px; min-height: 28px; padding: 0 3px 0 4px; border: 1px solid #cfd8d4; border-radius: 7px; color: var(--ink); background: #eef3f1; font-size: .74rem; font-weight: 600; cursor: grab; touch-action: none; user-select: none; }
+.tag-chip:hover { border-color: #b5c6c0; background: #e5eeeb; }
+.tag-chip:focus-visible { outline: 3px solid color-mix(in srgb, var(--focus) 45%, transparent); outline-offset: 1px; }
+.tag-chip.dragging { cursor: grabbing; border-color: var(--brand); background: white; box-shadow: 0 4px 12px rgba(25, 31, 28, .18); }
+.tag-chip .tag-grip { color: #8a948f; }
+.tag-chip button { display: inline-grid; place-items: center; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 5px; color: #6d736f; background: transparent; cursor: pointer; }
+.tag-chip button:hover { color: var(--danger); background: var(--danger-soft); }
+.tag-chip.editing { padding: 0; cursor: text; }
+.tag-chip.editing input { min-height: 26px; padding: 0 7px; border: 0; border-radius: 6px; background: white; font: inherit; outline: 0; }
+.tag-input { flex: 1 1 140px; min-width: 120px; min-height: 28px; padding: 0 6px; border: 0; background: transparent; font-size: .78rem; outline: 0; }
+.tag-input:focus-visible { outline: 0; }
+.tag-hint { display: block; margin-top: 5px; color: var(--muted); font-size: .6rem; }
 .list-field-row textarea { min-height: 56px; width: 100%; padding: 9px; border: 1px solid var(--line); border-radius: 7px; background: #fbfbf9; font-size: .71rem; line-height: 1.4; resize: vertical; }
 .list-field-actions { display: flex; align-items: center; }
 .list-field-actions .danger { margin-left: 2px; }
