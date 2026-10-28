@@ -69,7 +69,7 @@ export function buildJsonResumeExport(resume: ResumeDocument): JsonResumeExportR
   const warnings: string[] = []
   const hiddenSections = resume.sections.filter((section) => !section.visible && section.entries.some(entryHasRenderableContent)).length
   if (hiddenSections) warnings.push(`${hiddenSections} hidden ${hiddenSections === 1 ? 'section was' : 'sections were'} omitted from this sharing copy.`)
-  if (extensionSections.length) warnings.push(`${extensionSections.length} visible affiliation or custom ${extensionSections.length === 1 ? 'section is' : 'sections are'} stored in a namespaced Career Canvas extension that some JSON Resume tools may ignore.`)
+  if (extensionSections.length) warnings.push(`${extensionSections.length} visible affiliation or custom ${extensionSections.length === 1 ? 'section is' : 'sections are'} stored in a namespaced Timo’s Resume Maker extension that some JSON Resume tools may ignore.`)
   const webLinks = [resume.profile.website, ...resume.profile.links.map((link) => link.url), ...visibleEntries.map((entry) => entry.url)].filter((value) => value.trim())
   const omittedWebLinks = webLinks.filter((value) => !externalHref(value)).length
   if (omittedWebLinks) warnings.push(`${omittedWebLinks} invalid or unsafe web ${omittedWebLinks === 1 ? 'link was' : 'links were'} omitted from this sharing copy.`)

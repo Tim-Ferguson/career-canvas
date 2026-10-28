@@ -239,10 +239,10 @@ export function parseResumeImportJson(value: string): ResumeImportResult {
   if (utf8ByteLength(value) > MAX_DOCUMENT_BYTES) throw new Error('Resume JSON is larger than the 2 MB safety limit.')
   const source = parseJsonText(value)
   if (!isRecord(source)) throw new Error('Resume must be an object.')
-  const format: ResumeImportFormat = source.schemaVersion === 2 ? 'career-canvas-v2' : source.schemaVersion === 1 ? 'career-canvas-v1' : isJsonResume(source) ? 'json-resume' : (() => { throw new Error('Unsupported resume schema. Expected Career Canvas version 1 or 2, or a JSON Resume document.') })()
+  const format: ResumeImportFormat = source.schemaVersion === 2 ? 'career-canvas-v2' : source.schemaVersion === 1 ? 'career-canvas-v1' : isJsonResume(source) ? 'json-resume' : (() => { throw new Error('Unsupported resume schema. Expected Timo’s Resume Maker version 1 or 2, or a JSON Resume document.') })()
   const warnings: string[] = []
   if (format === 'json-resume') {
-    if (isRecord(source.basics) && jsonString(source.basics, 'image', 'basics')) warnings.push('The JSON Resume profile image was not imported; Career Canvas layouts are intentionally photo-free.')
+    if (isRecord(source.basics) && jsonString(source.basics, 'image', 'basics')) warnings.push('The JSON Resume profile image was not imported; Timo’s Resume Maker layouts are intentionally photo-free.')
     if (source.meta !== undefined) warnings.push('JSON Resume registry metadata is not rendered; only a valid last-modified time is retained.')
     const standardKeys = new Set(['$schema', 'basics', 'work', 'volunteer', 'education', 'awards', 'certificates', 'publications', 'skills', 'languages', 'interests', 'references', 'projects', 'meta', 'x-career-canvas'])
     if (Object.keys(source).some((key) => !standardKeys.has(key))) warnings.push('Custom root extension fields were not imported; verify the converted resume against the source.')
@@ -531,7 +531,7 @@ export function migrateResume(value: unknown): ResumeDocument {
   if (value.schemaVersion === 2) return validateResume(value)
   if (value.schemaVersion === 1) return migrateV1(value)
   if (isJsonResume(value)) return migrateJsonResume(value)
-  throw new Error('Unsupported resume schema. Expected Career Canvas version 1 or 2, or a JSON Resume document.')
+  throw new Error('Unsupported resume schema. Expected Timo’s Resume Maker version 1 or 2, or a JSON Resume document.')
 }
 
 export function cloneResume(resume: ResumeDocument): ResumeDocument {
@@ -754,10 +754,13 @@ export function moveInArray<T>(values: readonly T[], from: number, to: number): 
   return result
 }
 
-export function renderedPageCount(contentHeightCssPixels: number, pageSize: PageSize): number {
+// Printing repeats the document's vertical padding on every page, so each page holds its height
+// minus that padding top and bottom.
+export function renderedPageCount(contentHeightCssPixels: number, pageSize: PageSize, paddingYCssPixels = 0): number {
   const pageHeight = pageSize === 'a4' ? (297 / 25.4) * 96 : 11 * 96
   if (!Number.isFinite(contentHeightCssPixels) || contentHeightCssPixels <= 0) return 1
-  return Math.max(1, Math.ceil(contentHeightCssPixels / pageHeight))
+  const padding = Number.isFinite(paddingYCssPixels) ? Math.min(Math.max(0, paddingYCssPixels), pageHeight / 4) : 0
+  return Math.max(1, Math.ceil((contentHeightCssPixels - 2 * padding) / (pageHeight - 2 * padding)))
 }
 
 const starterEvidenceMarkers = [

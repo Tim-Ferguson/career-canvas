@@ -64,7 +64,7 @@ export function LibraryManager({ library, dialogRef, onActivate, onDuplicate, on
         <span><strong>{sampleVersions}</strong> contain sample content</span>
         <span><strong>{staleVersions}</strong> not updated in 6+ months</span>
       </div>
-      <section className={`library-footprint ${footprint.pressure}`} aria-label={`Career Canvas serialized workspace: ${formatWorkspaceBytes(footprint.totalBytes)}`}>
+      <section className={`library-footprint ${footprint.pressure}`} aria-label={`Timo’s Resume Maker serialized workspace: ${formatWorkspaceBytes(footprint.totalBytes)}`}>
         <HardDrive size={18} aria-hidden="true" />
         <div><strong>{formatWorkspaceBytes(footprint.totalBytes)} serialized workspace</strong><span>{footprintDetail}</span></div>
         {footprint.pressure === 'normal' ? <span className="footprint-state">Modest</span> : <button className="secondary-button" type="button" onClick={onBackup}>Open backup tools</button>}

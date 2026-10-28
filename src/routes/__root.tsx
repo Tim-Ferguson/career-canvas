@@ -13,7 +13,7 @@ const getSiteOrigin = createServerFn({ method: 'GET' }).handler(() => {
 export const Route = createRootRoute({
   loader: () => getSiteOrigin(),
   head: ({ loaderData }) => {
-    const title = 'Career Canvas — Private, flexible resume studio'
+    const title = 'Timo’s Resume Maker — Private, flexible resume studio'
     const description = 'Build, tailor, review, and export polished resumes across industries with a private local-first TanStack studio.'
     const socialImage = `${loaderData?.origin ?? 'http://localhost:3000'}/og.png`
     const canonicalUrl = loaderData?.canonicalUrl ?? 'http://localhost:3000/'
@@ -29,7 +29,7 @@ export const Route = createRootRoute({
       { property: 'og:description', content: description },
       { property: 'og:url', content: canonicalUrl },
       { property: 'og:image', content: socialImage },
-      { property: 'og:image:alt', content: 'Career Canvas — Make the right evidence easy to find.' },
+      { property: 'og:image:alt', content: 'Timo’s Resume Maker' },
       { property: 'og:image:width', content: '1731' },
       { property: 'og:image:height', content: '909' },
       { name: 'twitter:card', content: 'summary_large_image' },

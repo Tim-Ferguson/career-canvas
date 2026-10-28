@@ -18,7 +18,7 @@ describe('JSON Resume export', () => {
     assert.equal(exported.document.$schema, 'https://jsonresume.org/schema')
     assert.ok(Array.isArray(exported.document.work))
     assert.ok(Array.isArray(exported.document.volunteer))
-    assert.ok(exported.warnings.some((warning) => /namespaced Career Canvas extension/.test(warning)))
+    assert.ok(exported.warnings.some((warning) => /namespaced Timo’s Resume Maker extension/.test(warning)))
 
     const imported = parseResumeImportJson(JSON.stringify(exported.document)).document
     assert.equal(imported.title, resume.title)

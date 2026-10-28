@@ -54,6 +54,7 @@ export function Studio() {
   const [zoom, setZoom] = useState(DEFAULT_PREVIEW_ZOOM)
   const [zoomMode, setZoomMode] = useState<'fit' | 'manual'>('fit')
   const [renderedPages, setRenderedPages] = useState(1)
+  const [documentPaddingY, setDocumentPaddingY] = useState(0)
   const [advancedDraftDirty, setAdvancedDraftDirty] = useState(false)
   const [deletedRecovery, setDeletedRecovery] = useState<DeletedResumeRecovery | null>(null)
   const [recoveryPersistent, setRecoveryPersistent] = useState(false)
@@ -99,7 +100,7 @@ export function Studio() {
       const details = [loaded.discardedDocuments ? `${loaded.discardedDocuments} damaged ${loaded.discardedDocuments === 1 ? 'resume was' : 'resumes were'} skipped` : '', loaded.repairedDocuments ? `${loaded.repairedDocuments} duplicate ${loaded.repairedDocuments === 1 ? 'ID was' : 'IDs were'} repaired` : '', loaded.activeIdRecovered ? 'the active resume was reset' : ''].filter(Boolean).join('; ')
       setRecoveryNotice(`Your saved library needed repair: ${details}. The healthy resumes are ready; make a fresh library backup when convenient.`)
     } else if (loaded.status === 'reset') {
-      setRecoveryNotice('The saved library was unreadable, so Career Canvas opened a safe starter. Restore a library backup from Data if you have one.')
+      setRecoveryNotice('The saved library was unreadable, so Timo’s Resume Maker opened a safe starter. Restore a library backup from Data if you have one.')
     } else if (loaded.status === 'unavailable') {
       storageLimitedRef.current = true
       setStorageFailure(loaded.failureReason ?? 'unavailable')
@@ -286,7 +287,9 @@ export function Studio() {
     const documentElement = document.querySelector<HTMLElement>('#resume-document')
     if (!documentElement) return
     const measure = () => {
-      setRenderedPages(renderedPageCount(documentElement.scrollHeight, activeResume.settings.pageSize))
+      const paddingY = Number.parseFloat(window.getComputedStyle(documentElement).paddingTop) || 0
+      setDocumentPaddingY(paddingY)
+      setRenderedPages(renderedPageCount(documentElement.scrollHeight, activeResume.settings.pageSize, paddingY))
     }
     measure()
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
@@ -415,7 +418,7 @@ export function Studio() {
       return false
     }
     const recoveryReplacement = deletedRecovery ? ` This permanently replaces the existing recovery copy of “${deletedRecovery.document.title || 'Untitled resume'}”.` : ''
-    if (!window.confirm(`Remove “${currentResume.title || 'Untitled resume'}” from the library? Career Canvas will keep one recovery copy on this device until another resume is removed.${recoveryReplacement}`)) return false
+    if (!window.confirm(`Remove “${currentResume.title || 'Untitled resume'}” from the library? Timo’s Resume Maker will keep one recovery copy on this device until another resume is removed.${recoveryReplacement}`)) return false
     if (current.activeId === resumeId && !confirmDiscardAdvancedDraft()) return false
     const nextLibrary = removeDocument(current, currentResume.id)
     const recovery = createDeletedResumeRecovery(currentResume)
@@ -582,7 +585,7 @@ export function Studio() {
   const saveLabel = saveState === 'saving' ? 'Saving…' : saveState === 'limited' ? storageFailure === 'full' ? 'Storage full' : storageFailure === 'blocked' ? 'Storage blocked' : 'Not saved' : formatSavedTime(activeResume.updatedAt)
   const activeHistory = historiesRef.current.get(activeResume.id) ?? createResumeHistory()
   const sampleContentPresent = containsStarterSampleContent(activeResume)
-  const previewPageGuides = buildPreviewPageGuides(activeResume.settings.pageSize, renderedPages, zoom)
+  const previewPageGuides = buildPreviewPageGuides(activeResume.settings.pageSize, renderedPages, zoom, MAX_PREVIEW_PAGE_GUIDES, documentPaddingY)
   const adjustPreviewZoom = (amount: number) => {
     setZoomMode('manual')
     setZoom((current) => clampPreviewZoom(current + amount))
@@ -618,12 +621,12 @@ export function Studio() {
   }
   return (
     <div className="studio-shell">
-      <a className="skip-link" href="#studio-editor-content" onClick={(event) => { event.preventDefault(); showWorkspace('editor', 'studio-editor-content') }}>Skip to resume editor</a>
-      <a className="skip-link" href="#resume-preview" onClick={(event) => { event.preventDefault(); showWorkspace('preview', 'resume-preview') }}>Skip to live preview</a>
+      <a className="skip-link no-print" href="#studio-editor-content" onClick={(event) => { event.preventDefault(); showWorkspace('editor', 'studio-editor-content') }}>Skip to resume editor</a>
+      <a className="skip-link no-print" href="#resume-preview" onClick={(event) => { event.preventDefault(); showWorkspace('preview', 'resume-preview') }}>Skip to live preview</a>
       <header className="app-header no-print">
-        <Link className="app-brand" to="/" aria-label="Career Canvas home">
-          <span className="brand-mark">C<span>/</span></span>
-          <span><strong>Career Canvas</strong><small>Resume studio</small></span>
+        <Link className="app-brand" to="/" aria-label="Timo’s Resume Maker home">
+          <span className="brand-mark">T<span>/</span></span>
+          <span><strong>Timo’s Resume Maker</strong></span>
         </Link>
         <div className="resume-switcher">
           <label htmlFor="resume-select">Resume</label>

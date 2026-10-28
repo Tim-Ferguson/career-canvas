@@ -55,7 +55,7 @@ export function createLibraryBackup(
 export function parseLibraryBackup(value: unknown): ParsedLibraryBackup {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error('Library backup must be an object.')
   const raw = value as Record<string, unknown>
-  if (raw.format !== LIBRARY_BACKUP_FORMAT || (raw.schemaVersion !== 1 && raw.schemaVersion !== 2)) throw new Error('This is not a supported Career Canvas library backup.')
+  if (raw.format !== LIBRARY_BACKUP_FORMAT || (raw.schemaVersion !== 1 && raw.schemaVersion !== 2)) throw new Error('This is not a supported Timo’s Resume Maker library backup.')
   if (!validExportedAt(raw.exportedAt)) throw new Error('Library backup has an invalid export date.')
   if (raw.schemaVersion === 2 && !Object.prototype.hasOwnProperty.call(raw, 'deletedRecovery')) throw new Error('This schema v2 backup is missing its deleted-recovery field.')
   return {

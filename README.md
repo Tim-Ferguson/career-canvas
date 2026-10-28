@@ -1,6 +1,6 @@
-# Career Canvas
+# Timo’s Resume Maker
 
-Career Canvas is a private, local-first resume studio built with TanStack Start and React. It helps people maintain multiple targeted resume versions, edit them through approachable forms, review content quality, switch among print-ready layouts, and keep the underlying data portable.
+Timo’s Resume Maker is a private, local-first resume studio built with TanStack Start and React. It helps people maintain multiple targeted resume versions, edit them through approachable forms, review content quality, switch among print-ready layouts, and keep the underlying data portable.
 
 The product is deliberately industry-flexible. Its generic entry model supports conventional roles as well as clinical work, teaching, apprenticeships, projects, credentials, research, publications, awards, service, affiliations, languages, and custom sections.
 

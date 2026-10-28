@@ -15,10 +15,14 @@ export function pageHeightCssPixels(pageSize: PageSize): number {
   return pageSize === 'a4' ? (297 / 25.4) * 96 : 11 * 96
 }
 
-export function buildPreviewPageGuides(pageSize: PageSize, renderedPages: number, zoom: number, limit = MAX_PREVIEW_PAGE_GUIDES): PreviewPageGuide[] {
+// Each printed page repeats the document's vertical padding, so page N+1 begins where page N's
+// usable height (page height minus padding top and bottom) runs out.
+export function buildPreviewPageGuides(pageSize: PageSize, renderedPages: number, zoom: number, limit = MAX_PREVIEW_PAGE_GUIDES, paddingYCssPixels = 0): PreviewPageGuide[] {
   const pages = Number.isFinite(renderedPages) ? Math.max(1, Math.ceil(renderedPages)) : 1
   const safeZoom = Number.isFinite(zoom) && zoom > 0 ? zoom : 1
   const count = Math.min(Math.max(0, pages - 1), Math.max(0, Math.floor(limit)))
-  const pageHeight = pageHeightCssPixels(pageSize) * safeZoom
-  return Array.from({ length: count }, (_, index) => ({ pageNumber: index + 2, offsetPixels: pageHeight * (index + 1) }))
+  const pageHeight = pageHeightCssPixels(pageSize)
+  const padding = Number.isFinite(paddingYCssPixels) ? Math.min(Math.max(0, paddingYCssPixels), pageHeight / 4) : 0
+  const usable = pageHeight - 2 * padding
+  return Array.from({ length: count }, (_, index) => ({ pageNumber: index + 2, offsetPixels: (padding + usable * (index + 1)) * safeZoom }))
 }

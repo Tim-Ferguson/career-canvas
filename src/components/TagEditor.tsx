@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { GripVertical, X } from 'lucide-react'
 import { MAX_LIST_ITEMS, MAX_TEXT, moveInArray } from '../lib/resume'
+import { usePointerReorder } from './usePointerReorder'
 
 interface TagEditorProps {
   idPrefix: string
@@ -10,18 +11,6 @@ interface TagEditorProps {
   placeholder: string
 }
 
-interface DragState {
-  pointerId: number
-  from: number
-  over: number
-  startX: number
-  startY: number
-  active: boolean
-}
-
-// Pixels a pointer must travel before a press becomes a drag, so clicks and double-clicks still work.
-const DRAG_THRESHOLD = 4
-
 function splitTags(text: string): string[] {
   return text.split(/[,\n]/).map((item) => item.trim()).filter(Boolean)
 }
@@ -30,7 +19,6 @@ export function TagEditor({ idPrefix, label, values, onChange, placeholder }: Ta
   const tags = values.filter((item) => item.trim())
   const [draft, setDraft] = useState('')
   const [editing, setEditing] = useState<{ index: number; text: string } | null>(null)
-  const [drag, setDrag] = useState<DragState | null>(null)
   const listRef = useRef<HTMLUListElement>(null)
   const lowerLabel = label.toLocaleLowerCase()
   const atLimit = tags.length >= MAX_LIST_ITEMS
@@ -74,27 +62,8 @@ export function TagEditor({ idPrefix, label, values, onChange, placeholder }: Ta
     return null
   }
 
-  const onPointerDown = (event: React.PointerEvent<HTMLLIElement>, index: number) => {
-    if (event.button !== 0 || editing || (event.target as HTMLElement).closest('button')) return
-    event.currentTarget.setPointerCapture(event.pointerId)
-    setDrag({ pointerId: event.pointerId, from: index, over: index, startX: event.clientX, startY: event.clientY, active: false })
-  }
 
-  const onPointerMove = (event: React.PointerEvent<HTMLLIElement>) => {
-    if (!drag || drag.pointerId !== event.pointerId) return
-    const active = drag.active || Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > DRAG_THRESHOLD
-    const over = active ? tagIndexAt(event.clientX, event.clientY) ?? drag.over : drag.over
-    if (active !== drag.active || over !== drag.over) setDrag({ ...drag, active, over })
-  }
-
-  const endDrag = (event: React.PointerEvent<HTMLLIElement>, commit: boolean) => {
-    if (!drag || drag.pointerId !== event.pointerId) return
-    if (commit && drag.active && drag.over !== drag.from) moveTag(drag.from, drag.over)
-    setDrag(null)
-  }
-
-  // While dragging, preview the order the drop would produce.
-  const order = drag?.active ? moveInArray(tags.map((_, index) => index), drag.from, drag.over) : tags.map((_, index) => index)
+  const { order, draggingIndex, handlers } = usePointerReorder(tags.length, tagIndexAt, moveTag)
 
   return (
     <fieldset className="list-field tag-field">
@@ -127,15 +96,13 @@ export function TagEditor({ idPrefix, label, values, onChange, placeholder }: Ta
                 <li
                   key={index}
                   id={`${idPrefix}-tag-${index}`}
-                  className={`tag-chip${drag?.active && drag.from === index ? ' dragging' : ''}`}
+                  className={`tag-chip${draggingIndex === index ? ' dragging' : ''}`}
                   data-tag-index={position}
                   tabIndex={0}
                   aria-label={`${tag}, ${lowerLabel} ${index + 1} of ${tags.length}`}
                   title="Drag to reorder · double-click to edit"
-                  onPointerDown={(event) => onPointerDown(event, index)}
-                  onPointerMove={onPointerMove}
-                  onPointerUp={(event) => endDrag(event, true)}
-                  onPointerCancel={(event) => endDrag(event, false)}
+                  {...handlers(index)}
+                  onPointerDown={(event) => { if (!(event.target as HTMLElement).closest('button')) handlers(index).onPointerDown(event) }}
                   onDoubleClick={() => setEditing({ index, text: tag })}
                   onKeyDown={(event) => {
                     if (event.altKey && event.key === 'ArrowLeft') { event.preventDefault(); moveTag(index, index - 1) }

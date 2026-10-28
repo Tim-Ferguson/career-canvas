@@ -92,6 +92,10 @@ describe('resume document model', () => {
     assert.equal(renderedPageCount(1122, 'a4'), 1)
     assert.equal(renderedPageCount(2250, 'a4'), 3)
     assert.equal(renderedPageCount(Number.NaN, 'letter'), 1)
+    // .58in padding repeats per printed page: 1056px pages hold 1056 - 2 * 55.68px of content
+    assert.equal(renderedPageCount(1056, 'letter', 55.68), 1)
+    assert.equal(renderedPageCount(2100, 'letter', 55.68), 3)
+    assert.equal(renderedPageCount(1900, 'letter', 55.68), 2)
   })
 
   it('formats one portable current flag with section-aware language', () => {

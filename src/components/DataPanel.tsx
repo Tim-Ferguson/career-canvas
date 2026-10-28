@@ -122,9 +122,9 @@ export function DataPanel({ resume, library, deletedRecovery, onChange, onImport
       if (library.documents.length >= MAX_RESUMES) throw new Error(`Your device library is full at ${MAX_RESUMES} resumes. Export and remove one before importing.`)
       const details = [
         `Import “${imported.title || 'Untitled resume'}” from ${file.name}?`,
-        importResult.format === 'json-resume' ? 'Source: JSON Resume. Career Canvas will convert its portable content into strict schema v2.' : importResult.format === 'career-canvas-v1' ? 'Source: Career Canvas v1. It will migrate automatically to schema v2.' : 'Source: Career Canvas schema v2.',
+        importResult.format === 'json-resume' ? 'Source: JSON Resume. Timo’s Resume Maker will convert its portable content into strict schema v2.' : importResult.format === 'career-canvas-v1' ? 'Source: Timo’s Resume Maker v1. It will migrate automatically to schema v2.' : 'Source: Timo’s Resume Maker schema v2.',
         `Target: ${imported.targetRole || 'not specified'}. Industry: ${imported.industry || 'not specified'}. ${countLabel(imported.sections.length, 'section')}.`,
-        sameId ? 'Its internal ID matches an existing version, so Career Canvas will assign a new ID and “copy” title.' : '',
+        sameId ? 'Its internal ID matches an existing version, so Timo’s Resume Maker will assign a new ID and “copy” title.' : '',
         containsStarterSampleContent(imported) ? 'Warning: this file still contains fictional starter content.' : '',
         ...importResult.warnings.map((warning) => `Note: ${warning}`),
         'The imported file will become active; every existing version stays unchanged.',
@@ -183,7 +183,7 @@ export function DataPanel({ resume, library, deletedRecovery, onChange, onImport
       return
     }
     downloadFile(`${JSON.stringify(exported.document, null, 2)}\n`, `${baseName}-json-resume.json`, 'application/json')
-    announce('JSON Resume interoperability copy downloaded. Keep Career Canvas JSON as the lossless editable source.')
+    announce('JSON Resume interoperability copy downloaded. Keep Timo’s Resume Maker JSON as the lossless editable source.')
   }
   const downloadPlainText = () => {
     if (dirty && !window.confirm('Unapplied advanced JSON changes are not included in exports. Download plain text from the last valid resume anyway?')) {
@@ -200,7 +200,7 @@ export function DataPanel({ resume, library, deletedRecovery, onChange, onImport
     <div className="editor-stack data-panel">
       <section className="editor-card">
         <div className="card-heading"><div><span className="eyebrow">Portable by design</span><h2>Import & export</h2></div><FileJson size={19} aria-hidden="true" /></div>
-        <p className="card-intro">Your v2 JSON keeps content, layout, and ordering together. Career Canvas v1 files migrate automatically, and standard JSON Resume files convert into editable v2 documents.</p>
+        <p className="card-intro">Your v2 JSON keeps content, layout, and ordering together. Timo’s Resume Maker v1 files migrate automatically, and standard JSON Resume files convert into editable v2 documents.</p>
         <div className={`data-footprint ${footprint.pressure}`}><HardDrive size={16} aria-hidden="true" /><span><strong>{formatWorkspaceBytes(footprint.totalBytes)} serialized workspace</strong> Browser storage capacity varies; a downloaded backup is the portable safety copy.</span></div>
         <ExportReadinessSummary preflight={exportPreflight} />
         {dirty ? <div className="draft-export-warning" role="status"><RefreshCw size={16} aria-hidden="true" /><span><strong>Unapplied JSON is session-only</strong> Exports and library backups use the last valid resume. Apply or discard the draft before switching versions or leaving this page.</span></div> : null}

@@ -50,7 +50,7 @@ export function ReviewPanel({ resume, onEdit }: { resume: ResumeDocument; onEdit
       </section>
       <section className="editor-card targeting-card">
         <div className="card-heading"><div><span className="eyebrow">Opportunity comparison</span><h2>Use the reader’s vocabulary</h2></div><SearchCheck size={19} aria-hidden="true" /></div>
-        <p className="targeting-intro">Paste a job description, project brief, program call, or role posting. Career Canvas compares its recurring and distinctive language with the words visible on this resume—it does not predict screening results.</p>
+        <p className="targeting-intro">Paste a job description, project brief, program call, or role posting. Timo’s Resume Maker compares its recurring and distinctive language with the words visible on this resume—it does not predict screening results.</p>
         <label className="targeting-field" htmlFor="target-description">
           <span>Target description</span>
           <textarea id="target-description" rows={7} maxLength={MAX_TARGET_TEXT} value={targetText} placeholder="Paste the opportunity text here…" aria-describedby="target-privacy" onChange={(event) => setTargetTexts((current) => ({ ...current, [resume.id]: event.currentTarget.value }))} />

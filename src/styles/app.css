@@ -189,6 +189,11 @@ details > summary::-webkit-details-marker { display: none; }
 .list-field { margin: 13px 0 0; padding: 0; border: 0; }
 .list-field legend { margin-bottom: 6px; }
 .list-field-row { display: grid; grid-template-columns: 1fr auto; align-items: start; gap: 6px; margin-bottom: 6px; }
+.list-field-row.draggable { grid-template-columns: auto 1fr auto; }
+.list-field-row.dragging textarea { border-color: var(--brand); box-shadow: 0 4px 12px rgba(25, 31, 28, .18); }
+.list-drag-handle { display: grid; place-items: center; width: 20px; min-height: 30px; border-radius: 6px; color: #8a948f; cursor: grab; touch-action: none; user-select: none; }
+.list-drag-handle:hover { color: var(--ink); background: rgba(0,0,0,.05); }
+.list-field-row.dragging .list-drag-handle { cursor: grabbing; color: var(--brand); }
 .tag-box { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 42px; padding: 6px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-raised); cursor: text; }
 .tag-box:focus-within { border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 12%, transparent); }
 .tag-list { display: contents; margin: 0; padding: 0; list-style: none; }
@@ -679,7 +684,8 @@ details > summary::-webkit-details-marker { display: none; }
   .no-print { display: none !important; }
   .studio-workspace[data-mobile-view] .preview-workspace { display: block; }
   .studio-shell, .studio-workspace, .preview-workspace, .preview-scroll, .preview-scale { display: block; width: auto; height: auto; min-height: 0; overflow: visible; padding: 0; margin: 0; background: white; }
-  .resume-document { width: 8.5in; min-height: 11in; margin: 0 auto; box-shadow: none; zoom: 1; page: career-letter; }
+  /* Repeat the document padding on every printed page, not just the first and last. */
+  .resume-document { width: 8.5in; min-height: 11in; margin: 0 auto; box-shadow: none; zoom: 1; page: career-letter; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
   .resume-document[data-page-size='a4'] { width: 210mm; min-height: 297mm; page: career-a4; }
   .document-header, .document-entry { break-inside: avoid; break-inside: avoid-page; }
   .document-header-flow, .document-entry-flow { break-inside: auto; }

@@ -22,5 +22,9 @@ describe('preview page boundaries', () => {
     assert.equal(guides.length, MAX_PREVIEW_PAGE_GUIDES)
     assert.equal(guides.at(-1)?.pageNumber, MAX_PREVIEW_PAGE_GUIDES + 1)
     assert.deepEqual(buildPreviewPageGuides('a4', Number.NaN, Number.NaN), [])
+    assert.deepEqual(buildPreviewPageGuides('letter', 3, 1, MAX_PREVIEW_PAGE_GUIDES, 50), [
+      { pageNumber: 2, offsetPixels: 1006 },
+      { pageNumber: 3, offsetPixels: 1962 },
+    ])
   })
 })

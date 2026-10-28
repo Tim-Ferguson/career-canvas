@@ -18,7 +18,7 @@ export function RootErrorPage({ reset }: ErrorComponentProps) {
     <main className="system-page" role="alert">
       <span className="system-mark"><ShieldCheck size={24} /></span>
       <span className="eyebrow">Recoverable interruption</span>
-      <h1>Career Canvas hit a snag.</h1>
+      <h1>Timo’s Resume Maker hit a snag.</h1>
       <p>No error details or resume content are shown here. Your saved library should remain on this device, and a retry is safe.</p>
       <div className="system-actions">
         <button className="primary-button" type="button" onClick={reset}><RefreshCw size={16} /> Try again</button>

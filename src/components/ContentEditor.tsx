@@ -1,8 +1,9 @@
-import { useState } from 'react'
-import { ChevronDown, ChevronUp, Copy, Eye, EyeOff, Plus, Trash2 } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { ChevronDown, ChevronUp, Copy, Eye, EyeOff, GripVertical, Plus, Trash2 } from 'lucide-react'
 import { ENTRY_DATE_PRESENTATION, MAX_ENTRIES, MAX_LIST_ITEMS, MAX_PROFILE_LINKS, MAX_SECTIONS, MAX_TEXT, createEntry, createId, createSection, moveInArray, SECTION_CATALOG, type ResumeDocument, type ResumeEntry, type ResumeLink, type ResumeSection, type SectionKind } from '../lib/resume'
 import { textWordCount } from '../lib/textMetrics'
 import { TagEditor } from './TagEditor'
+import { usePointerReorder } from './usePointerReorder'
 
 interface ContentEditorProps {
   resume: ResumeDocument
@@ -45,23 +46,38 @@ function IconButton({ label, children, onClick, disabled, danger }: { label: str
 }
 
 function StringListEditor({ idPrefix, label, values, onChange, placeholder, addLabel }: { idPrefix: string; label: string; values: string[]; onChange: (values: string[]) => void; placeholder: string; addLabel: string }) {
+  const listRef = useRef<HTMLDivElement>(null)
   const moveItem = (from: number, to: number) => {
     onChange(moveInArray(values, from, to))
     window.requestAnimationFrame(() => document.getElementById(`${idPrefix}-${to}`)?.focus())
   }
+  // Rows past either end clamp to the first or last position.
+  const rowAt = (_x: number, y: number) => {
+    const rows = Array.from(listRef.current?.querySelectorAll<HTMLElement>('[data-row-position]') ?? [])
+    if (!rows.length) return null
+    const index = rows.findIndex((row) => y < row.getBoundingClientRect().bottom)
+    return index < 0 ? rows.length - 1 : index
+  }
+  const { order, draggingIndex, handlers } = usePointerReorder(values.length, rowAt, moveItem)
   return (
     <fieldset className="list-field">
       <legend>{label}</legend>
-      {values.map((value, index) => (
-        <div className="list-field-row" key={index}>
-          <textarea id={`${idPrefix}-${index}`} aria-label={`${label} ${index + 1}`} rows={2} value={value} maxLength={MAX_TEXT} placeholder={placeholder} onChange={(event) => onChange(values.map((item, itemIndex) => itemIndex === index ? event.currentTarget.value : item))} />
-          <div className="list-field-actions">
-            {values.length > 1 ? <IconButton label={`Move ${label.toLocaleLowerCase()} ${index + 1} up`} disabled={index === 0} onClick={() => moveItem(index, index - 1)}><ChevronUp size={15} /></IconButton> : null}
-            {values.length > 1 ? <IconButton label={`Move ${label.toLocaleLowerCase()} ${index + 1} down`} disabled={index === values.length - 1} onClick={() => moveItem(index, index + 1)}><ChevronDown size={15} /></IconButton> : null}
-            <IconButton label={`Remove ${label.toLocaleLowerCase()} ${index + 1}`} danger onClick={() => onChange(values.filter((_, itemIndex) => itemIndex !== index))}><Trash2 size={15} /></IconButton>
-          </div>
-        </div>
-      ))}
+      <div ref={listRef}>
+        {order.map((index, position) => {
+          const value = values[index]!
+          return (
+            <div className={`list-field-row${values.length > 1 ? ' draggable' : ''}${draggingIndex === index ? ' dragging' : ''}`} key={index} data-row-position={position}>
+              {values.length > 1 ? <span className="list-drag-handle" title={`Drag to reorder ${label.toLocaleLowerCase()}`} aria-hidden="true" {...handlers(index)}><GripVertical size={15} /></span> : null}
+              <textarea id={`${idPrefix}-${index}`} aria-label={`${label} ${index + 1}`} rows={2} value={value} maxLength={MAX_TEXT} placeholder={placeholder} onChange={(event) => onChange(values.map((item, itemIndex) => itemIndex === index ? event.currentTarget.value : item))} />
+              <div className="list-field-actions">
+                {values.length > 1 ? <IconButton label={`Move ${label.toLocaleLowerCase()} ${index + 1} up`} disabled={index === 0} onClick={() => moveItem(index, index - 1)}><ChevronUp size={15} /></IconButton> : null}
+                {values.length > 1 ? <IconButton label={`Move ${label.toLocaleLowerCase()} ${index + 1} down`} disabled={index === values.length - 1} onClick={() => moveItem(index, index + 1)}><ChevronDown size={15} /></IconButton> : null}
+                <IconButton label={`Remove ${label.toLocaleLowerCase()} ${index + 1}`} danger onClick={() => onChange(values.filter((_, itemIndex) => itemIndex !== index))}><Trash2 size={15} /></IconButton>
+              </div>
+            </div>
+          )
+        })}
+      </div>
       <button className="text-button compact-button" type="button" disabled={values.length >= MAX_LIST_ITEMS} onClick={() => onChange([...values, ''])}><Plus size={14} /> {values.length >= MAX_LIST_ITEMS ? `${label} limit reached` : addLabel}</button>
     </fieldset>
   )

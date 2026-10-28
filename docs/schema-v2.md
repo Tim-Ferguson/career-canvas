@@ -1,4 +1,4 @@
-# Career Canvas resume schema v2
+# Timo’s Resume Maker schema v2
 
 Schema v2 separates structural validity from editorial readiness. A structurally valid document may contain empty text fields so people can safely save drafts; the Review tab identifies missing or weak content before export.
 
