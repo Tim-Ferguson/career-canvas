@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { MAX_DOCUMENT_BYTES, STARTERS, analyzeResume, cloneResume, containsStarterSampleContent, createBlankResume, createSection, createStarter, entryHasRenderableContent, formatEntryDateRange, migrateResume, moveInArray, parseResumeJson, renderedPageCount, resumeToText, sectionHasRenderableContent, utf8ByteLength, validateResume } from './resume'
+import { MAX_DOCUMENT_BYTES, STARTERS, analyzeResume, cloneResume, containsStarterSampleContent, createBlankResume, createSection, createStarter, entryHasRenderableContent, formatEntryDateRange, migrateResume, moveInArray, parseResumeJson, resumeToText, sectionHasRenderableContent, utf8ByteLength, validateResume } from './resume'
 
 const starterIds = ['universal', 'leadership', 'healthcare', 'education', 'creative', 'trades', 'student', 'public_service', 'career_change', 'academic'] as const
 
@@ -84,18 +84,6 @@ describe('resume document model', () => {
     assert.deepEqual(moveInArray(source, 0, -1), source)
     assert.deepEqual(moveInArray(source, 2, 3), source)
     assert.deepEqual(source, ['a', 'b', 'c'])
-  })
-
-  it('reports rendered page overflow at letter and A4 boundaries', () => {
-    assert.equal(renderedPageCount(1056, 'letter'), 1)
-    assert.equal(renderedPageCount(1057, 'letter'), 2)
-    assert.equal(renderedPageCount(1122, 'a4'), 1)
-    assert.equal(renderedPageCount(2250, 'a4'), 3)
-    assert.equal(renderedPageCount(Number.NaN, 'letter'), 1)
-    // .58in padding repeats per printed page: 1056px pages hold 1056 - 2 * 55.68px of content
-    assert.equal(renderedPageCount(1056, 'letter', 55.68), 1)
-    assert.equal(renderedPageCount(2100, 'letter', 55.68), 3)
-    assert.equal(renderedPageCount(1900, 'letter', 55.68), 2)
   })
 
   it('formats one portable current flag with section-aware language', () => {

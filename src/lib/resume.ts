@@ -756,12 +756,6 @@ export function moveInArray<T>(values: readonly T[], from: number, to: number): 
 
 // Printing repeats the document's vertical padding on every page, so each page holds its height
 // minus that padding top and bottom.
-export function renderedPageCount(contentHeightCssPixels: number, pageSize: PageSize, paddingYCssPixels = 0): number {
-  const pageHeight = pageSize === 'a4' ? (297 / 25.4) * 96 : 11 * 96
-  if (!Number.isFinite(contentHeightCssPixels) || contentHeightCssPixels <= 0) return 1
-  const padding = Number.isFinite(paddingYCssPixels) ? Math.min(Math.max(0, paddingYCssPixels), pageHeight / 4) : 0
-  return Math.max(1, Math.ceil((contentHeightCssPixels - 2 * padding) / (pageHeight - 2 * padding)))
-}
 
 const starterEvidenceMarkers = [
   'Reduced customer onboarding time 34%',

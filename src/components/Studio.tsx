@@ -7,7 +7,7 @@ import { DesignPanel } from './DesignPanel'
 import { ResumePreview } from './ResumePreview'
 import { ReviewPanel } from './ReviewPanel'
 import { LibraryManager } from './LibraryManager'
-import { MAX_RESUMES, STARTERS, cloneResume, containsStarterSampleContent, createBlankResume, createId, createStarter, renderedPageCount, touchResume, type ResumeDocument, type ResumeIssue, type ResumeLibrary, type StarterId } from '../lib/resume'
+import { MAX_RESUMES, STARTERS, cloneResume, containsStarterSampleContent, createBlankResume, createId, createStarter, touchResume, type ResumeDocument, type ResumeIssue, type ResumeLibrary, type StarterId } from '../lib/resume'
 import { createDefaultLibrary, loadLibraryFromProvider, removeDocument, seedPrimaryResumes, upsertDocument } from '../lib/storage'
 import { loadPersonalResumes } from '../lib/personalResume'
 import { createResumeHistory, recordResumeChange, redoResumeChange, undoResumeChange, type ResumeHistory } from '../lib/history'
@@ -15,7 +15,8 @@ import { reviewDestination } from '../lib/reviewNavigation'
 import { commitLatest } from '../lib/latestState'
 import { buildExportPreflight, exportConfirmationMessage } from '../lib/exportReadiness'
 import { createDeletedResumeRecovery, loadDeletedResumeRecoveryFromProvider, recoveryAlreadyPresent, restoreDeletedResume, type DeletedResumeRecovery } from '../lib/deletionRecovery'
-import { buildPreviewPageGuides, MAX_PREVIEW_PAGE_GUIDES } from '../lib/pageGuides'
+import { buildPreviewPageGuides, MAX_PREVIEW_PAGE_GUIDES, printPageBreaks } from '../lib/pageGuides'
+import { measurePrintLayout } from './printBlocks'
 import { DEFAULT_PREVIEW_ZOOM, MAX_PREVIEW_ZOOM, MIN_PREVIEW_ZOOM, clampPreviewZoom, fitPreviewZoom } from '../lib/previewZoom'
 import { runDeviceStorageOperation, type DeviceStorageFailure } from '../lib/deviceStorage'
 import { restoreLibraryBackup, type LibraryBackupRestoreSummary, type ParsedLibraryBackup } from '../lib/libraryBackup'
@@ -53,8 +54,8 @@ export function Studio() {
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'limited'>('saved')
   const [zoom, setZoom] = useState(DEFAULT_PREVIEW_ZOOM)
   const [zoomMode, setZoomMode] = useState<'fit' | 'manual'>('fit')
-  const [renderedPages, setRenderedPages] = useState(1)
-  const [documentPaddingY, setDocumentPaddingY] = useState(0)
+  const [pageBreaks, setPageBreaks] = useState<number[]>([])
+  const renderedPages = pageBreaks.length + 1
   const [advancedDraftDirty, setAdvancedDraftDirty] = useState(false)
   const [deletedRecovery, setDeletedRecovery] = useState<DeletedResumeRecovery | null>(null)
   const [recoveryPersistent, setRecoveryPersistent] = useState(false)
@@ -288,8 +289,9 @@ export function Studio() {
     if (!documentElement) return
     const measure = () => {
       const paddingY = Number.parseFloat(window.getComputedStyle(documentElement).paddingTop) || 0
-      setDocumentPaddingY(paddingY)
-      setRenderedPages(renderedPageCount(documentElement.scrollHeight, activeResume.settings.pageSize, paddingY))
+      const { blocks, contentBottom } = measurePrintLayout(documentElement)
+      const next = printPageBreaks(blocks, contentBottom, activeResume.settings.pageSize, paddingY)
+      setPageBreaks((current) => current.length === next.length && current.every((offset, index) => Math.abs(offset - next[index]!) < 0.5) ? current : next)
     }
     measure()
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
@@ -299,7 +301,7 @@ export function Studio() {
       observer?.disconnect()
       window.removeEventListener('resize', measure)
     }
-  }, [activeResume.id, activeResume.settings.pageSize])
+  }, [activeResume])
 
   useEffect(() => {
     if (zoomMode !== 'fit') return
@@ -585,7 +587,7 @@ export function Studio() {
   const saveLabel = saveState === 'saving' ? 'Saving…' : saveState === 'limited' ? storageFailure === 'full' ? 'Storage full' : storageFailure === 'blocked' ? 'Storage blocked' : 'Not saved' : formatSavedTime(activeResume.updatedAt)
   const activeHistory = historiesRef.current.get(activeResume.id) ?? createResumeHistory()
   const sampleContentPresent = containsStarterSampleContent(activeResume)
-  const previewPageGuides = buildPreviewPageGuides(activeResume.settings.pageSize, renderedPages, zoom, MAX_PREVIEW_PAGE_GUIDES, documentPaddingY)
+  const previewPageGuides = buildPreviewPageGuides(pageBreaks, zoom)
   const adjustPreviewZoom = (amount: number) => {
     setZoomMode('manual')
     setZoom((current) => clampPreviewZoom(current + amount))
