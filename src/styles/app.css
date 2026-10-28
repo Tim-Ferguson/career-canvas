@@ -23,6 +23,8 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; min-width: 320px; min-height: 100%; color: var(--ink); background: var(--canvas); }
 body { min-height: 100vh; }
+/* Stop iOS Safari from enlarging the zoomed-out resume's small text. */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 button, input, select, textarea { color: inherit; font: inherit; }
 button, select, input[type='checkbox'], input[type='color'] { cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .45; }
@@ -626,9 +628,12 @@ details > summary::-webkit-details-marker { display: none; }
   .studio-tabs button { min-height: 44px; flex: 1; flex-direction: row; }
   .editor-scroll { max-height: none; overflow: visible; padding: 24px max(18px, calc((100vw - 640px) / 2)) 55px; }
   .editor-status { min-height: 37px; }
-  .preview-workspace { min-height: 900px; grid-template-rows: 43px auto; }
-  .preview-toolbar { position: sticky; top: 115px; }
-  .preview-scroll { min-height: 850px; }
+  /* Sticky header (68px) + view switcher (47px) sit above the preview; tabs (59px) also sit above the editor. */
+  /* overflow: visible lets the toolbar stick to the window instead of this box. */
+  .preview-workspace { min-height: calc(100dvh - 115px); grid-template-rows: 43px auto; overflow: visible; scroll-margin-top: 115px; }
+  .editor-scroll { scroll-margin-top: 174px; }
+  .preview-toolbar { position: sticky; z-index: 11; top: 115px; }
+  .preview-scroll { padding: 20px 12px 32px; }
   .layout-grid { grid-template-columns: repeat(2, 1fr); }
   .guide-hero { padding-top: 70px; }
   .field-notes { grid-template-columns: repeat(2, 1fr); }
