@@ -113,5 +113,10 @@ describe('local resume library', () => {
     assert.deepEqual(seeded.library.documents.map((document) => document.id), ['resume-owner-a', ...existing.library.documents.map((document) => document.id)])
     assert.equal(seedPrimaryResumes(seeded, [first, second]), seeded)
     assert.equal(seedPrimaryResumes(existing, []), existing)
+    const edited = { ...first, title: 'Owner A edited', updatedAt: '2999-01-01T00:00:00.000Z' }
+    const refreshed = seedPrimaryResumes(seeded, [edited, second])
+    assert.equal(refreshed.library.activeId, seeded.library.activeId)
+    assert.equal(refreshed.library.documents.find((document) => document.id === first.id)?.title, 'Owner A edited')
+    assert.equal(seedPrimaryResumes(refreshed, [first, second]), refreshed)
   })
 })

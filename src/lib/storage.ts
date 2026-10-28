@@ -27,13 +27,21 @@ export function createDefaultLibrary(): ResumeLibrary {
   return { activeId: document.id, documents: [document] }
 }
 
-// Adds the owner's resumes ahead of the library and activates the first one it adds. A fresh
-// device opens with only those resumes instead of the fictional starter.
+// Adds the owner's resumes ahead of the library and activates the first one it adds. A seed
+// file edited after its saved copy replaces that copy in place. A fresh device opens with only
+// the owner's resumes instead of the fictional starter.
 export function seedPrimaryResumes(loaded: LibraryLoadResult, primaries: readonly ResumeDocument[]): LibraryLoadResult {
   const base = loaded.status === 'empty' ? [] : loaded.library.documents
+  let refreshed = false
+  const current = base.map((document) => {
+    const primary = primaries.find((item) => item.id === document.id)
+    if (!primary || primary.updatedAt <= document.updatedAt) return document
+    refreshed = true
+    return primary
+  })
   const missing = primaries.filter((primary) => !base.some((document) => document.id === primary.id)).slice(0, Math.max(0, MAX_RESUMES - base.length))
-  if (!missing.length) return loaded
-  return { ...loaded, library: { activeId: missing[0]!.id, documents: [...missing, ...base] } }
+  if (!missing.length && !refreshed) return loaded
+  return { ...loaded, library: { activeId: missing[0]?.id ?? loaded.library.activeId, documents: [...missing, ...current] } }
 }
 
 export function parseLibrary(value: unknown): ResumeLibrary {
