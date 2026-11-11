@@ -1,6 +1,7 @@
 // Builds the committed tree (never the working copy) and deploys it to Cloudflare.
 // Untracked files such as src/personal/*.json cannot reach the bundle, and the build is
-// scanned for every personal resume's identity before anything is uploaded.
+// scanned for every personal resume's email and phone before anything is uploaded. The owner's
+// name is published on purpose, in the redacted showcase resume (src/lib/showcaseResume.ts).
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -20,7 +21,7 @@ function personalMarkers() {
   return readdirSync(dir).filter((name) => name.endsWith('.json')).flatMap((name) => {
     const { profile = {} } = JSON.parse(readFileSync(join(dir, name), 'utf8'))
     const phoneDigits = String(profile.phone ?? '').replace(/\D/g, '')
-    return [profile.name, profile.email, profile.phone, phoneDigits.length >= 7 ? phoneDigits : '']
+    return [profile.email, profile.phone, phoneDigits.length >= 7 ? phoneDigits : '']
   }).map((value) => String(value ?? '').trim().toLowerCase()).filter((value) => value.length >= 5)
 }
 

@@ -1,4 +1,5 @@
 import { MAX_DOCUMENT_BYTES, MAX_RESUMES, createId, createStarter, migrateResume, type ResumeDocument, type ResumeLibrary } from './resume'
+import { createShowcaseResume } from './showcaseResume'
 import { classifyDeviceStorageFailure, type DeviceStorageFailure } from './deviceStorage'
 
 export const LIBRARY_STORAGE_KEY = 'career-canvas.library.v2'
@@ -27,9 +28,16 @@ export function createDefaultLibrary(): ResumeLibrary {
   return { activeId: document.id, documents: [document] }
 }
 
+// What a visitor sees before they have saved anything on this device: the owner's published
+// resume, with contact details redacted, as a real example to edit or replace.
+export function createFirstVisitLibrary(): ResumeLibrary {
+  const document = createShowcaseResume()
+  return { activeId: document.id, documents: [document] }
+}
+
 // Adds the owner's resumes ahead of the library and activates the first one it adds. A seed
 // file edited after its saved copy replaces that copy in place. A fresh device opens with only
-// the owner's resumes instead of the fictional starter.
+// the owner's unredacted resumes instead of the published showcase.
 export function seedPrimaryResumes(loaded: LibraryLoadResult, primaries: readonly ResumeDocument[]): LibraryLoadResult {
   const base = loaded.status === 'empty' ? [] : loaded.library.documents
   let refreshed = false
@@ -64,7 +72,7 @@ export function loadLibraryResult(storage: Pick<Storage, 'getItem'>): LibraryLoa
   } catch (error) {
     return { library: createDefaultLibrary(), status: 'unavailable', discardedDocuments: 0, repairedDocuments: 0, activeIdRecovered: false, failureReason: classifyDeviceStorageFailure(error) }
   }
-  if (!raw) return { library: createDefaultLibrary(), status: 'empty', discardedDocuments: 0, repairedDocuments: 0, activeIdRecovered: false }
+  if (!raw) return { library: createFirstVisitLibrary(), status: 'empty', discardedDocuments: 0, repairedDocuments: 0, activeIdRecovered: false }
   if (new TextEncoder().encode(raw).byteLength > MAX_DOCUMENT_BYTES * MAX_RESUMES) return { library: createDefaultLibrary(), status: 'reset', discardedDocuments: 0, repairedDocuments: 0, activeIdRecovered: false }
   try {
     const parsed = JSON.parse(raw) as unknown

@@ -8,7 +8,7 @@ import { ResumePreview } from './ResumePreview'
 import { ReviewPanel } from './ReviewPanel'
 import { LibraryManager } from './LibraryManager'
 import { MAX_RESUMES, STARTERS, cloneResume, containsStarterSampleContent, createBlankResume, createId, createStarter, touchResume, type ResumeDocument, type ResumeIssue, type ResumeLibrary, type StarterId } from '../lib/resume'
-import { createDefaultLibrary, loadLibraryFromProvider, removeDocument, seedPrimaryResumes, upsertDocument } from '../lib/storage'
+import { createFirstVisitLibrary, loadLibraryFromProvider, removeDocument, seedPrimaryResumes, upsertDocument } from '../lib/storage'
 import { loadPersonalResumes } from '../lib/personalResume'
 import { createResumeHistory, recordResumeChange, redoResumeChange, undoResumeChange, type ResumeHistory } from '../lib/history'
 import { reviewDestination } from '../lib/reviewNavigation'
@@ -42,7 +42,7 @@ function isNativeEditingTarget(target: EventTarget | null): boolean {
 }
 
 export function Studio() {
-  const [library, setLibrary] = useState<ResumeLibrary>(() => createDefaultLibrary())
+  const [library, setLibrary] = useState<ResumeLibrary>(() => createFirstVisitLibrary())
   const [hydrated, setHydrated] = useState(false)
   const [activeTab, setActiveTab] = useState<StudioTab>('content')
   const [mobileView, setMobileView] = useState<'editor' | 'preview'>('editor')

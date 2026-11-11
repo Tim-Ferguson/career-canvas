@@ -102,6 +102,18 @@ describe('local resume library', () => {
   })
 
 
+  it('opens a first visit on the published resume with contact details redacted', () => {
+    const empty = loadLibraryResult({ getItem: () => null })
+    assert.equal(empty.status, 'empty')
+    assert.equal(empty.library.documents.length, 1)
+    const { profile } = empty.library.documents[0]!
+    assert.equal(profile.name, 'Tim Ferguson')
+    assert.equal(profile.email, '[email redacted]')
+    assert.equal(profile.phone, '[phone redacted]')
+    assert.doesNotMatch(JSON.stringify(empty.library), /@|\d{3}[-. )]\s?\d{3}[-. ]\d{4}/)
+    assert.notEqual(loadLibraryResult({ getItem: () => '{bad json' }).library.documents[0]!.profile.name, 'Tim Ferguson')
+  })
+
   it('seeds owner resumes first, activates the first added, and never duplicates them', () => {
     const first = { ...createBlankResume(), id: 'resume-owner-a', title: 'Owner A' }
     const second = { ...createBlankResume(), id: 'resume-owner-b', title: 'Owner B' }
