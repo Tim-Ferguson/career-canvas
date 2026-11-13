@@ -10,7 +10,7 @@ function describeSource(format: ResumeUploadFormat): string {
   if (format === 'career-canvas-v1') return 'Source: Timo’s Resume Maker v1. It will migrate automatically to schema v2.'
   if (format === 'career-canvas-v2') return 'Source: Timo’s Resume Maker schema v2.'
   const label = format === 'pdf' ? 'a PDF' : format === 'docx' ? 'a Word document' : 'a text file'
-  return `Source: ${label}, read on this device. Nothing was uploaded. Headings, dates and bullets were matched by rule into schema v2, so treat the result as a first draft.`
+  return `Source: ${label}, read on this device. Nothing was uploaded. This import is experimental: headings, dates and bullets were matched by rule into schema v2, so entries, bullets and skill groups may be split or merged wrongly.`
 }
 
 function describeFound(resume: ResumeDocument): string {

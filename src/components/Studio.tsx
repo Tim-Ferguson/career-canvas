@@ -33,6 +33,8 @@ const tabs: Array<{ id: StudioTab; label: string; icon: typeof FileText }> = [
   { id: 'data', label: 'Data', icon: ShieldCheck },
 ]
 
+// Formats in the viewer's time zone, so it must only render after hydration: the server's
+// clock zone differs and the mismatch makes React discard the server-rendered page.
 function formatSavedTime(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return 'Saved locally'
@@ -586,7 +588,7 @@ export function Studio() {
     return () => document.removeEventListener('keydown', handleHistoryShortcut)
   })
 
-  const saveLabel = saveState === 'saving' ? 'Saving…' : saveState === 'limited' ? storageFailure === 'full' ? 'Storage full' : storageFailure === 'blocked' ? 'Storage blocked' : 'Not saved' : formatSavedTime(activeResume.updatedAt)
+  const saveLabel = saveState === 'saving' ? 'Saving…' : saveState === 'limited' ? storageFailure === 'full' ? 'Storage full' : storageFailure === 'blocked' ? 'Storage blocked' : 'Not saved' : hydrated ? formatSavedTime(activeResume.updatedAt) : 'Saved locally'
   const activeHistory = historiesRef.current.get(activeResume.id) ?? createResumeHistory()
   const sampleContentPresent = containsStarterSampleContent(activeResume)
   const previewPageGuides = buildPreviewPageGuides(pageBreaks, zoom)
@@ -727,7 +729,7 @@ export function Studio() {
           <section ref={newResumeDialogRef} className="new-resume-dialog" role="dialog" aria-modal="true" aria-labelledby="new-resume-title" aria-describedby="new-resume-description">
             <button className="dialog-close" type="button" aria-label="Close" onClick={() => setShowNew(false)}><X size={19} /></button>
             <div className="dialog-heading"><span className="dialog-icon"><Sparkles size={20} /></span><span className="eyebrow">A strong starting order</span><h2 id="new-resume-title">What kind of story are you telling?</h2><p id="new-resume-description">These are editorial starting points, not rigid industry boxes. Everything remains editable.</p><p className="sample-warning">Sample names, organizations, and results are fictional. Replace every claim with your own accurate experience.</p></div>
-            <label className="starter-upload file-action"><span className="dialog-icon"><FileUp size={18} aria-hidden="true" /></span><span><strong>Start from your current resume</strong><small>Upload a PDF, Word (.docx), text or JSON file. It is read on this device and sorted into editable sections as a first draft. Nothing is uploaded.</small></span><input type="file" aria-label="Upload your current resume" accept={RESUME_UPLOAD_ACCEPT} onChange={(event) => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; void importResumeFile({ file, library: libraryRef.current, onImport: addResume, announce: setStatus }) }} /></label>
+            <label className="starter-upload file-action"><span className="dialog-icon"><FileUp size={18} aria-hidden="true" /></span><span><strong>Start from your current resume <span className="experimental-badge">Experimental</span></strong><small>Choose a PDF, Word (.docx), text or JSON file. It is read on this device and never leaves it. PDF, Word and text files are sorted into sections by rule, so expect to fix entries, bullets and skill groups by hand.</small></span><input type="file" aria-label="Upload your current resume" accept={RESUME_UPLOAD_ACCEPT} onChange={(event) => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; void importResumeFile({ file, library: libraryRef.current, onImport: addResume, announce: setStatus }) }} /></label>
             <div className="starter-grid">
               {STARTERS.map((starter) => <button type="button" key={starter.id} onClick={() => createNew(starter.id)}><span>{starter.eyebrow}</span><strong>{starter.label}</strong><small>{starter.description}</small></button>)}
               <button type="button" onClick={() => createNew('blank')}><span>Clean slate</span><strong>Blank resume</strong><small>Keep only the essentials and build your own section order.</small></button>

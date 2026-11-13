@@ -556,6 +556,7 @@ details > summary::-webkit-details-marker { display: none; }
 .starter-upload small { color: var(--muted); font-size: .6rem; line-height: 1.45; }
 .starter-upload input { cursor: pointer; }
 .starter-upload + .starter-grid { margin-top: 9px; }
+.experimental-badge { display: inline-block; margin-left: 5px; padding: 2px 6px; border-radius: 99px; color: #6b4a08; background: #f5e7c2; font-family: 'DM Sans', sans-serif; font-size: .5rem; font-weight: 800; line-height: 1.4; text-transform: uppercase; letter-spacing: .07em; vertical-align: middle; white-space: nowrap; }
 .starter-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-top: 22px; }
 .starter-grid button { min-height: 132px; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; padding: 15px; border: 1px solid var(--line); border-radius: 10px; background: white; text-align: left; }
 .starter-grid button:hover { border-color: var(--brand); background: var(--brand-soft); transform: translateY(-1px); }

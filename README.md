@@ -23,7 +23,7 @@ The product is deliberately industry-flexible. Its generic entry model supports 
 - Readiness review for focus, contactability, evidence, scanability, and likely page length
 - Review findings that open collapsed content and focus the exact field, entry, or section needing attention
 - Session-only opportunity comparison that surfaces honest vocabulary gaps without exporting pasted job descriptions or claiming an ATS score
-- Upload of an existing PDF, Word (.docx), Markdown or plain-text resume, read on the device and sorted into an editable schema v2 first draft
+- Experimental upload of an existing PDF, Word (.docx), Markdown or plain-text resume, read on the device and sorted into an editable schema v2 first draft
 - JSON v2 import/export, automatic migration from the original v1 schema, plain-text export, and browser-native PDF output
 - Validated whole-library backups that restore non-destructively and preserve newer versions as well as historical copies
 - Import and restore preflights that disclose active-version changes, exact additions, ID collisions, identical skips, and capacity before changing the library
