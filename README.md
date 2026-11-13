@@ -23,6 +23,7 @@ The product is deliberately industry-flexible. Its generic entry model supports 
 - Readiness review for focus, contactability, evidence, scanability, and likely page length
 - Review findings that open collapsed content and focus the exact field, entry, or section needing attention
 - Session-only opportunity comparison that surfaces honest vocabulary gaps without exporting pasted job descriptions or claiming an ATS score
+- Upload of an existing PDF, Word (.docx), Markdown or plain-text resume, read on the device and sorted into an editable schema v2 first draft
 - JSON v2 import/export, automatic migration from the original v1 schema, plain-text export, and browser-native PDF output
 - Validated whole-library backups that restore non-destructively and preserve newer versions as well as historical copies
 - Import and restore preflights that disclose active-version changes, exact additions, ID collisions, identical skips, and capacity before changing the library
@@ -67,6 +68,8 @@ The dependency lockfile is committed. `npm audit` should report zero known vulne
 ## Architecture
 
 - `src/lib/resume.ts` — versioned schema, validation, v1 migration, starters, analysis, text export, and immutable helpers
+- `src/lib/resumeFileText.ts` — on-device text extraction from PDF (pdf.js), Word .docx and plain-text resumes
+- `src/lib/resumeTextImport.ts` — rule-based mapping of resume text onto schema v2
 - `src/lib/storage.ts` — bounded, validated local resume library
 - `src/lib/history.ts` — bounded, field-aware resume revision history
 - `src/lib/tailoring.ts` — bounded, transparent opportunity-language comparison
@@ -83,6 +86,8 @@ The dependency lockfile is committed. `npm audit` should report zero known vulne
 ## Privacy and persistence
 
 Resume content is stored only in the browser's local storage unless the user explicitly downloads, copies, imports, or prints it. There is no login and no server-side resume database. Clearing site storage removes the device-local library, so JSON downloads are the durable backup path.
+
+Uploading an existing resume keeps the same boundary. The browser reads the PDF, Word or text file itself, with pdf.js served from this site, and no file content is sent to a server or a model.
 
 The app does not load remote fonts or runtime media. The generated social card is a static project asset and contains no user data.
 
