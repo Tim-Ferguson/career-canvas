@@ -547,6 +547,15 @@ details > summary::-webkit-details-marker { display: none; }
 .dialog-heading h2 { margin: 7px 0 8px; font: 400 clamp(1.6rem, 4vw, 2.15rem) 'DM Serif Display', serif; }
 .dialog-heading p { margin: 0; color: var(--muted); font-size: .75rem; line-height: 1.5; }
 .dialog-heading .sample-warning { margin-top: 10px; padding-left: 10px; border-left: 3px solid #b98035; color: #75552c; font-size: .65rem; }
+.starter-upload { position: relative; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 13px; margin-top: 22px; padding: 14px 15px; border: 1px dashed var(--brand); border-radius: 10px; background: white; cursor: pointer; }
+.starter-upload:hover, .starter-upload:focus-within { background: var(--brand-soft); }
+.starter-upload:focus-within { outline: 2px solid var(--brand); outline-offset: 2px; }
+.starter-upload .dialog-icon { margin-bottom: 0; }
+.starter-upload > span:last-of-type { display: flex; flex-direction: column; gap: 4px; }
+.starter-upload strong { font: 400 1.05rem 'DM Serif Display', serif; }
+.starter-upload small { color: var(--muted); font-size: .6rem; line-height: 1.45; }
+.starter-upload input { cursor: pointer; }
+.starter-upload + .starter-grid { margin-top: 9px; }
 .starter-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-top: 22px; }
 .starter-grid button { min-height: 132px; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; padding: 15px; border: 1px solid var(--line); border-radius: 10px; background: white; text-align: left; }
 .starter-grid button:hover { border-color: var(--brand); background: var(--brand-soft); transform: translateY(-1px); }

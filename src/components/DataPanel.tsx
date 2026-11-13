@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ArchiveRestore, Check, Clipboard, Download, FileJson, FileText, FolderDown, HardDrive, RefreshCw, Upload } from 'lucide-react'
-import { MAX_DOCUMENT_BYTES, MAX_RESUMES, containsStarterSampleContent, parseJsonText, parseResumeImportJson, parseResumeJson, resumeToText, utf8ByteLength, type ResumeDocument, type ResumeLibrary } from '../lib/resume'
+import { MAX_DOCUMENT_BYTES, MAX_RESUMES, parseJsonText, parseResumeJson, resumeToText, utf8ByteLength, type ResumeDocument, type ResumeLibrary } from '../lib/resume'
 import { buildExportPreflight, exportConfirmationMessage } from '../lib/exportReadiness'
 import { advancedDraftIsStale, createAdvancedDraftAnchor } from '../lib/draftSafety'
 import { buildJsonResumeExport } from '../lib/jsonResumeExport'
@@ -8,6 +8,8 @@ import { MAX_LIBRARY_BACKUP_BYTES, createLibraryBackup, parseLibraryBackup, summ
 import type { DeletedResumeRecovery } from '../lib/deletionRecovery'
 import type { LibraryMergeSummary } from '../lib/storage'
 import { ExportReadinessSummary } from './ExportReadinessSummary'
+import { importResumeFile } from './resumeImportFlow'
+import { RESUME_UPLOAD_ACCEPT } from '../lib/resumeUpload'
 import { buildWorkspaceFootprint, formatWorkspaceBytes } from '../lib/workspaceFootprint'
 
 function downloadFile(contents: string, filename: string, type: string) {
@@ -108,37 +110,7 @@ export function DataPanel({ resume, library, deletedRecovery, onChange, onImport
     }
   }
 
-  const importFile = async (file: File | undefined) => {
-    if (!file) return
-    try {
-      if (file.size > MAX_DOCUMENT_BYTES) throw new Error('File is larger than the 2 MB safety limit.')
-      const importResult = parseResumeImportJson(await file.text())
-      const imported = importResult.document
-      const sameId = library.documents.find((document) => document.id === imported.id)
-      if (sameId && JSON.stringify(sameId) === JSON.stringify(imported)) {
-        announce(`Import skipped: “${imported.title || 'Untitled resume'}” is already in this library unchanged.`)
-        return
-      }
-      if (library.documents.length >= MAX_RESUMES) throw new Error(`Your device library is full at ${MAX_RESUMES} resumes. Export and remove one before importing.`)
-      const details = [
-        `Import “${imported.title || 'Untitled resume'}” from ${file.name}?`,
-        importResult.format === 'json-resume' ? 'Source: JSON Resume. Timo’s Resume Maker will convert its portable content into strict schema v2.' : importResult.format === 'career-canvas-v1' ? 'Source: Timo’s Resume Maker v1. It will migrate automatically to schema v2.' : 'Source: Timo’s Resume Maker schema v2.',
-        `Target: ${imported.targetRole || 'not specified'}. Industry: ${imported.industry || 'not specified'}. ${countLabel(imported.sections.length, 'section')}.`,
-        sameId ? 'Its internal ID matches an existing version, so Timo’s Resume Maker will assign a new ID and “copy” title.' : '',
-        containsStarterSampleContent(imported) ? 'Warning: this file still contains fictional starter content.' : '',
-        ...importResult.warnings.map((warning) => `Note: ${warning}`),
-        'The imported file will become active; every existing version stays unchanged.',
-      ].filter(Boolean).join('\n\n')
-      if (!window.confirm(details)) {
-        announce('Resume import canceled. Your library is unchanged.')
-        return
-      }
-      if (!onImport({ ...imported, updatedAt: new Date().toISOString() })) return
-      announce(`Imported “${imported.title || 'Untitled resume'}” from ${file.name}${importResult.format === 'json-resume' ? ' and converted it from JSON Resume' : ''} as the active resume. Existing versions are unchanged.`)
-    } catch (caught) {
-      announce(caught instanceof Error ? `Import refused: ${caught.message}` : 'Import refused.')
-    }
-  }
+  const importFile = (file: File | undefined) => importResumeFile({ file, library, onImport, announce })
 
   const restoreLibrary = async (file: File | undefined) => {
     if (!file) return
@@ -200,7 +172,7 @@ export function DataPanel({ resume, library, deletedRecovery, onChange, onImport
     <div className="editor-stack data-panel">
       <section className="editor-card">
         <div className="card-heading"><div><span className="eyebrow">Portable by design</span><h2>Import & export</h2></div><FileJson size={19} aria-hidden="true" /></div>
-        <p className="card-intro">Your v2 JSON keeps content, layout, and ordering together. Timo’s Resume Maker v1 files migrate automatically, and standard JSON Resume files convert into editable v2 documents.</p>
+        <p className="card-intro">Your v2 JSON keeps content, layout, and ordering together. Timo’s Resume Maker v1 files migrate automatically, and standard JSON Resume files convert into editable v2 documents. An existing PDF, Word (.docx) or text resume is read on this device and sorted into a v2 first draft.</p>
         <div className={`data-footprint ${footprint.pressure}`}><HardDrive size={16} aria-hidden="true" /><span><strong>{formatWorkspaceBytes(footprint.totalBytes)} serialized workspace</strong> Browser storage capacity varies; a downloaded backup is the portable safety copy.</span></div>
         <ExportReadinessSummary preflight={exportPreflight} />
         {dirty ? <div className="draft-export-warning" role="status"><RefreshCw size={16} aria-hidden="true" /><span><strong>Unapplied JSON is session-only</strong> Exports and library backups use the last valid resume. Apply or discard the draft before switching versions or leaving this page.</span></div> : null}
@@ -209,7 +181,7 @@ export function DataPanel({ resume, library, deletedRecovery, onChange, onImport
           <button type="button" className="export-action" disabled={dirty} title={dirty ? 'Apply or discard the advanced JSON draft first' : undefined} onClick={copyJson}><Clipboard size={18} /><span><strong>Copy JSON</strong><small>{dirty ? 'Apply or discard draft first' : 'Paste into another tool'}</small></span></button>
           <button type="button" className="export-action" disabled={dirty} title={dirty ? 'Apply or discard the advanced JSON draft first' : undefined} onClick={downloadJsonResume}><FileJson size={18} /><span><strong>JSON Resume</strong><small>{dirty ? 'Apply or discard draft first' : 'Visible standard sharing copy'}</small></span></button>
           <button type="button" className="export-action" onClick={downloadPlainText}><FileText size={18} /><span><strong>Plain text</strong><small>Quick ATS sanity check</small></span></button>
-          <label className="export-action file-action"><Upload size={18} /><span><strong>Import resume</strong><small>Add JSON as a new version</small></span><input type="file" accept="application/json,.json" onChange={(event) => { void importFile(event.currentTarget.files?.[0]); event.currentTarget.value = '' }} /></label>
+          <label className="export-action file-action"><Upload size={18} /><span><strong>Import resume</strong><small>PDF, Word, text or JSON as a new version</small></span><input type="file" accept={RESUME_UPLOAD_ACCEPT} onChange={(event) => { void importFile(event.currentTarget.files?.[0]); event.currentTarget.value = '' }} /></label>
           <button type="button" className="export-action" onClick={downloadLibraryBackup}><FolderDown size={18} /><span><strong>Back up library</strong><small>Save all {library.documents.length} versions{deletedRecovery ? ' + recovery' : ''} · {formatWorkspaceBytes(footprint.totalBytes)}</small></span></button>
           <label className="export-action file-action"><ArchiveRestore size={18} /><span><strong>Restore backup</strong><small>Merge without overwriting</small></span><input type="file" accept="application/json,.json" onChange={(event) => { void restoreLibrary(event.currentTarget.files?.[0]); event.currentTarget.value = '' }} /></label>
         </div>
